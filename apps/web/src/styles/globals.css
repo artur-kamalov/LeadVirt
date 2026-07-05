@@ -130,6 +130,288 @@ select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.7'/%3E%3C/svg%3E");
 }
 
+.leadvirt-glow-bg {
+  contain: paint;
+  background:
+    radial-gradient(ellipse 70% 45% at 50% 0%, rgba(63, 63, 70, 0.42), transparent 70%),
+    linear-gradient(180deg, rgba(24, 24, 27, 0.2), rgba(9, 9, 11, 0.9));
+  opacity: 0.55;
+}
+
+.leadvirt-ambient-indigo,
+.leadvirt-ambient-emerald,
+.leadvirt-ambient-fuchsia,
+.leadvirt-section-ambient,
+.leadvirt-card-glow-emerald,
+.leadvirt-card-glow-indigo,
+.leadvirt-cta-section-glow,
+.leadvirt-cta-card-glow {
+  contain: paint;
+}
+
+.leadvirt-ambient-indigo {
+  background: radial-gradient(ellipse at center, rgba(79, 70, 229, 0.24), transparent 68%);
+}
+
+.leadvirt-ambient-emerald {
+  background: radial-gradient(ellipse at center, rgba(5, 150, 105, 0.18), transparent 68%);
+}
+
+.leadvirt-ambient-fuchsia {
+  background: radial-gradient(ellipse at center, rgba(192, 38, 211, 0.16), transparent 70%);
+}
+
+.leadvirt-section-ambient-indigo {
+  background: radial-gradient(circle at center, rgba(99, 102, 241, 0.08), transparent 70%);
+}
+
+.leadvirt-section-ambient-emerald {
+  background: radial-gradient(circle at center, rgba(16, 185, 129, 0.08), transparent 70%);
+}
+
+.leadvirt-section-ambient-teal {
+  background: radial-gradient(circle at center, rgba(20, 184, 166, 0.08), transparent 70%);
+}
+
+.leadvirt-card-glow-emerald {
+  background: radial-gradient(circle at center, rgba(16, 185, 129, 0.18), transparent 68%);
+  transition: opacity 0.3s ease;
+}
+
+.leadvirt-card-glow-indigo {
+  background: radial-gradient(circle at center, rgba(99, 102, 241, 0.18), transparent 68%);
+  transition: opacity 0.3s ease;
+}
+
+.leadvirt-cta-section-glow {
+  background: linear-gradient(180deg, rgba(6, 78, 59, 0.18), transparent 70%);
+}
+
+.leadvirt-cta-card-glow {
+  background: radial-gradient(circle at center, rgba(16, 185, 129, 0.28), transparent 68%);
+}
+
+.leadvirt-deferred-paint {
+  content-visibility: auto;
+  contain-intrinsic-size: 900px;
+}
+
+.leadvirt-mobile-menu-enter {
+  animation: leadvirt-mobile-menu-enter 0.28s ease-out both;
+  transform-origin: top;
+  will-change: opacity, transform;
+}
+
+.leadvirt-reveal-up {
+  animation: leadvirt-reveal-up 0.7s ease-out both;
+  will-change: opacity, transform;
+}
+
+.leadvirt-hero-copy-enter {
+  animation: leadvirt-hero-copy-enter 0.8s ease-out both;
+  will-change: opacity, transform;
+}
+
+.leadvirt-hero-visual-enter {
+  animation: leadvirt-hero-visual-enter 1s ease-out 0.2s both;
+  will-change: opacity, transform;
+}
+
+.leadvirt-hero-node-pulse {
+  contain: paint;
+  isolation: isolate;
+}
+
+.leadvirt-hero-node-pulse::before {
+  content: "";
+  position: absolute;
+  inset: -28px;
+  z-index: -1;
+  border-radius: 28px;
+  background: radial-gradient(circle at center, rgba(52, 211, 153, 0.24), transparent 65%);
+  opacity: 0;
+  transform: scale3d(0.75, 0.75, 1);
+  animation: leadvirt-hero-node-pulse 3s ease-in-out infinite;
+  will-change: opacity, transform;
+}
+
+.leadvirt-hero-message-card {
+  animation: leadvirt-hero-message-flow 5s ease-in-out infinite both;
+  backface-visibility: hidden;
+  contain: layout paint;
+  transform: translateZ(0);
+  will-change: opacity, transform;
+}
+
+.leadvirt-hero-task-card {
+  animation: leadvirt-hero-task-flow 5s ease-in-out infinite both;
+  backface-visibility: hidden;
+  contain: layout paint;
+  transform: translateZ(0);
+  will-change: opacity, transform;
+}
+
+.leadvirt-hero-flow-line {
+  animation: leadvirt-hero-flow-line 3s ease-in-out infinite;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  will-change: opacity, stroke-dashoffset;
+}
+
+.leadvirt-how-path-sheen {
+  animation: leadvirt-how-path-sheen 4s linear infinite;
+  transform: translate3d(-100%, 0, 0);
+  will-change: transform;
+}
+
+.leadvirt-step-dot-pulse {
+  animation: leadvirt-step-dot-pulse 2s ease-in-out infinite;
+  will-change: opacity, transform;
+}
+
+@keyframes leadvirt-hero-copy-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 20px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes leadvirt-mobile-menu-enter {
+  from {
+    opacity: 0;
+    transform: scaleY(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes leadvirt-reveal-up {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 24px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes leadvirt-hero-visual-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes leadvirt-hero-node-pulse {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale3d(0.75, 0.75, 1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale3d(1.1, 1.1, 1);
+  }
+}
+
+@keyframes leadvirt-hero-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes leadvirt-hero-message-flow {
+  0% {
+    opacity: 0;
+    transform: translate3d(-20px, 10px, 0);
+  }
+  20%,
+  72% {
+    opacity: 1;
+  }
+  45% {
+    transform: translate3d(20px, 0, 0);
+  }
+  72% {
+    transform: translate3d(40px, -10px, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(80px, -20px, 0);
+  }
+}
+
+@keyframes leadvirt-hero-task-flow {
+  0% {
+    opacity: 0;
+    transform: translate3d(-20px, -10px, 0);
+  }
+  20%,
+  72% {
+    opacity: 1;
+  }
+  45% {
+    transform: translate3d(20px, 0, 0);
+  }
+  72% {
+    transform: translate3d(40px, 10px, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(60px, 20px, 0);
+  }
+}
+
+@keyframes leadvirt-hero-flow-line {
+  0% {
+    opacity: 0;
+    stroke-dashoffset: 1;
+  }
+  20%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes leadvirt-how-path-sheen {
+  to {
+    transform: translate3d(250%, 0, 0);
+  }
+}
+
+@keyframes leadvirt-step-dot-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale3d(1, 1, 1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale3d(1.2, 1.2, 1);
+  }
+}
+
+@media (max-width: 767px) {
+  .leadvirt-deferred-paint {
+    contain-intrinsic-size: 1200px;
+  }
+}
+
 * {
   scrollbar-width: thin;
   scrollbar-color: rgba(52, 211, 153, 0.45) transparent;

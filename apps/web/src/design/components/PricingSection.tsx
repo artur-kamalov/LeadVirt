@@ -1,16 +1,13 @@
 import React from "react";
-import { motion } from "motion/react";
+import Link from "next/link";
 import { Check, Sparkles } from "lucide-react";
 import { Button } from "./ui/Button";
 import { plans } from "../product/plans";
-import { useNav } from "../product/nav";
 import { cn } from "../lib/utils";
 
 export function PricingSection() {
-  const { go } = useNav();
-
   return (
-    <section id="pricing" className="py-24 container mx-auto px-6 relative">
+    <section id="pricing" className="leadvirt-deferred-paint py-24 container mx-auto px-6 relative">
       <div className="text-center max-w-2xl mx-auto mb-16">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900/50 border border-zinc-800 text-sm font-medium text-emerald-400 mb-6 backdrop-blur-sm">
           <Sparkles className="w-3.5 h-3.5" />
@@ -24,18 +21,15 @@ export function PricingSection() {
 
       <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6 items-stretch">
         {plans.map((plan, i) => (
-          <motion.div
+          <div
             key={plan.id}
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-80px" }}
-            transition={{ duration: 0.6, delay: i * 0.08, ease: "easeOut" }}
             className={cn(
-              "relative flex flex-col rounded-3xl border p-8 backdrop-blur-sm",
+              "leadvirt-reveal-up relative flex flex-col rounded-3xl border p-8 backdrop-blur-sm",
               plan.popular
                 ? "bg-gradient-to-b from-emerald-500/10 to-zinc-900/60 border-emerald-500/40 shadow-[0_0_50px_rgba(52,211,153,0.15)] xl:-translate-y-3"
                 : "bg-zinc-900/40 border-zinc-800"
             )}
+            style={{ animationDelay: `${i * 0.08}s` }}
           >
             {plan.popular && (
               <>
@@ -62,9 +56,9 @@ export function PricingSection() {
             <Button
               variant={plan.popular ? "primary" : "outline"}
               className="w-full mb-8"
-              onClick={() => go("onboarding")}
+              asChild
             >
-              {plan.cta}
+              <Link href="/onboarding" prefetch={false}>{plan.cta}</Link>
             </Button>
 
             <ul className="space-y-3 mt-auto">
@@ -82,7 +76,7 @@ export function PricingSection() {
                 </li>
               ))}
             </ul>
-          </motion.div>
+          </div>
         ))}
       </div>
 

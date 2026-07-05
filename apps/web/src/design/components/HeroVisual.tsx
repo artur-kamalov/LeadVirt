@@ -5,17 +5,20 @@ export const HeroVisual = () => {
   return (
     <div className="relative w-full aspect-square md:aspect-video max-w-4xl mx-auto mt-16 lg:mt-0 flex items-center justify-center">
       {/* Background abstract elements */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-zinc-900/25 to-transparent border border-zinc-800/50 rounded-3xl overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-zinc-900/35 to-transparent border border-zinc-800/50 rounded-3xl overflow-hidden">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
       </div>
 
       {/* Center AI Node */}
       <div
-        className="absolute z-20 w-24 h-24 rounded-2xl bg-zinc-900 border border-emerald-500/30 flex items-center justify-center rotate-45 shadow-[0_0_34px_rgba(52,211,153,0.16)]"
+        className="leadvirt-hero-node-pulse absolute z-20 w-24 h-24 rounded-2xl bg-zinc-900 border border-emerald-500/30 flex items-center justify-center rotate-45"
       >
         <div className="rotate-[-45deg] relative">
           <Sparkles className="w-8 h-8 text-emerald-400" />
-          <div className="absolute -inset-4 border border-dashed border-emerald-500/20 rounded-full" />
+          <div
+            className="absolute -inset-4 border border-dashed border-emerald-500/20 rounded-full"
+            style={{ animation: "leadvirt-hero-spin 10s linear infinite" }}
+          />
         </div>
       </div>
 
@@ -28,8 +31,8 @@ export const HeroVisual = () => {
         ].map((msg, i) => (
           <div
             key={i}
-            className="flex items-center gap-3 bg-zinc-800/90 border border-zinc-700 p-3 rounded-2xl rounded-tl-sm text-sm text-zinc-300 w-48 shadow-xl"
-            style={{ transform: `translate(${i * 18}px, ${i % 2 === 0 ? 0 : -4}px)` }}
+            className="leadvirt-hero-message-card flex items-center gap-3 bg-zinc-800/90 border border-zinc-700 p-3 rounded-2xl rounded-tl-sm text-sm text-zinc-300 w-48 shadow-xl"
+            style={{ animationDelay: `${msg.delay}s` }}
           >
             <MessageSquare className="w-4 h-4 text-zinc-400 shrink-0" />
             <span className="truncate">{msg.text}</span>
@@ -46,8 +49,8 @@ export const HeroVisual = () => {
         ].map((task, i) => (
           <div
             key={i}
-            className={`flex items-center gap-3 ${task.bg} border ${task.border} p-3 rounded-xl text-sm text-zinc-200 w-52 shadow-xl`}
-            style={{ transform: `translate(${-i * 14}px, ${i % 2 === 0 ? 0 : 4}px)` }}
+            className={`leadvirt-hero-task-card flex items-center gap-3 ${task.bg} border ${task.border} p-3 rounded-xl text-sm text-zinc-200 w-52 shadow-xl`}
+            style={{ animationDelay: `${task.delay}s` }}
           >
             <task.icon className={`w-4 h-4 ${task.color} shrink-0`} />
             <span className="truncate">{task.text}</span>
@@ -69,7 +72,8 @@ export const HeroVisual = () => {
           stroke="url(#flowGrad)"
           strokeWidth="3"
           fill="none"
-          opacity="0.75"
+          pathLength={1}
+          className="leadvirt-hero-flow-line"
         />
         <defs>
           <linearGradient id="flowGrad" x1="0%" y1="0%" x2="100%" y2="0%">

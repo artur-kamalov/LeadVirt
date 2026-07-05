@@ -1,5 +1,17 @@
 # Decision Log
 
+## 2026-07-05: Keep Product Providers Off Public Landing
+
+Decision: The root Next layout no longer wraps every route in `DesignProviders`; product/demo/onboarding routes opt into those providers where their components need nav/theme context.
+
+Context: The public landing was hydrating product context providers even though its first screen does not need product navigation or theme state. That extra client work contributed to visible initial-load stutter.
+
+Consequences:
+
+- Landing, `/features`, `/pricing`, and `/solutions` can stay mostly server-rendered and keep a small first-load JS footprint.
+- `/app`, `/demo`, and `/onboarding` must wrap their page trees with `DesignProviders` explicitly.
+- New product routes that use `useNav` or `useTheme` should live under a provider-wrapped layout or add the provider at the route boundary.
+
 ## 2026-07-05: Deploy LeadVirt.ru Through GitHub Actions
 
 Decision: Pushes to `main`/`master` and manual workflow runs can deploy `leadvirt.ru` through `.github/workflows/deploy-leadvirt-ru.yml`.
