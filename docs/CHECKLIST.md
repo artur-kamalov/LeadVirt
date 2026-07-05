@@ -50,6 +50,7 @@ Last updated: 2026-07-05
 - [x] Replaced the visible nested Telegram button with a real Telegram iframe underneath and a LeadVirt green visual mask above it using `pointer-events: none`; verified web typecheck/lint/build, production deploy, health, no-cookie `401`, final `https://leadvirt.ru/login` screenshot, and click-through popup opening to Telegram OAuth.
 - [x] Added GitHub Actions auto-deploy for `leadvirt.ru`: verify shared types/API/Web, upload a release over SSH, switch `/opt/leadvirt/current`, rebuild Docker Compose, and verify health plus no-cookie `401`.
 - [x] Generated a dedicated `leadvirt-github-actions` ED25519 key, installed its public key for `deploy@193.187.92.88`, and verified SSH/Docker access with that key.
+- [x] Installed GitHub CLI locally, added `LEADVIRT_DEPLOY_SSH_KEY` to `artur-kamalov/LeaedVIrtAi`, fixed the deploy package path, and verified GitHub Actions run `28728555134` deploys `leadvirt.ru` successfully.
 - [x] Enforced the demo/real-data boundary: `/app/**` now requires a real user session and renders only tenant DB data, while `/demo` is a static read-only preview.
 - [x] Removed anonymous demo fallback from tenant-scoped API/UI paths; missing sessions return `401` or redirect to `/login` instead of loading demo tenant data.
 - [x] Added `qa:demo-boundary` and Playwright clean-user separation coverage; verified full `qa:api` passes 38/38 with credentials-only app access.
