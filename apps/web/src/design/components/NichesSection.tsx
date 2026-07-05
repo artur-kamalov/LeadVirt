@@ -190,7 +190,7 @@ export const NichesSection = () => {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.5 }}
                 className={cn(
-                  "absolute -top-40 -right-40 w-96 h-96 blur-[120px] rounded-full pointer-events-none bg-gradient-to-br",
+                  "absolute -top-40 -right-40 w-80 h-80 blur-3xl rounded-full pointer-events-none bg-gradient-to-br",
                   active.gradient,
                   "to-transparent"
                 )}
@@ -247,7 +247,7 @@ export const NichesSection = () => {
                     className="absolute -bottom-8 -right-4 md:-right-12 z-20"
                   >
                     <div className={cn(
-                      "flex items-center gap-3 p-4 rounded-xl backdrop-blur-xl border shadow-2xl",
+                      "flex items-center gap-3 p-4 rounded-xl border shadow-2xl",
                       "bg-zinc-900/80",
                       active.crmBorder
                     )}>

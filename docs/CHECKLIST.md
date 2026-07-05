@@ -358,6 +358,8 @@ Last updated: 2026-07-05
 - [x] Verified Billing payment/invoice work with API/Web/shared-types typechecks, API/Web lint, focused Billing Playwright smoke on `localhost:3001`, and API/Web production builds.
 - [x] Fixed Landing CTA button styling so primary buttons use the emerald brand color and hero CTA buttons share the same compact standard height.
 - [x] Verified Landing CTA compact-height fix with `@leadvirt/web` typecheck, lint, and a Playwright screenshot on `localhost:3001`.
+- [x] Improved Landing FPS by removing continuous hero/how-it-works animations, replacing large blur/blend effects with cheaper static layers, and adding a focused landing performance smoke.
+- [x] Verified Landing FPS work with `@leadvirt/web` typecheck/lint/build and Playwright `landing-performance` smoke on `localhost:3001` reporting ~60 fps during first scroll.
 - [x] Replaced the copied Integrations API/Webhook fake key and fake external URL with API-backed Webhook/API endpoint metadata.
 - [x] Added direct `/app/settings?tab=api` routing so Integrations can open the API keys settings tab.
 - [x] Extended Integrations Playwright smoke to verify Webhook/API endpoint metadata and the API keys settings link.

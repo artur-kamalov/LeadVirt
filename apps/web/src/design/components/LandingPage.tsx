@@ -32,7 +32,7 @@ export function LandingPage() {
       <GlowBg />
       
       {/* HEADER */}
-      <header className="fixed top-0 inset-x-0 z-50 border-b border-white/5 bg-zinc-950/60 backdrop-blur-xl">
+      <header className="fixed top-0 inset-x-0 z-50 border-b border-white/5 bg-zinc-950/90">
         <div className="container mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center">
@@ -73,7 +73,7 @@ export function LandingPage() {
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
-            className="md:hidden border-t border-white/5 bg-zinc-950/95 backdrop-blur-xl overflow-hidden"
+            className="md:hidden border-t border-white/5 bg-zinc-950/95 overflow-hidden"
           >
             <nav className="container mx-auto px-6 py-6 flex flex-col gap-4 text-zinc-300">
               <a href="#features" onClick={() => setIsMenuOpen(false)} className="py-2">Возможности</a>
@@ -112,9 +112,9 @@ export function LandingPage() {
           <div className="hidden lg:block absolute left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/5 to-transparent transform -translate-x-1/2" />
           
           {/* Scattered glowing ambient orbs */}
-          <div className="absolute top-[15%] right-[-10%] w-[40rem] h-[40rem] bg-indigo-500/5 blur-[150px] rounded-full mix-blend-screen" />
-          <div className="absolute top-[45%] left-[-10%] w-[50rem] h-[50rem] bg-emerald-500/5 blur-[150px] rounded-full mix-blend-screen" />
-          <div className="absolute top-[75%] right-[0%] w-[30rem] h-[30rem] bg-teal-500/5 blur-[120px] rounded-full mix-blend-screen" />
+          <div className="absolute top-[15%] right-[-10%] w-[34rem] h-[34rem] bg-indigo-500/5 blur-3xl rounded-full" />
+          <div className="absolute top-[45%] left-[-10%] w-[42rem] h-[42rem] bg-emerald-500/5 blur-3xl rounded-full" />
+          <div className="absolute top-[75%] right-[0%] w-[26rem] h-[26rem] bg-teal-500/5 blur-3xl rounded-full" />
         </div>
 
         {/* HERO SECTION */}
@@ -126,9 +126,8 @@ export function LandingPage() {
               transition={{ duration: 0.8, ease: "easeOut" }}
               className="max-w-2xl"
             >
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900/50 border border-zinc-800 text-sm font-medium text-emerald-400 mb-6 backdrop-blur-sm">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900/70 border border-zinc-800 text-sm font-medium text-emerald-400 mb-6">
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
                 Новый стандарт обработки лидов
@@ -177,13 +176,9 @@ export function LandingPage() {
             </motion.div>
 
             <div className="relative">
-              {/* Animated Path Line (Desktop) */}
+              {/* Path Line (Desktop) */}
               <div className="hidden md:block absolute top-10 left-[12.5%] right-[12.5%] h-[2px] bg-zinc-800/50 z-0 rounded-full overflow-hidden">
-                <motion.div 
-                  className="absolute top-0 bottom-0 left-0 bg-gradient-to-r from-transparent via-emerald-400 to-transparent w-[40%]"
-                  animate={{ left: ["-40%", "100%"] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: "linear", repeatDelay: 1 }}
-                />
+                <div className="absolute inset-y-0 left-0 right-0 bg-gradient-to-r from-transparent via-emerald-400/60 to-transparent" />
               </div>
 
               <motion.div 
@@ -218,11 +213,7 @@ export function LandingPage() {
                       >
                         <div className="absolute inset-0 rounded-2xl border-2 border-emerald-500/0 group-hover:border-emerald-500/20 transition-colors" />
                         
-                        <motion.div
-                          animate={{ opacity: [0.5, 1, 0.5], scale: [1, 1.2, 1] }}
-                          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                          className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full shadow-[0_0_10px_rgba(52,211,153,0.8)] opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                        />
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full shadow-[0_0_10px_rgba(52,211,153,0.8)] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
                         {item.step}
                       </motion.div>
@@ -260,7 +251,7 @@ export function LandingPage() {
                 />
                 <div className="absolute inset-0 bg-gradient-to-r from-zinc-900 via-transparent to-transparent" />
               </div>
-              <div className="absolute right-0 top-0 w-64 h-64 bg-emerald-500/10 blur-[80px] rounded-full group-hover:bg-emerald-500/20 transition-colors pointer-events-none" />
+              <div className="absolute right-0 top-0 w-56 h-56 bg-emerald-500/10 blur-3xl rounded-full group-hover:bg-emerald-500/20 transition-colors pointer-events-none" />
               <div className="relative z-10 max-w-sm">
                 <Zap className="w-8 h-8 text-emerald-400 mb-4" />
                 <h3 className="text-2xl font-bold mb-2">Ответы 24/7</h3>
@@ -268,7 +259,7 @@ export function LandingPage() {
               </div>
               <div className="relative z-10 mt-6 bg-zinc-950/80 backdrop-blur rounded-2xl p-4 border border-white/5 max-w-sm">
                 <div className="flex gap-3 items-center text-sm text-zinc-300">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
                   <span>Среднее время ответа: 18 сек</span>
                 </div>
               </div>
@@ -316,7 +307,7 @@ export function LandingPage() {
                 />
                 <div className="absolute inset-0 bg-gradient-to-l from-zinc-900 via-transparent to-transparent" />
               </div>
-              <div className="absolute left-0 bottom-0 w-64 h-64 bg-indigo-500/10 blur-[80px] rounded-full group-hover:bg-indigo-500/20 transition-colors pointer-events-none" />
+              <div className="absolute left-0 bottom-0 w-56 h-56 bg-indigo-500/10 blur-3xl rounded-full group-hover:bg-indigo-500/20 transition-colors pointer-events-none" />
               <div className="relative z-10 max-w-md">
                 <LineChart className="w-8 h-8 text-indigo-400 mb-4" />
                 <h3 className="text-2xl font-bold mb-2">Передача в CRM и Аналитика</h3>
@@ -352,7 +343,7 @@ export function LandingPage() {
         <section className="py-32 container mx-auto px-6 relative">
           <div className="absolute inset-0 bg-gradient-to-b from-emerald-900/20 to-transparent blur-3xl -z-10" />
           <div className="max-w-4xl mx-auto text-center bg-zinc-900 border border-zinc-800 rounded-[3rem] p-12 md:p-20 relative overflow-hidden group">
-            <div className="absolute inset-0 opacity-20 mix-blend-screen pointer-events-none group-hover:scale-105 transition-transform duration-1000">
+            <div className="absolute inset-0 opacity-20 pointer-events-none group-hover:scale-[1.02] transition-transform duration-1000">
               <ImageWithFallback 
                 src="https://images.unsplash.com/photo-1710438399422-2fca27686bcd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkYXJrJTIwbW9kZXJuJTIwYWJzdHJhY3QlMjBiYWNrZ3JvdW5kfGVufDF8fHx8MTc4MTczOTMxOHww&ixlib=rb-4.1.0&q=80&w=1080"
                 alt="Dark background"
@@ -361,7 +352,7 @@ export function LandingPage() {
             </div>
             <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-zinc-900/80 to-zinc-900/40" />
             
-            <div className="absolute -top-40 -right-40 w-80 h-80 bg-emerald-500/20 blur-[100px] rounded-full pointer-events-none" />
+            <div className="absolute -top-40 -right-40 w-72 h-72 bg-emerald-500/16 blur-3xl rounded-full pointer-events-none" />
             
             <div className="relative z-10">
               <h2 className="text-4xl md:text-6xl font-bold mb-6 tracking-tight">Не теряйте клиентов, <br/>пока команда занята</h2>
