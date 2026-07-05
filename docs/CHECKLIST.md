@@ -51,6 +51,7 @@ Last updated: 2026-07-05
 - [x] Added GitHub Actions auto-deploy for `leadvirt.ru`: verify shared types/API/Web, upload a release over SSH, switch `/opt/leadvirt/current`, rebuild Docker Compose, and verify health plus no-cookie `401`.
 - [x] Generated a dedicated `leadvirt-github-actions` ED25519 key, installed its public key for `deploy@193.187.92.88`, and verified SSH/Docker access with that key.
 - [x] Installed GitHub CLI locally, added `LEADVIRT_DEPLOY_SSH_KEY` to `artur-kamalov/LeaedVIrtAi`, fixed the deploy package path, and verified GitHub Actions run `28728555134` deploys `leadvirt.ru` successfully.
+- [x] Updated the deploy workflow to current GitHub Actions runtime majors (`actions/checkout@v7`, `actions/setup-node@v6`) and verified run `28728749943` deploys successfully without the Node 20 deprecation warning.
 - [x] Enforced the demo/real-data boundary: `/app/**` now requires a real user session and renders only tenant DB data, while `/demo` is a static read-only preview.
 - [x] Removed anonymous demo fallback from tenant-scoped API/UI paths; missing sessions return `401` or redirect to `/login` instead of loading demo tenant data.
 - [x] Added `qa:demo-boundary` and Playwright clean-user separation coverage; verified full `qa:api` passes 38/38 with credentials-only app access.
