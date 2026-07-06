@@ -108,6 +108,9 @@ jobs:
           corepack pnpm --filter @leadvirt/worker lint
           corepack pnpm --filter @leadvirt/worker build
 
+      - name: Verify release readiness scripts
+        run: corepack pnpm run qa:release-readiness
+
       - name: Verify AI quality gate
         run: corepack pnpm run qa:ai:quality
 

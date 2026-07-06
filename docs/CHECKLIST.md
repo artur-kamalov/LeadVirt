@@ -45,6 +45,7 @@ Last updated: 2026-07-06
 - [x] Regenerated `docs/PILOT_PACKET.md` for `https://leadvirt.ru` and the real `lvwh_...` endpoint; live webhook secrets are redacted by default unless `LEADVIRT_PILOT_PACKET_INCLUDE_SECRETS=1` is explicitly set.
 - [x] Updated the deploy workflow artifact upload action to `actions/upload-artifact@v7` to clear the Node 20 runtime deprecation warning.
 - [x] Added `qa:release-readiness` to guard pilot packet secret redaction and skipped public-preflight report mode.
+- [x] Added `qa:release-readiness` to the LeadVirt.ru GitHub Actions verify job.
 - [x] Documented the AI runtime implementation plan in `docs/AI_RUNTIME_IMPLEMENTATION_PLAN.md` and recorded the LangGraph/Qdrant production-runtime decision in `docs/DECISION_LOG.md`.
 - [x] Fixed Landing initial-load stutter while preserving animations: landing now renders mostly as server HTML, product providers moved off the root layout, expensive blur/image work was reduced, Niches motion loads on scroll, and focused performance/scroll Playwright smokes were added.
 - [x] Optimized only the Landing first-screen hero appearance by moving hero entrance/visual animation frames from Framer Motion to CSS keyframes while preserving the animated cards, central node, and gradient SVG flow line; verified with web typecheck/lint/build and Playwright screenshots on `localhost:3001`.
