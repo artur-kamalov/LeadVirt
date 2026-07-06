@@ -133,6 +133,11 @@ function bookingCandidate(input: PlanAiToolCallsInput) {
   return firstExactDateTime(haystack);
 }
 
+function hasExplicitBookingIntent(input: PlanAiToolCallsInput) {
+  const haystack = input.normalizedText.toLowerCase();
+  return /\b(book|booking|appointment|schedule|slot)\b/u.test(haystack) || /запис|брон|слот|окн[оа]/iu.test(haystack);
+}
+
 function statusTimestamp(status: z.infer<typeof leadStatusSchema>, date: Date): Prisma.LeadUpdateInput {
   if (status === "QUALIFIED") return { qualifiedAt: date };
   if (status === "BOOKED") return { bookedAt: date };
@@ -224,7 +229,10 @@ export function planAiToolCalls(input: PlanAiToolCallsInput): AiToolCall[] {
     );
   }
 
-  const startsAt = input.qualityPassed && input.recommendationAction === "create_booking_draft" ? bookingCandidate(input) : undefined;
+  const startsAt =
+    input.qualityPassed && (input.recommendationAction === "create_booking_draft" || hasExplicitBookingIntent(input))
+      ? bookingCandidate(input)
+      : undefined;
   if (startsAt) {
     calls.push(
       aiToolCallSchema.parse({
