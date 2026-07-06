@@ -1,4 +1,5 @@
 import type { ApiEnvelope } from "@leadvirt/types";
+import { demoApiRequest, shouldUseDemoApi } from "./demo-runtime";
 
 const defaultApiUrl = "http://localhost:4001/api";
 
@@ -46,6 +47,10 @@ export function withQuery<TQuery extends object>(path: string, query: TQuery) {
 }
 
 export async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+  if (shouldUseDemoApi()) {
+    return Promise.resolve(demoApiRequest<T>(path, init));
+  }
+
   const hasBody = init.body !== undefined && init.body !== null;
   const response = await fetch(urlFor(path), {
     ...init,

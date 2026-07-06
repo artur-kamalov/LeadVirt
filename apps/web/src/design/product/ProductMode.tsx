@@ -6,12 +6,12 @@ export type ProductMode = "app" | "demo";
 
 interface ProductModeState {
   mode: ProductMode;
-  readOnly: boolean;
+  demo: boolean;
 }
 
 const ProductModeContext = React.createContext<ProductModeState>({
   mode: "app",
-  readOnly: false,
+  demo: false,
 });
 
 export function ProductModeProvider({
@@ -22,7 +22,7 @@ export function ProductModeProvider({
   children: React.ReactNode;
 }) {
   return (
-    <ProductModeContext.Provider value={{ mode, readOnly: mode === "demo" }}>
+    <ProductModeContext.Provider value={{ mode, demo: mode === "demo" }}>
       {children}
     </ProductModeContext.Provider>
   );

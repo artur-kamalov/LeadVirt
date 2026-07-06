@@ -249,17 +249,11 @@ function useProductBilling(disabled: boolean, mode: ProductMode) {
   };
 }
 
-function useProductNotifications(disabled: boolean, mode: ProductMode) {
+function useProductNotifications(disabled: boolean) {
   const [apiNotifications, setApiNotifications] = React.useState<NotificationItem[] | null>(null);
   const [apiResolved, setApiResolved] = React.useState(false);
 
   React.useEffect(() => {
-    if (mode === "demo") {
-      setApiNotifications([]);
-      setApiResolved(true);
-      return;
-    }
-
     if (disabled) {
       setApiNotifications([]);
       setApiResolved(true);
@@ -286,7 +280,7 @@ function useProductNotifications(disabled: boolean, mode: ProductMode) {
     return () => {
       active = false;
     };
-  }, [disabled, mode]);
+  }, [disabled]);
 
   if (apiResolved) {
     return { notifications: apiNotifications ?? [], apiBacked: true };
@@ -298,23 +292,19 @@ function useProductNotifications(disabled: boolean, mode: ProductMode) {
 function NavLink({
   item,
   active,
-  readOnly = false,
+  mode,
   onClick,
 }: {
   item: typeof navItems[number];
   active: boolean;
-  readOnly?: boolean;
+  mode: ProductMode;
   onClick?: () => void;
 }) {
   const Icon = item.icon;
   return (
     <Link
-      href={readOnly ? "/demo" : hrefForRoute(item.id)}
-      onClick={(event) => {
-        if (readOnly) {
-          event.preventDefault();
-          toast.info("Demo preview доступен только для просмотра");
-        }
+      href={hrefForRoute(item.id, {}, mode)}
+      onClick={() => {
         onClick?.();
       }}
       className={cn(
@@ -344,7 +334,7 @@ export function ProductLayout({
   children: React.ReactNode;
   contentClassName?: string;
 }) {
-  const { mode, readOnly } = useProductMode();
+  const { mode, demo } = useProductMode();
   const { route, go } = useNav();
   const router = useRouter();
   const { theme, toggle } = useTheme();
@@ -353,21 +343,21 @@ export function ProductLayout({
   const [globalSearch, setGlobalSearch] = React.useState("");
   const identity = useProductIdentity(mode);
   const billing = useProductBilling(identity.passwordChangeRequired, mode);
-  const productNotifications = useProductNotifications(identity.passwordChangeRequired, mode);
+  const productNotifications = useProductNotifications(identity.passwordChangeRequired);
   const unreadNotificationCount = productNotifications.apiBacked
     ? productNotifications.notifications.length
     : productNotifications.notifications.filter((item) => item.unread).length;
 
   React.useEffect(() => {
-    if (readOnly || !identity.passwordChangeRequired || typeof window === "undefined") return;
+    if (demo || !identity.passwordChangeRequired || typeof window === "undefined") return;
     const url = new URL(window.location.href);
     if (url.pathname === "/app/settings" && url.searchParams.get("tab") === "security") return;
     router.replace("/app/settings?tab=security");
-  }, [identity.passwordChangeRequired, readOnly, router]);
+  }, [demo, identity.passwordChangeRequired, router]);
 
   const handleLogout = React.useCallback(async () => {
-    if (readOnly) {
-      router.push("/login");
+    if (demo) {
+      router.push("/signup");
       return;
     }
     if (loggingOut) return;
@@ -384,17 +374,14 @@ export function ProductLayout({
     } finally {
       setLoggingOut(false);
     }
-  }, [loggingOut, readOnly, router]);
+  }, [demo, loggingOut, router]);
 
   const handleGlobalSearch = React.useCallback((event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (readOnly) {
-      toast.info("Demo preview доступен только для просмотра");
-      return;
-    }
     const query = globalSearch.trim();
-    router.push(query ? `/app/inbox?q=${encodeURIComponent(query)}` : "/app/inbox");
-  }, [globalSearch, readOnly, router]);
+    const inboxPath = hrefForRoute("inbox", {}, mode);
+    router.push(query ? `${inboxPath}?q=${encodeURIComponent(query)}` : inboxPath);
+  }, [globalSearch, mode, router]);
 
   const sidebar = (
     <div className="flex h-full w-full min-w-0 flex-col overflow-hidden">
@@ -411,7 +398,7 @@ export function ProductLayout({
             key={item.id}
             item={item}
             active={route === item.id || (route === "billing" && item.id === "settings")}
-            readOnly={readOnly}
+            mode={mode}
             onClick={() => {
               setMobileOpen(false);
             }}
@@ -429,7 +416,7 @@ export function ProductLayout({
             <span className={cn("truncate text-xs font-semibold", billing.active ? "text-emerald-300" : "text-zinc-400")}>{billing.title}</span>
           </div>
           <p className="mb-3 truncate text-xs text-zinc-400">{billing.detail}</p>
-          <Button size="sm" className="w-full" onClick={() => (readOnly ? router.push("/signup") : go("billing"))}>{billing.action}</Button>
+          <Button size="sm" className="w-full" onClick={() => (demo ? router.push("/signup") : go("billing"))}>{billing.action}</Button>
         </div>
 
         <Dropdown
@@ -450,7 +437,7 @@ export function ProductLayout({
           <DropdownItem icon={CreditCard} onClick={() => go("billing")}>Биллинг и тариф</DropdownItem>
           <DropdownItem icon={Settings} onClick={() => go("settings")}>Настройки</DropdownItem>
           <DropdownSeparator />
-          <DropdownItem icon={LogOut} danger onClick={() => void handleLogout()}>{loggingOut ? "Выходим..." : "Выйти"}</DropdownItem>
+          <DropdownItem icon={LogOut} danger={!demo} onClick={() => void handleLogout()}>{demo ? "Создать workspace" : loggingOut ? "Выходим..." : "Выйти"}</DropdownItem>
         </Dropdown>
       </div>
     </div>
@@ -516,7 +503,7 @@ export function ProductLayout({
                 <Menu className="w-6 h-6" />
               </button>
               <h1 className="text-lg lg:text-2xl font-bold tracking-tight truncate">{title}</h1>
-              {readOnly && (
+              {demo && (
                 <span className="hidden sm:inline-flex shrink-0 items-center rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-300">
                   Demo read-only
                 </span>
@@ -527,7 +514,7 @@ export function ProductLayout({
               <form
                 role="search"
                 aria-label="Поиск лидов и чатов"
-                action="/app/inbox"
+                action={hrefForRoute("inbox", {}, mode)}
                 onSubmit={handleGlobalSearch}
                 className="hidden md:flex items-center gap-2 rounded-full bg-white/5 border border-white/5 px-3 h-10 w-64"
               >
@@ -601,11 +588,11 @@ export function ProductLayout({
                     );
                   })}
                 </div>
-                <button onClick={() => (readOnly ? router.push("/signup") : go("inbox"))} className="w-full text-center text-sm font-medium text-emerald-400 hover:bg-white/5 py-3 border-t border-white/8 transition-colors">
+                <button onClick={() => go("inbox")} className="w-full text-center text-sm font-medium text-emerald-400 hover:bg-white/5 py-3 border-t border-white/8 transition-colors">
                   Открыть все
                 </button>
               </Dropdown>
-              <Button size="sm" className="hidden sm:inline-flex" onClick={() => (readOnly ? router.push("/signup") : go("inbox"))}>
+              <Button size="sm" className="hidden sm:inline-flex" onClick={() => go("inbox")}>
                 <Plus className="w-4 h-4 mr-1.5" /> Новый лид
               </Button>
             </div>
@@ -626,13 +613,7 @@ export function ProductLayout({
             return (
               <Link
                 key={item.id}
-                href={readOnly ? "/demo" : hrefForRoute(item.id)}
-                onClick={(event) => {
-                  if (readOnly) {
-                    event.preventDefault();
-                    toast.info("Demo preview доступен только для просмотра");
-                  }
-                }}
+                href={hrefForRoute(item.id, {}, mode)}
                 className={cn("flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors", active ? "text-emerald-400" : "text-zinc-500")}
               >
                 <Icon className="w-5 h-5" />

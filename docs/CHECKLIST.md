@@ -4,6 +4,7 @@ Last updated: 2026-07-06
 
 ## Done
 
+- [x] Reworked `/demo` into an interactive no-API product demo across dashboard, inbox, leads, automations, analytics, audit, integrations, billing/settings, onboarding, and widget; local browser state resets on reload, and focused demo-boundary/browser smoke passed.
 - [x] Started AI runtime Phase 1 with tenant-scoped business knowledge sources, `/api/knowledge/sources`, onboarding-to-knowledge sync, extended onboarding business fields, and focused API smoke coverage.
 - [x] Implemented AI runtime Phase 2 foundation: Qdrant compose services, tenant knowledge chunks, deterministic local embeddings, reindex/search API, Qdrant-backed indexing, DB fallback search, and focused onboarding-to-RAG smoke coverage.
 - [x] Started AI runtime Phase 3 with a queued LangGraph.js `ai.reply` worker path, named graph nodes, RAG context metadata, quality gate fallback, audit/usage logging, idempotent duplicate handling, and `qa:ai:graph` smoke coverage.

@@ -45,7 +45,7 @@ export default function WidgetDemoPage() {
               <p className="text-xs uppercase tracking-[0.18em] text-emerald-300">Запись в студию</p>
               <h2 className="mt-3 text-2xl font-semibold text-zinc-50">Запись, цены и сбор лида в одном чате</h2>
               <p className="mt-3 text-sm leading-6 text-zinc-400">
-                Страница выглядит как сайт бизнеса, а чат отправляет настоящие API-запросы в локальное приложение.
+                Страница выглядит как сайт бизнеса, а чат проходит локальный demo-сценарий без записи в базу.
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">

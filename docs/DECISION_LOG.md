@@ -1,5 +1,18 @@
 # Decision Log
 
+## 2026-07-06: Run Demo As Local Browser Runtime
+
+Decision: `/demo` uses the real product UI routes with a client-side local API runtime instead of a DB-backed demo user. Demo clicks can mutate in-memory browser state, but no demo route sends API requests or writes to the database; page reload restores the seeded sales scenario.
+
+Context: Sales demos need the whole product to feel clickable across tabs, while production tenant data must stay isolated and demo exploration must not create cleanup work or pollute analytics.
+
+Consequences:
+
+- Demo routing mirrors product navigation under `/demo/**`, including inbox, leads, automations, analytics, audit, integrations, settings/billing, onboarding, and widget.
+- Demo behavior must stay close to the real API contracts so copied UI remains realistic without network traffic.
+- Any new product tab should add a demo route/local handler or intentionally route to signup.
+- `qa:demo-boundary` plus the focused Playwright demo smoke guard against accidental API calls from demo routes.
+
 ## 2026-07-06: Keep GitHub Actions On Current Runtime Majors
 
 Decision: The LeadVirt.ru deploy workflow uses current major versions for official GitHub Actions, including `actions/upload-artifact@v7`.

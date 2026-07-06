@@ -15,7 +15,7 @@ const webRoutes = [
   { name: "root", path: "/", readyText: /AI-администратор/ },
   { name: "login", path: "/login", readyText: /Вход в LeadVirt\.ai/ },
   { name: "signup", path: "/signup", readyText: /Запуск LeadVirt\.ai/ },
-  { name: "demo", path: "/demo", readyText: /Read-only demo/ },
+  { name: "demo", path: "/demo", readyText: /Demo read-only|Студия Лето/ },
   { name: "onboarding", path: "/onboarding", readyText: /С каким бизнесом|Откуда приходят клиенты|Выберите сценарий AI|Информация о компании|Куда отправлять лиды|Всё готово/, requiresAuth: true },
   { name: "app", path: "/app", readyText: /Добро пожаловать/, requiresAuth: true },
   { name: "inbox", path: "/app/inbox", readyText: /Диалогов пока нет|Входящие/, requiresAuth: true },
@@ -125,7 +125,7 @@ test.describe("LeadVirt copied UI smoke", () => {
     await page.goto(webBase, { waitUntil: "networkidle" });
     await page.getByRole("link", { name: /^Смотреть демо$/ }).click();
     await expect(page).toHaveURL(`${webBase}/demo`, { timeout: routeChangeTimeoutMs });
-    await waitForRouteReady(page, /Read-only demo/);
+    await waitForRouteReady(page, /Demo read-only|Студия Лето/);
 
     await loginAsCleanUser(page, apiBase);
     await page.goto(`${webBase}/app`, { waitUntil: "networkidle" });

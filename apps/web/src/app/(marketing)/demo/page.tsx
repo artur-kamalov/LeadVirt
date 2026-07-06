@@ -1,15 +1,7 @@
 "use client";
 
-import { DesignProviders } from "@/design/DesignProviders";
-import { DemoDashboardPage } from "@/design/demo/DemoDashboardPage";
-import { ProductModeProvider } from "@/design/product/ProductMode";
+import { DashboardPage } from "@/design/product/pages/DashboardPage";
 
 export default function Page() {
-  return (
-    <DesignProviders>
-      <ProductModeProvider mode="demo">
-        <DemoDashboardPage />
-      </ProductModeProvider>
-    </DesignProviders>
-  );
+  return <DashboardPage />;
 }
