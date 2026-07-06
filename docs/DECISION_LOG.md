@@ -1,5 +1,17 @@
 # Decision Log
 
+## 2026-07-06: Keep GitHub Actions On Current Runtime Majors
+
+Decision: The LeadVirt.ru deploy workflow uses current major versions for official GitHub Actions, including `actions/upload-artifact@v7`.
+
+Context: CI passed, but GitHub warned that `actions/upload-artifact@v4` targets the deprecated Node 20 runtime and is being forced onto Node 24.
+
+Consequences:
+
+- The verify job still uploads AI eval reports with the same artifact name and retention.
+- The workflow should no longer emit the Node 20 runtime warning for artifact upload.
+- Future workflow maintenance should prefer current official action majors after confirming the tag exists.
+
 ## 2026-07-06: Treat 2FA As Credential-Auth Gate Only
 
 Decision: `leadvirt.ru` stays Telegram-only for public auth with `AUTH_CREDENTIALS_ENABLED=false`. The staging credential operator's TOTP setup is not required for broad RU external access while password login is disabled.
