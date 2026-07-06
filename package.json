@@ -49,6 +49,7 @@
     "pilot:packet": "node artifacts/scripts/pilot-packet.mjs",
     "pilot:ready": "node artifacts/scripts/pilot-ready.mjs",
     "release:public-ready": "node artifacts/scripts/public-release-ready.mjs",
+    "qa:release-readiness": "node artifacts/scripts/release-readiness-scripts-smoke.mjs",
     "qa:all": "corepack pnpm run qa:api && corepack pnpm run qa:visual",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml,css,prisma}\"",
     "db:generate": "corepack pnpm --filter @leadvirt/db db:generate",
