@@ -252,7 +252,9 @@ select {
 }
 
 .leadvirt-hero-flow-line {
-  animation: leadvirt-hero-flow-line 3s ease-in-out infinite;
+  animation: leadvirt-hero-flow-line 3s linear infinite both;
+  animation-delay: -0.55s;
+  opacity: 0;
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
   will-change: opacity, stroke-dashoffset;
@@ -378,9 +380,13 @@ select {
     opacity: 0;
     stroke-dashoffset: 1;
   }
-  20%,
+  8% {
+    opacity: 1;
+    stroke-dashoffset: 0.92;
+  }
   70% {
     opacity: 1;
+    stroke-dashoffset: 0.25;
   }
   100% {
     opacity: 0;

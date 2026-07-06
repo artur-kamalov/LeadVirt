@@ -49,6 +49,7 @@ Last updated: 2026-07-06
 - [x] Documented the AI runtime implementation plan in `docs/AI_RUNTIME_IMPLEMENTATION_PLAN.md` and recorded the LangGraph/Qdrant production-runtime decision in `docs/DECISION_LOG.md`.
 - [x] Fixed Landing initial-load stutter while preserving animations: landing now renders mostly as server HTML, product providers moved off the root layout, expensive blur/image work was reduced, Niches motion loads on scroll, and focused performance/scroll Playwright smokes were added.
 - [x] Optimized only the Landing first-screen hero appearance by moving hero entrance/visual animation frames from Framer Motion to CSS keyframes while preserving the animated cards, central node, and gradient SVG flow line; verified with web typecheck/lint/build and Playwright screenshots on `localhost:3001`.
+- [x] Fixed the Landing hero SVG flow-line first-load micro-freeze by starting the dash animation inside its cycle and verified locally that the freeze is gone.
 - [x] Created a local root `.env` for LeadVirt `localhost:3001`/`localhost:4001` development and scrubbed `AI_API_KEY` from `.env.example`.
 - [x] Added shared root `.env` loading for API, worker, AI smoke, and public-release readiness scripts without overriding already-provided process environment variables.
 - [x] Made OpenAI `AI_REASONING_EFFORT` and `AI_VERBOSITY` runtime-configurable through `@leadvirt/config` and the shared `OpenAiProvider`.
