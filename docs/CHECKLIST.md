@@ -50,6 +50,7 @@ Last updated: 2026-07-06
 - [x] Added `qa:release-readiness` to guard pilot packet secret redaction and skipped public-preflight report mode.
 - [x] Added `qa:release-readiness` to the LeadVirt.ru GitHub Actions verify job.
 - [x] Added and verified `qa:meta:instagram`: Meta Page `LeadVirt.ai`, connected IG `@leadvirt.ai`, granted messaging permissions, Page token, and Instagram conversations query pass without logging secrets.
+- [x] Added `META_REQUIRE_INSTAGRAM_CONVERSATION=1` mode for `qa:meta:instagram` so real Instagram DM smoke fails unless at least one conversation is visible.
 - [x] Documented the AI runtime implementation plan in `docs/AI_RUNTIME_IMPLEMENTATION_PLAN.md` and recorded the LangGraph/Qdrant production-runtime decision in `docs/DECISION_LOG.md`.
 - [x] Fixed Landing initial-load stutter while preserving animations: landing now renders mostly as server HTML, product providers moved off the root layout, expensive blur/image work was reduced, Niches motion loads on scroll, and focused performance/scroll Playwright smokes were added.
 - [x] Optimized only the Landing first-screen hero appearance by moving hero entrance/visual animation frames from Framer Motion to CSS keyframes while preserving the animated cards, central node, and gradient SVG flow line; verified with web typecheck/lint/build and Playwright screenshots on `localhost:3001`.

@@ -2,6 +2,8 @@ const graphVersion = (process.env.META_GRAPH_VERSION || "v25.0").trim();
 const userToken = (process.env.META_USER_ACCESS_TOKEN || "").trim();
 const targetPageId = (process.env.META_PAGE_ID || "").trim();
 const targetIgAccountId = (process.env.META_IG_ACCOUNT_ID || "").trim();
+const requireConversation = process.env.META_REQUIRE_INSTAGRAM_CONVERSATION === "1";
+const printMessageText = process.env.META_PRINT_INSTAGRAM_MESSAGE_TEXT === "1";
 
 const requiredPermissions = ["pages_show_list", "pages_manage_metadata", "instagram_basic", "instagram_manage_messages"];
 
@@ -23,6 +25,10 @@ function compactRecord(value) {
 function publicTokenHint(token) {
   if (!token) return "missing";
   return `${token.slice(0, 6)}...${token.slice(-4)} (${token.length} chars)`;
+}
+
+function arrayValue(value) {
+  return Array.isArray(value) ? value : [];
 }
 
 async function graph(path, accessToken, params = {}) {
@@ -52,6 +58,7 @@ async function main() {
   console.log("Meta Instagram preflight");
   console.log(`Graph version: ${graphVersion}`);
   console.log(`User token: ${publicTokenHint(userToken)}`);
+  console.log(`Require Instagram conversation: ${requireConversation ? "yes" : "no"}`);
 
   const me = await graph("/me", userToken, { fields: "id,name" });
   console.log(`User: ${me.name || "unknown"} (${me.id || "no-id"})`);
@@ -113,11 +120,41 @@ async function main() {
     try {
       const conversations = await graph(`/${pageId}/conversations`, pageToken, {
         platform: "instagram",
-        limit: "1"
+        limit: "1",
+        fields: "id,updated_time"
       });
-      const count = Array.isArray(conversations.data) ? conversations.data.length : 0;
+      const conversationRows = arrayValue(conversations.data);
+      const count = conversationRows.length;
       console.log(`- Instagram conversations query: OK (${count} returned with limit=1)`);
-      workingInstagramPage = { pageId, pageName, igId: String(ig.id), igUsername: String(ig.username || "") };
+      if (count > 0) {
+        const conversation = compactRecord(conversationRows[0]);
+        const conversationId = String(conversation.id || "");
+        console.log(`- Latest Instagram conversation: ${conversationId || "unknown"}${conversation.updated_time ? ` updated=${conversation.updated_time}` : ""}`);
+        if (conversationId) {
+          const details = await graph(`/${conversationId}`, pageToken, {
+            fields: "id,updated_time,participants,messages.limit(3){id,created_time,from,to,message}"
+          }).catch((error) => {
+            pageFailures.push(`${pageName} (${pageId}): conversation detail query failed: ${error.message}`);
+            return null;
+          });
+          const messages = arrayValue(compactRecord(details?.messages).data);
+          if (messages.length > 0) {
+            console.log(`- Latest Instagram messages visible: ${messages.length}`);
+            for (const message of messages) {
+              const row = compactRecord(message);
+              const messageId = String(row.id || "unknown");
+              const createdAt = String(row.created_time || "unknown-time");
+              const text = typeof row.message === "string" ? row.message : "";
+              console.log(`  - ${messageId} at ${createdAt}${printMessageText && text ? ` text="${text}"` : ""}`);
+            }
+          }
+        }
+      }
+      if (requireConversation && count === 0) {
+        pageFailures.push(`${pageName} (${pageId}): no Instagram DM conversations returned; send a DM to @${ig.username || ig.id} from a different Instagram account and retry.`);
+        continue;
+      }
+      workingInstagramPage = { pageId, pageName, igId: String(ig.id), igUsername: String(ig.username || ""), conversationCount: count };
       break;
     } catch (error) {
       pageFailures.push(`${pageName} (${pageId}): conversations query failed: ${error.message}`);
@@ -126,7 +163,7 @@ async function main() {
 
   if (workingInstagramPage) {
     console.log(
-      `PASS: Instagram Messaging API preflight works for page ${workingInstagramPage.pageName} (${workingInstagramPage.pageId}) and IG ${workingInstagramPage.igUsername ? `@${workingInstagramPage.igUsername}` : workingInstagramPage.igId}.`
+      `PASS: Instagram Messaging API preflight works for page ${workingInstagramPage.pageName} (${workingInstagramPage.pageId}) and IG ${workingInstagramPage.igUsername ? `@${workingInstagramPage.igUsername}` : workingInstagramPage.igId}; conversations=${workingInstagramPage.conversationCount}.`
     );
     return;
   }
