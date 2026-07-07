@@ -63,6 +63,7 @@ async function markFailed(message: DeliveryMessage, reason: string, jobId?: stri
       status: "FAILED",
       metadata: metadataWith(message, {
         outboundStatus: "failed",
+        deliveryJobId: jobId ?? null,
         delivery: {
           status: "failed",
           reason,
@@ -189,6 +190,7 @@ export async function deliverChannelMessage(data: ChannelSendMessageJobData, job
       status: "SENT",
       metadata: metadataWith(message, {
         outboundStatus: outbound.status,
+        deliveryJobId: jobId ?? null,
         delivery: {
           status: "sent",
           adapterStatus: outbound.status,

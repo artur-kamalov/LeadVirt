@@ -578,3 +578,4 @@ corepack pnpm dlx @playwright/test test artifacts/playwright/product-layout-iden
 - Billing plan selection, cancellation, manual payment-method change requests, and invoice downloads are API-backed for manual MVP subscriptions; hosted checkout/payment-provider enforcement remains follow-up billing work.
 - `qa:auth:guard` is a real local API/DB smoke; run it with LeadVirt API available on `localhost:4001` or set `LEADVIRT_API_BASE`.
 - Shared API-to-design mapping for product CRM surfaces belongs in `apps/web/src/design/product/apiAdapters.ts`.
+- 2026-07-07: Channel delivery worker now preserves top-level `deliveryJobId` in message metadata for queued AI replies; verified with `qa:ai:acceptance`.
