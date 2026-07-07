@@ -1,5 +1,18 @@
 # Decision Log
 
+## 2026-07-07: Use Umnico As Instagram Inbound Bridge First
+
+Decision: Pilot Instagram through Umnico by routing Umnico `message.incoming` webhooks into the existing LeadVirt Webhook/API channel. Because Umnico webhook registration accepts a URL but no custom headers, LeadVirt also accepts the Webhook/API secret as a `secret` query parameter for this public endpoint.
+
+Context: Native Meta Instagram Messaging API access passed preflight, but real DM visibility remained unreliable for release testing. Umnico can receive Instagram messages and forward webhook events to LeadVirt.
+
+Consequences:
+
+- Umnico inbound messages create real tenant leads/conversations through the same public Webhook/API path as other bridge integrations.
+- Non-inbound Umnico events are acknowledged as ignored so they do not create fake leads.
+- The query-secret URL is provider-compatibility glue; prefer header secrets for integrations that support custom headers.
+- Outbound replies still need a dedicated Umnico delivery adapter using `POST /v1.3/messaging/<lead-id>/send`.
+
 ## 2026-07-06: Gate Native Instagram Work With Meta Preflight
 
 Decision: Use `qa:meta:instagram` as the external Meta readiness gate before implementing a native Instagram DM channel in LeadVirt.

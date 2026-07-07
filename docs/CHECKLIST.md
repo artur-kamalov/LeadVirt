@@ -1,9 +1,14 @@
 # LeadVirt Checklist
 
-Last updated: 2026-07-06
+Last updated: 2026-07-07
+
+## Next
+
+- [ ] Add outbound Umnico delivery adapter for AI/operator replies through `POST /v1.3/messaging/<lead-id>/send` after inbound pilot is confirmed.
 
 ## Done
 
+- [x] Added Umnico inbound compatibility through the existing Webhook/API public channel: `message.incoming` normalization, query-string `secret` support for providers without custom headers, ignored handling for non-inbound Umnico events, provisioning output for `UMNICO_WEBHOOK_URL`, and passing local `qa:umnico:webhook`.
 - [x] Rewrote demo conversation copy so inbox threads follow coherent sales flows: intent, qualification, price/slot, confirmation, and next action.
 - [x] Added a demo-only live conversation replay in `/demo/inbox/:conversationId`: client/AI messages appear with typing indicators, replay can be skipped or repeated, manual actions pause the script, and no API/DB boundary remains enforced.
 - [x] Reworked `/demo` into an interactive no-API product demo across dashboard, inbox, leads, automations, analytics, audit, integrations, billing/settings, onboarding, and widget; local browser state resets on reload, and focused demo-boundary/browser smoke passed.

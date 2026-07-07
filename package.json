@@ -17,6 +17,7 @@
     "qa:pilot:intake": "corepack pnpm dlx @playwright/test test artifacts/playwright/pilot-real-intake-api.spec.ts --reporter=line --workers=1",
     "qa:pilot:public": "corepack pnpm dlx @playwright/test test artifacts/playwright/pilot-public-url-preflight.spec.ts --reporter=line --workers=1",
     "qa:meta:instagram": "node artifacts/scripts/meta-instagram-preflight.mjs",
+    "qa:umnico:webhook": "node artifacts/scripts/umnico-webhook-smoke.mjs",
     "qa:channels:provisioning": "node artifacts/scripts/channel-provisioning.mjs",
     "provision:webhook-channel": "node artifacts/scripts/provision-webhook-channel.mjs",
     "qa:auth:guard": "node artifacts/scripts/auth-temporary-password-guard.mjs",

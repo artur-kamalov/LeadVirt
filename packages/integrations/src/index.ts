@@ -165,6 +165,11 @@ export class WebhookAdapter extends StubChannelAdapter {
 
   override normalizeInbound(input: unknown): Promise<NormalizedInboundMessage> {
     const payload = isRecord(input) ? input : {};
+    const umnico = normalizeUmnicoInbound(input, payload);
+    if (umnico) {
+      return Promise.resolve(umnico);
+    }
+
     const message = isRecord(payload.message) ? payload.message : {};
     const customer = firstRecord(payload.customer, payload.contact, payload.lead, payload.from);
     const eventId = readScalar(firstValue(payload.eventId, payload.event_id, payload.id), "webhook-event");
@@ -196,6 +201,54 @@ export class WebhookAdapter extends StubChannelAdapter {
       raw: input
     });
   }
+}
+
+function normalizeUmnicoInbound(input: unknown, payload: Record<string, unknown>): NormalizedInboundMessage | null {
+  if (payload.type !== "message.incoming") {
+    return null;
+  }
+
+  const message = firstRecord(payload.message);
+  const data = firstRecord(message.data, payload.data);
+  const lead = firstRecord(payload.lead);
+  const customer = firstRecord(payload.customer, payload.contact, payload.client, payload.from, message.customer, message.contact);
+  const socialAccount = firstRecord(payload.socialAccount, payload.social_account, message.socialAccount, message.social_account, payload.source, message.source);
+
+  const accountId = readScalar(firstValue(payload.accountId, payload.account_id, message.accountId, message.account_id, socialAccount.id), "umnico-account");
+  const leadId = readScalar(firstValue(payload.leadId, payload.lead_id, message.leadId, message.lead_id, lead.id), "umnico-lead");
+  const timestampValue = firstValue(message.timestamp, message.createdAt, message.created_at, data.timestamp, payload.timestamp, payload.createdAt, payload.created_at);
+  const messageId = readScalar(
+    firstValue(message.id, message.messageId, message.message_id, payload.messageId, payload.message_id, data.id),
+    `${leadId}:${readScalar(timestampValue, String(Date.now()))}`
+  );
+  const customerId = readScalar(
+    firstValue(customer.id, customer.customerId, customer.customer_id, payload.customerId, payload.customer_id, message.customerId, message.customer_id, lead.customerId, lead.customer_id),
+    leadId
+  );
+
+  const firstName = typeof customer.firstName === "string" ? customer.firstName : typeof customer.first_name === "string" ? customer.first_name : "";
+  const lastName = typeof customer.lastName === "string" ? customer.lastName : typeof customer.last_name === "string" ? customer.last_name : "";
+  const fullName = [firstName, lastName].filter(Boolean).join(" ");
+  const username = firstString(customer.username, customer.login, customer.nickname, customer.screenName, customer.screen_name);
+  const customerName = firstString(customer.name, fullName, username);
+  const customerPhone = firstString(customer.phone, customer.phoneNumber, customer.phone_number);
+  const customerEmail = firstString(customer.email);
+  const textValue = firstValue(message.text, data.text, message.caption, data.caption, message.body, data.body, payload.text, payload.body);
+  const text = typeof textValue === "string" && textValue.trim().length > 0 ? textValue : "Umnico message";
+  const attachments = normalizeAttachments(message.attachment, message.attachments, data.attachment, data.attachments);
+
+  return {
+    externalMessageId: `umnico:${accountId}:${messageId}`,
+    externalConversationId: `umnico:${accountId}:${leadId}`,
+    customerExternalId: `umnico:${customerId}`,
+    ...(customerName ? { customerName } : {}),
+    ...(customerPhone ? { customerPhone } : {}),
+    ...(customerEmail ? { customerEmail } : {}),
+    text,
+    ...(attachments ? { attachments } : {}),
+    timestamp: normalizeTimestamp(timestampValue),
+    raw: input
+  };
 }
 
 export class AmoCrmAdapter implements CrmAdapter {
@@ -237,8 +290,34 @@ function firstValue(...values: unknown[]): unknown {
   return values.find((value) => value !== undefined && value !== null && value !== "");
 }
 
+function firstString(...values: unknown[]): string | undefined {
+  return values.find((value): value is string => typeof value === "string" && value.trim().length > 0)?.trim();
+}
+
 function firstRecord(...values: unknown[]): Record<string, unknown> {
   return values.find(isRecord) ?? {};
+}
+
+function normalizeAttachments(...values: unknown[]): NormalizedAttachment[] | undefined {
+  const records = values.flatMap((value) => {
+    if (Array.isArray(value)) return value.filter(isRecord);
+    return isRecord(value) ? [value] : [];
+  });
+  const attachments = records
+    .map((record) => {
+      const media = firstRecord(record.media, record.file);
+      const url = firstString(record.url, record.src, record.href, record.path, media.url, media.src, media.path);
+      if (!url) return null;
+      const mimeType = firstString(record.mimeType, record.mime_type, record.mime, record.contentType, record.content_type, media.mimeType, media.mime_type, media.mime, media.contentType);
+      const fileName = firstString(record.fileName, record.file_name, record.name, record.filename, media.fileName, media.file_name, media.name, media.filename);
+      return {
+        url,
+        ...(mimeType ? { mimeType } : {}),
+        ...(fileName ? { fileName } : {})
+      };
+    })
+    .filter((attachment): attachment is NormalizedAttachment => Boolean(attachment));
+  return attachments.length > 0 ? attachments : undefined;
 }
 
 function normalizeTimestamp(value: unknown): string {

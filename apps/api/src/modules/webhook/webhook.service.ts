@@ -22,6 +22,8 @@ type GenericWebhookConversation = Prisma.ConversationGetPayload<{
 export interface GenericWebhookResult {
   ok: true;
   duplicate: boolean;
+  ignored?: boolean;
+  reason?: string;
   conversationId: string;
   leadId: string | null;
   inboundMessageId: string | null;
@@ -49,6 +51,18 @@ function firstString(...values: unknown[]): string | undefined {
   return values.find((value): value is string => typeof value === "string" && value.trim().length > 0)?.trim();
 }
 
+function firstRecord(...values: unknown[]): Record<string, unknown> {
+  return values.find(isRecord) ?? {};
+}
+
+function firstScalar(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim().length > 0) return value.trim();
+    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  }
+  return undefined;
+}
+
 function payloadHash(payload: Prisma.InputJsonValue) {
   return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
 }
@@ -62,6 +76,76 @@ function jsonPayload(body: unknown): Prisma.InputJsonValue {
   if (typeof body === "string" || typeof body === "number" || typeof body === "boolean") return body;
   if (Array.isArray(body) || isRecord(body)) return body as Prisma.InputJsonValue;
   return { unsupportedPayloadType: typeof body };
+}
+
+const umnicoNonInboundEventTypes = new Set([
+  "message.outgoing",
+  "lead.created",
+  "lead.changed",
+  "lead.changed.status",
+  "customer.created",
+  "customer.changed",
+  "integration.created",
+  "integration.deleted"
+]);
+
+function umnicoEventType(body: unknown): string | undefined {
+  const payload = asRecord(body);
+  const type = firstString(payload.type);
+  if (!type) return undefined;
+  const hasUmnicoShape =
+    payload.accountId !== undefined ||
+    payload.account_id !== undefined ||
+    payload.leadId !== undefined ||
+    payload.lead_id !== undefined ||
+    payload.customerId !== undefined ||
+    payload.integrationId !== undefined;
+  if (!hasUmnicoShape) return undefined;
+  return type === "message.incoming" || umnicoNonInboundEventTypes.has(type) ? type : undefined;
+}
+
+function ignoredUmnicoEventType(body: unknown): string | undefined {
+  const type = umnicoEventType(body);
+  return type && type !== "message.incoming" ? type : undefined;
+}
+
+function umnicoExternalEventId(body: unknown): string | undefined {
+  const payload = asRecord(body);
+  const type = umnicoEventType(payload);
+  if (!type) return undefined;
+  const message = asRecord(payload.message);
+  const lead = asRecord(payload.lead);
+  const key = firstScalar(
+    message.id,
+    message.messageId,
+    message.message_id,
+    payload.messageId,
+    payload.message_id,
+    lead.id,
+    payload.leadId,
+    payload.lead_id,
+    payload.customerId,
+    payload.customer_id,
+    payload.integrationId,
+    payload.integration_id,
+    message.timestamp,
+    payload.timestamp
+  );
+  const accountId = firstScalar(payload.accountId, payload.account_id) ?? "account";
+  return `umnico:${type}:${accountId}:${key ?? payloadHash(jsonPayload(body))}`;
+}
+
+function payloadSource(body: unknown) {
+  const payload = asRecord(body);
+  const message = asRecord(payload.message);
+  const lead = asRecord(payload.lead);
+  const socialAccount = firstRecord(payload.socialAccount, payload.social_account, message.socialAccount, message.social_account);
+  const source = firstRecord(payload.source, message.source);
+  const explicit = firstString(payload.source, lead.source, socialAccount.name, socialAccount.username, socialAccount.type, source.name, source.username, source.type);
+  if (umnicoEventType(payload)) {
+    return explicit ? `Umnico ${explicit}` : "Umnico";
+  }
+  return explicit ?? "Webhook/API";
 }
 
 @Injectable()
@@ -85,6 +169,11 @@ export class WebhookService {
     const verified = await adapter.verifyWebhook?.({ headers, body, ...(secret ? { secret } : {}) });
     if (!verified) {
       throw new UnauthorizedException("Webhook secret is invalid.");
+    }
+
+    const ignoredType = ignoredUmnicoEventType(body);
+    if (ignoredType) {
+      return this.ignoredResponse(channel, body, ignoredType);
     }
 
     const normalized = await adapter.normalizeInbound(body);
@@ -190,13 +279,49 @@ export class WebhookService {
     return channel;
   }
 
-  private externalEventId(body: unknown, normalized: NormalizedInboundMessage) {
+  private externalEventId(body: unknown, normalized?: NormalizedInboundMessage) {
     const payload = asRecord(body);
     const eventId = firstString(payload.eventId, payload.event_id, payload.id);
     if (eventId) {
       return `webhook:event:${eventId}`;
     }
-    return normalized.externalMessageId;
+    return umnicoExternalEventId(body) ?? normalized?.externalMessageId ?? `webhook:payload:${payloadHash(jsonPayload(body))}`;
+  }
+
+  private async ignoredResponse(channel: GenericWebhookChannel, body: unknown, eventType: string): Promise<GenericWebhookResult> {
+    const payload = jsonPayload(body);
+    const provider = `webhook:${channel.id}`;
+    const externalEventId = this.externalEventId(body);
+    const existingEvent = await this.prisma.webhookEvent.findUnique({
+      where: { provider_externalEventId: { provider, externalEventId } }
+    });
+    if (!existingEvent) {
+      await this.prisma.webhookEvent.create({
+        data: {
+          tenantId: channel.tenantId,
+          provider,
+          externalEventId,
+          payloadHash: payloadHash(payload),
+          payload,
+          status: "IGNORED",
+          errorMessage: `Ignored Umnico event type ${eventType}.`,
+          receivedAt: new Date(),
+          processedAt: new Date()
+        }
+      });
+    }
+    return {
+      ok: true,
+      duplicate: Boolean(existingEvent),
+      ignored: true,
+      reason: `Ignored Umnico event type ${eventType}.`,
+      conversationId: "",
+      leadId: null,
+      inboundMessageId: null,
+      aiMessageId: null,
+      outboundStatus: "skipped",
+      reply: null
+    };
   }
 
   private async duplicateResponse(channel: GenericWebhookChannel, normalized: NormalizedInboundMessage): Promise<GenericWebhookResult> {
@@ -236,9 +361,7 @@ export class WebhookService {
       include: { lead: true, messages: { orderBy: { createdAt: "asc" } } }
     });
     const receivedAt = new Date(inbound.timestamp);
-    const payload = asRecord(body);
-    const leadPayload = asRecord(payload.lead);
-    const source = firstString(payload.source, leadPayload.source) ?? "Webhook/API";
+    const source = payloadSource(body);
 
     if (existing) {
       if (existing.leadId) {
