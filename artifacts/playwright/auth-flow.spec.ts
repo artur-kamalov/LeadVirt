@@ -161,6 +161,56 @@ test.describe("telegram auth flow", () => {
     expect(oidcRequests).toBe(1);
   });
 
+  test("switch account accepts Telegram OIDC result after a quick popup close", async ({ page }) => {
+    let oidcRequests = 0;
+    await page.route("**/api/auth/logout", async (route) => {
+      await route.fulfill({ headers: apiMockHeaders, json: { data: { loggedOut: true } } });
+    });
+    await page.route("**/api/auth/telegram/oidc", async (route) => {
+      oidcRequests += 1;
+      await route.fulfill({ headers: apiMockHeaders, json: authResponse });
+    });
+    await page.addInitScript(() => {
+      window.open = ((url?: string | URL) => {
+        const state = window as Window & {
+          leadvirtTelegramOidcUrl?: string;
+          leadvirtTelegramOidcPopup?: { closed: boolean; close: () => void; focus: () => void };
+        };
+        state.leadvirtTelegramOidcUrl = String(url ?? "");
+        state.leadvirtTelegramOidcPopup = {
+          closed: true,
+          close: () => {
+            if (state.leadvirtTelegramOidcPopup) state.leadvirtTelegramOidcPopup.closed = true;
+          },
+          focus: () => undefined
+        };
+        window.setTimeout(() => {
+          window.dispatchEvent(
+            new MessageEvent("message", {
+              origin: "https://oauth.telegram.org",
+              data: JSON.stringify({ event: "auth_result", result: "mock-telegram-id-token" })
+            })
+          );
+        }, 500);
+        return state.leadvirtTelegramOidcPopup as Window;
+      }) as typeof window.open;
+    });
+
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto(`${webBase}/login`, { waitUntil: "networkidle" });
+
+    const switchAccountButton = page.getByTestId("telegram-switch-account");
+    if ((await switchAccountButton.count()) === 0) {
+      await expect(page.getByText("Telegram bot username")).toBeVisible();
+      return;
+    }
+
+    await switchAccountButton.click();
+
+    await expect(page).toHaveURL(`${webBase}/app`, { timeout: 15000 });
+    expect(oidcRequests).toBe(1);
+  });
+
   test("signup through Telegram opens onboarding", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`${webBase}/signup`, { waitUntil: "networkidle" });

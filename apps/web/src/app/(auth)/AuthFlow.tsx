@@ -42,6 +42,7 @@ const modeCopy: Record<
 
 const highlights = ["Без пароля", "Подписанный Telegram вход", "Workspace из БД"];
 const telegramBotUsername = process.env.NEXT_PUBLIC_TELEGRAM_LOGIN_BOT?.trim() ?? "";
+const telegramOidcPopupCloseGraceMs = 8_000;
 
 type TelegramOidcPopupResult = {
   event?: string;
@@ -71,24 +72,16 @@ function telegramOidcAuthUrl(botId: string, nonce: string) {
 
 function waitForTelegramOidcAuth(botId: string) {
   const nonce = randomNonce();
-  const popup = window.open(
-    telegramOidcAuthUrl(botId, nonce),
-    "leadvirt_telegram_oidc",
-    "width=550,height=650,status=0,location=0,menubar=0,toolbar=0"
-  );
-
-  if (!popup) {
-    return Promise.reject(new Error("popup_blocked"));
-  }
-
-  popup.focus();
-
   return new Promise<TelegramOidcAuthPayload>((resolve, reject) => {
+    let popup: Window | null = null;
     let finished = false;
+    let closeTimer: number | null = null;
+    let timeout: number | null = null;
+    let popupClosedAt: number | null = null;
     const cleanup = () => {
       finished = true;
-      window.clearInterval(closeTimer);
-      window.clearTimeout(timeout);
+      if (closeTimer !== null) window.clearInterval(closeTimer);
+      if (timeout !== null) window.clearTimeout(timeout);
       window.removeEventListener("message", handleMessage);
     };
     const fail = (error: Error) => {
@@ -116,16 +109,39 @@ function waitForTelegramOidcAuth(botId: string) {
         return;
       }
       if (typeof data.result === "string" && data.result) {
-        popup.close();
+        popup?.close();
         done(data.result);
       }
     };
-    const closeTimer = window.setInterval(() => {
-      if (popup.closed) fail(new Error("popup_closed"));
-    }, 300);
-    const timeout = window.setTimeout(() => fail(new Error("timeout")), 5 * 60 * 1000);
 
     window.addEventListener("message", handleMessage);
+    popup = window.open(
+      telegramOidcAuthUrl(botId, nonce),
+      "leadvirt_telegram_oidc",
+      "width=550,height=650,status=0,location=0,menubar=0,toolbar=0"
+    );
+
+    if (!popup) {
+      fail(new Error("popup_blocked"));
+      return;
+    }
+    if (finished) {
+      popup.close();
+      return;
+    }
+
+    popup.focus();
+    closeTimer = window.setInterval(() => {
+      if (!popup?.closed) {
+        popupClosedAt = null;
+        return;
+      }
+      popupClosedAt ??= Date.now();
+      if (Date.now() - popupClosedAt >= telegramOidcPopupCloseGraceMs) {
+        fail(new Error("popup_closed"));
+      }
+    }, 300);
+    timeout = window.setTimeout(() => fail(new Error("timeout")), 5 * 60 * 1000);
   });
 }
 
@@ -185,7 +201,7 @@ function TelegramLoginButton({
       if (caught instanceof Error && caught.message === "popup_blocked") {
         toast.error("Браузер заблокировал окно Telegram. Разрешите всплывающие окна и попробуйте снова.");
       } else if (caught instanceof Error && caught.message === "popup_closed") {
-        toast.error("Окно Telegram было закрыто до выбора аккаунта.");
+        toast.error("Telegram закрыл окно без результата. Попробуйте ещё раз.");
       } else {
         toast.error("Не удалось войти через другой Telegram аккаунт");
       }
