@@ -9,6 +9,7 @@ type DeliveryMessage = Prisma.MessageGetPayload<{
     conversation: {
       include: {
         channel: true;
+        messages: true;
       };
     };
   };
@@ -32,6 +33,12 @@ function metadataWith(message: DeliveryMessage, patch: Prisma.InputJsonObject): 
     ...current,
     ...patch
   };
+}
+
+function triggerRaw(message: DeliveryMessage): Prisma.InputJsonValue | null {
+  const inbound = message.conversation.messages[0];
+  const metadata = isRecord(inbound?.metadata) ? inbound.metadata : {};
+  return isRecord(metadata.raw) || Array.isArray(metadata.raw) ? metadata.raw : null;
 }
 
 function adapterFor(message: DeliveryMessage): ChannelAdapter | null {
@@ -93,12 +100,17 @@ export async function deliverChannelMessage(data: ChannelSendMessageJobData, job
       tenantId: data.tenantId,
       conversationId: data.conversationId,
       direction: "OUTBOUND",
-      senderType: "AI"
+      senderType: { in: ["AI", "USER"] }
     },
     include: {
       conversation: {
         include: {
-          channel: true
+          channel: true,
+          messages: {
+            where: { direction: "INBOUND" },
+            orderBy: { createdAt: "desc" },
+            take: 1
+          }
         }
       }
     }
@@ -155,10 +167,13 @@ export async function deliverChannelMessage(data: ChannelSendMessageJobData, job
     conversationId: message.conversationId,
     externalConversationId: message.conversation.externalConversationId ?? message.conversationId,
     text,
+    settings: channel.settings,
+    credentials: channel.encryptedCredentials,
     metadata: {
       messageId: message.id,
       graphRunId: data.graphRunId ?? null,
       triggerMessageId: data.triggerMessageId ?? null,
+      raw: triggerRaw(message),
       deliveryJobId: jobId ?? null
     }
   });

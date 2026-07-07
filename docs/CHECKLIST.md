@@ -12,6 +12,7 @@ Last updated: 2026-07-07
 - [x] Deployed Umnico inbound support to `leadvirt.ru`, passed live `qa:umnico:webhook` against `lvwh_8ebd05e2661fc484`, cleaned the disposable smoke lead/conversation/event, and registered Umnico webhook id `31397`.
 - [x] Repointed Umnico webhook id `31397` to Artur Kamalov workspace through dedicated channel `lvwh_de926322af19b128`, passed live `qa:umnico:webhook`, and cleaned the disposable smoke record.
 - [x] Fixed Umnico real Instagram payload parsing so inbound text is read from `message.message.text`, sender login becomes the customer name, and source resolves to `Umnico Instagram` instead of the fallback `Umnico message`.
+- [x] Added Umnico outbound delivery for Inbox/AI replies through `POST /v1.3/messaging/<lead-id>/send`, queued manual Inbox messages into `channels.sendMessage`, and added `qa:umnico:outbound`.
 - [x] Rewrote demo conversation copy so inbox threads follow coherent sales flows: intent, qualification, price/slot, confirmation, and next action.
 - [x] Added a demo-only live conversation replay in `/demo/inbox/:conversationId`: client/AI messages appear with typing indicators, replay can be skipped or repeated, manual actions pause the script, and no API/DB boundary remains enforced.
 - [x] Reworked `/demo` into an interactive no-API product demo across dashboard, inbox, leads, automations, analytics, audit, integrations, billing/settings, onboarding, and widget; local browser state resets on reload, and focused demo-boundary/browser smoke passed.

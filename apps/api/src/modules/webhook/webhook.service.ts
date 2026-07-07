@@ -585,8 +585,10 @@ export class WebhookService {
       conversationId: conversation.id,
       externalConversationId: inbound.externalConversationId,
       text: aiReply.reply,
+      settings: channel.settings,
       metadata: {
         triggerMessageId: inbound.externalMessageId,
+        raw: jsonPayload(inbound.raw),
         intent: aiReply.intent
       }
     });

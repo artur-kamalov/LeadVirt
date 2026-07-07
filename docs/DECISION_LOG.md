@@ -1,5 +1,18 @@
 # Decision Log
 
+## 2026-07-07: Send Umnico Replies Through Channel Delivery
+
+Decision: LeadVirt sends Umnico-backed Webhook/API conversation replies through the worker `channels.sendMessage` queue and Umnico `POST /v1.3/messaging/<lead-id>/send`.
+
+Context: Umnico inbound Instagram messages reached LeadVirt, but replies from the LeadVirt Inbox were only stored locally because the generic Webhook adapter was a stub.
+
+Consequences:
+
+- Manual Inbox messages for active Webhook/API conversations are queued for external delivery instead of being marked sent locally only.
+- The Umnico adapter derives `lead-id` from `externalConversationId`, uses inbound `source.realId` when available, and falls back to Umnico API source/manager lookups.
+- Channels must store Umnico API credentials in channel settings before real delivery can work in production.
+- `qa:umnico:outbound` covers the outbound adapter payload shape.
+
 ## 2026-07-07: Use Umnico As Instagram Inbound Bridge First
 
 Decision: Pilot Instagram through Umnico by routing Umnico `message.incoming` webhooks into the existing LeadVirt Webhook/API channel. Because Umnico webhook registration accepts a URL but no custom headers, LeadVirt also accepts the Webhook/API secret as a `secret` query parameter for this public endpoint.
@@ -11,7 +24,7 @@ Consequences:
 - Umnico inbound messages create real tenant leads/conversations through the same public Webhook/API path as other bridge integrations.
 - Non-inbound Umnico events are acknowledged as ignored so they do not create fake leads.
 - The query-secret URL is provider-compatibility glue; prefer header secrets for integrations that support custom headers.
-- Outbound replies still need a dedicated Umnico delivery adapter using `POST /v1.3/messaging/<lead-id>/send`.
+- Outbound replies use the dedicated Umnico delivery adapter when channel credentials are configured.
 
 ## 2026-07-06: Gate Native Instagram Work With Meta Preflight
 

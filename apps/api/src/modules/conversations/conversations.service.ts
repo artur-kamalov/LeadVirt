@@ -1,12 +1,12 @@
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { Queue, type ConnectionOptions } from "bullmq";
 import { AI_PROVIDER_TOKEN, type AiProvider } from "@leadvirt/ai";
-import type { AiDraftReply, AiReplyJobData, Channel, ConversationDetail, Lead, Message, PaginatedEnvelope } from "@leadvirt/types";
+import type { AiDraftReply, Channel, ChannelSendMessageJobData, ConversationDetail, Lead, Message, PaginatedEnvelope } from "@leadvirt/types";
 import type { Prisma } from "@leadvirt/db";
 import { positiveInt } from "../../common/pagination.js";
 import type { RequestContext } from "../../common/request-context.js";
 import { PrismaService } from "../database/prisma.service.js";
 import type { AssignConversationDto } from "./dto/assign-conversation.dto.js";
-import { AiReplyQueueService } from "../ai/ai-reply-queue.service.js";
 import type { ListConversationsDto } from "./dto/list-conversations.dto.js";
 import type { SendMessageDto } from "./dto/send-message.dto.js";
 import type { UpdateConversationStatusDto } from "./dto/update-conversation-status.dto.js";
@@ -31,12 +31,31 @@ type ConversationWithDetail = Prisma.ConversationGetPayload<{
   };
 }>;
 
+function channelSendSource(channel: ConversationWithDetail["channel"]): ChannelSendMessageJobData["source"] | null {
+  if (!channel || channel.status !== "ACTIVE") return null;
+  if (channel.type === "TELEGRAM") return "telegram";
+  if (channel.type === "WEBHOOK") return "webhook";
+  return null;
+}
+
+function connectionFromRedisUrl(redisUrl: string): ConnectionOptions {
+  const parsed = new URL(redisUrl);
+  const connection: ConnectionOptions = {
+    host: parsed.hostname,
+    port: Number(parsed.port || 6380),
+    maxRetriesPerRequest: null
+  };
+
+  if (parsed.username) connection.username = decodeURIComponent(parsed.username);
+  if (parsed.password) connection.password = decodeURIComponent(parsed.password);
+  return connection;
+}
+
 @Injectable()
 export class ConversationsService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
-    @Inject(AI_PROVIDER_TOKEN) private readonly aiProvider: AiProvider,
-    @Inject(AiReplyQueueService) private readonly aiReplyQueue: AiReplyQueueService
+    @Inject(AI_PROVIDER_TOKEN) private readonly aiProvider: AiProvider
   ) {}
 
   async list(context: RequestContext, query: ListConversationsDto): Promise<PaginatedEnvelope<ConversationDetail>> {
@@ -106,6 +125,7 @@ export class ConversationsService {
   async sendMessage(context: RequestContext, id: string, dto: SendMessageDto): Promise<ConversationDetail> {
     const conversation = await this.loadConversation(context.tenantId, id);
     const createdAt = new Date();
+    const deliverySource = channelSendSource(conversation.channel);
 
     const userMessage = await this.prisma.message.create({
       data: {
@@ -115,7 +135,8 @@ export class ConversationsService {
         senderType: "USER",
         senderUserId: context.userId,
         text: dto.text,
-        status: "SENT",
+        status: deliverySource ? "QUEUED" : "SENT",
+        ...(deliverySource ? { metadata: { outboundStatus: "queued" } } : {}),
         createdAt,
         updatedAt: createdAt
       }
@@ -126,121 +147,15 @@ export class ConversationsService {
       data: { lastMessageAt: createdAt, updatedAt: createdAt }
     });
 
-    let aiReplyQueued = false;
-    let aiReplyQueueReason: string | undefined;
-
-    if (conversation.aiEnabled && this.aiReplyQueue.enabled) {
-      const jobData: AiReplyJobData = {
-        tenantId: context.tenantId,
-        conversationId: conversation.id,
-        triggerMessageId: userMessage.id,
-        text: dto.text,
-        businessName: context.tenant.name,
-        ...(context.tenant.businessType ? { businessType: context.tenant.businessType } : {}),
-        leadId: conversation.leadId,
-        ...(conversation.lead?.status ? { leadStatus: conversation.lead.status } : {}),
-        source: "inbox",
-        requestedByUserId: context.userId,
-        receivedAt: createdAt.toISOString()
-      };
-      const queueResult = await this.aiReplyQueue.enqueue(jobData);
-      aiReplyQueued = queueResult.queued;
-      aiReplyQueueReason = queueResult.reason;
-
-      if (aiReplyQueued && conversation.leadId) {
-        await this.prisma.leadEvent.create({
-          data: {
-            tenantId: context.tenantId,
-            leadId: conversation.leadId,
-            type: "ai_reply_queued",
-            title: "AI reply queued",
-            message: dto.text,
-            metadata: { conversationId: conversation.id, jobId: queueResult.jobId ?? null }
-          }
-        });
-      }
-    }
-
-    if (conversation.leadId && !aiReplyQueued) {
-      const extraction = await this.aiProvider.extractLeadFields({
-        tenantId: context.tenantId,
-        conversationId: conversation.id,
-        text: dto.text
-      });
-
-      await this.prisma.lead.update({
-        where: { id: conversation.leadId },
+    const deliveryJobId = deliverySource ? await this.enqueueChannelDelivery(context, conversation.id, userMessage.id, deliverySource, createdAt) : null;
+    if (deliveryJobId) {
+      await this.prisma.message.update({
+        where: { id: userMessage.id },
         data: {
-          lastMessageAt: createdAt,
-          summary: typeof extraction.fields.summary === "string" ? extraction.fields.summary : (conversation.lead?.summary ?? null)
-        }
-      });
-    }
-
-    if (conversation.aiEnabled && !aiReplyQueued) {
-      const messages = [...conversation.messages, { senderType: "USER", text: dto.text }];
-      const aiReply = await this.aiProvider.generateReply({
-        tenantId: context.tenantId,
-        businessName: context.tenant.name,
-        conversationId: conversation.id,
-        ...(context.tenant.businessType ? { businessType: context.tenant.businessType } : {}),
-        messages: messages.map((message) => ({
-          role: message.senderType === "AI" ? "assistant" : "user",
-          content: message.text ?? ""
-        }))
-      });
-      const recommendation = await this.aiProvider.recommendNextAction({
-        tenantId: context.tenantId,
-        conversationId: conversation.id,
-        ...(conversation.lead?.status ? { leadStatus: conversation.lead.status } : {}),
-        text: dto.text
-      });
-
-      const aiCreatedAt = new Date(createdAt.getTime() + 1000);
-      await this.prisma.message.create({
-        data: {
-          tenantId: context.tenantId,
-          conversationId: conversation.id,
-          direction: "OUTBOUND",
-          senderType: "AI",
-          text: aiReply.reply,
-          status: "SENT",
           metadata: {
-            intent: aiReply.intent,
-            confidence: aiReply.confidence,
-            nextAction: recommendation.action
-          },
-          createdAt: aiCreatedAt,
-          updatedAt: aiCreatedAt
-        }
-      });
-
-      await this.prisma.aiUsageLog.create({
-        data: {
-          tenantId: context.tenantId,
-          conversationId: conversation.id,
-          leadId: conversation.leadId,
-          provider: this.aiProvider.providerName ?? "unknown",
-          model: this.aiProvider.modelName ?? "unknown",
-          actionType: "generate_reply",
-          inputTokens: 160,
-          outputTokens: 74,
-          estimatedCost: "0.000000",
-          latencyMs: 35,
-          status: "SUCCESS",
-          metadata: {
-            recommendation: recommendation.action,
-            reason: recommendation.reason
+            outboundStatus: "queued",
+            deliveryJobId
           }
-        }
-      });
-
-      await this.prisma.conversation.update({
-        where: { id: conversation.id },
-        data: {
-          lastMessageAt: aiCreatedAt,
-          handoffRequested: conversation.handoffRequested || aiReply.handoffRequired || recommendation.handoffRequired,
-          status: aiReply.handoffRequired || recommendation.handoffRequired ? "WAITING_FOR_HUMAN" : conversation.status
         }
       });
     }
@@ -266,14 +181,50 @@ export class ConversationsService {
         entityType: "conversation",
         entityId: conversation.id,
         payload: {
-          aiReplyGenerated: conversation.aiEnabled && !aiReplyQueued,
-          aiReplyQueued,
-          ...(aiReplyQueueReason ? { aiReplyQueueReason } : {})
+          deliverySource,
+          deliveryJobId
         }
       }
     });
 
     return this.get(context, id);
+  }
+
+  private async enqueueChannelDelivery(
+    context: RequestContext,
+    conversationId: string,
+    messageId: string,
+    source: ChannelSendMessageJobData["source"],
+    requestedAt: Date
+  ) {
+    const queue = new Queue<ChannelSendMessageJobData>("channels.sendMessage", {
+      connection: connectionFromRedisUrl(process.env.REDIS_URL ?? "redis://localhost:6380")
+    });
+    const jobId = `channel-send-${messageId}`;
+
+    try {
+      const job = await queue.add(
+        "send-message",
+        {
+          tenantId: context.tenantId,
+          conversationId,
+          messageId,
+          source,
+          requestedByUserId: context.userId,
+          requestedAt: requestedAt.toISOString()
+        } as ChannelSendMessageJobData & { requestedByUserId: string },
+        {
+          jobId,
+          attempts: 3,
+          backoff: { type: "exponential", delay: 1000 },
+          removeOnComplete: { count: 1000 },
+          removeOnFail: { count: 5000 }
+        }
+      );
+      return job.id ?? jobId;
+    } finally {
+      await queue.close().catch(() => undefined);
+    }
   }
 
   async updateStatus(context: RequestContext, id: string, dto: UpdateConversationStatusDto): Promise<ConversationDetail> {

@@ -32,6 +32,8 @@ export interface SendMessageInput {
   externalConversationId: string;
   text: string;
   attachments?: string[];
+  settings?: unknown;
+  credentials?: unknown;
   metadata?: Record<string, unknown>;
 }
 
@@ -201,6 +203,54 @@ export class WebhookAdapter extends StubChannelAdapter {
       raw: input
     });
   }
+
+  override async sendMessage(input: SendMessageInput): Promise<SendMessageResult> {
+    const config = umnicoConfig(input);
+    if (!config.enabled) {
+      return super.sendMessage(input);
+    }
+
+    const customId = readScalar(firstValue(input.metadata?.messageId, input.metadata?.deliveryJobId), `leadvirt:${input.conversationId}:${Date.now()}`);
+    if (!config.token || !config.leadId) {
+      return { externalMessageId: customId, status: "failed" };
+    }
+
+    const source = config.sourceRealId ?? (await fetchUmnicoSource(config).catch(() => undefined));
+    const userId = config.userId ?? (await fetchUmnicoUserId(config).catch(() => undefined));
+    if (!source || !userId) {
+      return { externalMessageId: customId, status: "failed" };
+    }
+
+    const body: Record<string, unknown> = {
+      message: { text: input.text },
+      source: String(source),
+      userId,
+      customId
+    };
+    if (config.saId) body.saId = config.saId;
+
+    const response = await fetch(`${config.baseUrl}/messaging/${encodeURIComponent(config.leadId)}/send`, {
+      method: "POST",
+      headers: {
+        authorization: `bearer ${config.token}`,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(body)
+    }).catch(() => null);
+
+    if (!response?.ok) {
+      return { externalMessageId: customId, status: "failed" };
+    }
+
+    const payload: unknown = await response.json().catch(() => null);
+    const sentRecords = Array.isArray(payload) ? payload.filter(isRecord) : [];
+    const sent = sentRecords[0] ?? firstRecord(payload);
+    const externalId = readScalar(firstValue(sent.messageId, sent.id, sent.customId), customId);
+    return {
+      externalMessageId: `umnico:${config.leadId}:${externalId}`,
+      status: "sent"
+    };
+  }
 }
 
 function normalizeUmnicoInbound(input: unknown, payload: Record<string, unknown>): NormalizedInboundMessage | null {
@@ -251,6 +301,100 @@ function normalizeUmnicoInbound(input: unknown, payload: Record<string, unknown>
     timestamp: normalizeTimestamp(timestampValue),
     raw: input
   };
+}
+
+interface UmnicoDeliveryConfig {
+  enabled: boolean;
+  baseUrl: string;
+  token?: string;
+  leadId?: string;
+  sourceRealId?: string;
+  userId?: number;
+  saId?: number;
+}
+
+function normalizeUmnicoBaseUrl(value: unknown) {
+  const configured = firstString(value) ?? "https://api.umnico.com/v1.3";
+  const cleaned = configured.replace(/\/$/, "");
+  return cleaned.endsWith("/v1.3") ? cleaned : `${cleaned}/v1.3`;
+}
+
+function positiveNumber(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) return Math.floor(value);
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed) && parsed > 0) return Math.floor(parsed);
+  }
+  return undefined;
+}
+
+function parseUmnicoLeadId(externalConversationId: string) {
+  const parts = externalConversationId.split(":");
+  return parts[0] === "umnico" && parts.length >= 3 ? parts.slice(2).join(":") : undefined;
+}
+
+function umnicoConfig(input: SendMessageInput): UmnicoDeliveryConfig {
+  const settings = firstRecord(input.settings);
+  const credentials = firstRecord(input.credentials);
+  const metadata = firstRecord(input.metadata);
+  const webhook = firstRecord(settings.webhook);
+  const umnico = firstRecord(settings.umnico, webhook.umnico, credentials.umnico);
+  const raw = firstRecord(metadata.raw, metadata.triggerRaw, metadata.triggerMessageRaw);
+  const rawMessage = firstRecord(raw.message);
+  const rawSource = firstRecord(rawMessage.source, raw.source);
+  const rawSa = firstRecord(rawMessage.sa, raw.sa);
+  const provider = firstString(umnico.provider, webhook.provider, settings.provider);
+  const enabled = provider?.toLowerCase() === "umnico" || input.externalConversationId.startsWith("umnico:");
+  const token = firstString(
+    umnico.apiToken,
+    umnico.token,
+    umnico.jwt,
+    umnico.accessToken,
+    webhook.umnicoApiToken,
+    settings.umnicoApiToken,
+    credentials.apiToken,
+    credentials.token,
+    credentials.jwt,
+    credentials.accessToken
+  );
+  const leadId = firstString(metadata.umnicoLeadId, umnico.leadId, webhook.umnicoLeadId, parseUmnicoLeadId(input.externalConversationId));
+  const sourceRealId = readScalar(firstValue(metadata.umnicoSourceRealId, metadata.sourceRealId, umnico.sourceRealId, webhook.umnicoSourceRealId, rawSource.realId, rawSource.real_id, rawSource.id), "") || undefined;
+  const userId = positiveNumber(firstValue(metadata.umnicoUserId, umnico.userId, webhook.umnicoUserId, settings.umnicoUserId));
+  const saId = positiveNumber(firstValue(metadata.umnicoSaId, umnico.saId, webhook.umnicoSaId, rawSa.id, rawSource.saId));
+
+  return {
+    enabled,
+    baseUrl: normalizeUmnicoBaseUrl(firstValue(umnico.apiBase, umnico.baseUrl, webhook.umnicoApiBase, settings.umnicoApiBase)),
+    ...(token ? { token } : {}),
+    ...(leadId ? { leadId } : {}),
+    ...(sourceRealId ? { sourceRealId } : {}),
+    ...(userId ? { userId } : {}),
+    ...(saId ? { saId } : {})
+  };
+}
+
+async function fetchUmnicoSource(config: UmnicoDeliveryConfig): Promise<string | undefined> {
+  if (!config.token || !config.leadId) return undefined;
+  const response = await fetch(`${config.baseUrl}/messaging/${encodeURIComponent(config.leadId)}/sources`, {
+    headers: { authorization: `bearer ${config.token}` }
+  });
+  if (!response.ok) return undefined;
+  const payload: unknown = await response.json().catch(() => null);
+  const sources = Array.isArray(payload) ? payload.filter(isRecord) : [];
+  const preferred = sources.find((source) => firstString(source.type)?.toLowerCase() === "message") ?? sources[0];
+  return preferred ? readScalar(firstValue(preferred.realId, preferred.real_id, preferred.id), "") || undefined : undefined;
+}
+
+async function fetchUmnicoUserId(config: UmnicoDeliveryConfig): Promise<number | undefined> {
+  if (!config.token) return undefined;
+  const response = await fetch(`${config.baseUrl}/managers`, {
+    headers: { authorization: `bearer ${config.token}` }
+  });
+  if (!response.ok) return undefined;
+  const payload: unknown = await response.json().catch(() => null);
+  const managers = Array.isArray(payload) ? payload.filter(isRecord) : [];
+  const preferred = managers.find((manager) => firstString(manager.role)?.toLowerCase() === "owner") ?? managers[0];
+  return preferred ? positiveNumber(preferred.id) : undefined;
 }
 
 export class AmoCrmAdapter implements CrmAdapter {
