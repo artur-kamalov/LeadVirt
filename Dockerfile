@@ -32,7 +32,7 @@ COPY packages/observability/package.json packages/observability/package.json
 COPY packages/types/package.json packages/types/package.json
 COPY packages/ui/package.json packages/ui/package.json
 
-RUN corepack pnpm instal l --frozen-lockfile
+RUN corepack pnpm install --frozen-lockfile
 
 COPY apps ./apps
 COPY packages ./packages
