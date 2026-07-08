@@ -34,6 +34,22 @@ const providers = [
 type ProviderParam = (typeof providers)[number];
 type CrmProvider = "AMOCRM" | "BITRIX24" | "RETAILCRM";
 
+const providerCatalog: Record<ProviderParam, { name: string; category: string; settings: Prisma.InputJsonObject }> = {
+  AMOCRM: { name: "amoCRM", category: "CRM", settings: { syncDirection: "two-way" } },
+  BITRIX24: { name: "Bitrix24", category: "CRM", settings: { syncDirection: "two-way" } },
+  RETAILCRM: { name: "RetailCRM", category: "CRM", settings: { syncDirection: "two-way" } },
+  TELEGRAM: { name: "Telegram", category: "Канал", settings: { syncDirection: "inbound" } },
+  WHATSAPP_BUSINESS: { name: "WhatsApp Business", category: "Канал", settings: { syncDirection: "inbound" } },
+  INSTAGRAM: { name: "Instagram", category: "Канал", settings: { syncDirection: "inbound" } },
+  VK: { name: "VK", category: "Канал", settings: { syncDirection: "inbound" } },
+  EMAIL: { name: "Email", category: "Канал", settings: { syncDirection: "inbound" } },
+  GOOGLE_CALENDAR: { name: "Google Calendar", category: "Календарь", settings: { syncDirection: "two-way" } },
+  SHOPIFY: { name: "Shopify", category: "E-commerce", settings: { syncDirection: "two-way" } },
+  SHOP_SCRIPT: { name: "Shop-Script", category: "E-commerce", settings: { syncDirection: "two-way" } },
+  WEBHOOK_API: { name: "Webhook/API", category: "Разработчикам", settings: { syncDirection: "inbound" } },
+  OTHER: { name: "Other integration", category: "Other", settings: { syncDirection: "manual" } }
+};
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -149,7 +165,7 @@ export class IntegrationsService {
   }
 
   async connect(context: RequestContext, provider: string): Promise<IntegrationAccount> {
-    const integration = await this.loadByProvider(context.tenantId, provider);
+    const integration = await this.loadOrCreateByProvider(context.tenantId, provider);
     const updated = await this.prisma.integrationAccount.update({
       where: { id: integration.id },
       data: { status: "CONNECTED", connectedAt: new Date(), lastSyncAt: new Date() }
@@ -374,6 +390,37 @@ export class IntegrationsService {
       throw new NotFoundException("Integration was not found.");
     }
     return integration;
+  }
+
+  private async loadOrCreateByProvider(tenantId: string, provider: string) {
+    const parsedProvider = this.parseProvider(provider);
+    const integration = await this.prisma.integrationAccount.findFirst({
+      where: { tenantId, provider: parsedProvider, deletedAt: null }
+    });
+    if (integration) return integration;
+
+    const catalog = providerCatalog[parsedProvider];
+    return this.prisma.integrationAccount.upsert({
+      where: { tenantId_provider: { tenantId, provider: parsedProvider } },
+      create: {
+        tenantId,
+        provider: parsedProvider,
+        name: catalog.name,
+        category: catalog.category,
+        status: "DISCONNECTED",
+        scopes: ["read", "write"],
+        settings: catalog.settings
+      },
+      update: {
+        deletedAt: null,
+        name: catalog.name,
+        category: catalog.category,
+        status: "DISCONNECTED",
+        connectedAt: null,
+        scopes: ["read", "write"],
+        settings: catalog.settings
+      }
+    });
   }
 
   private async loadInboundChannel(tenantId: string, type: "TELEGRAM" | "WEBHOOK") {

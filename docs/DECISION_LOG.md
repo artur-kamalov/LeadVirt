@@ -1,5 +1,17 @@
 # Decision Log
 
+## 2026-07-08: Create Missing Integration Accounts On Connect
+
+Decision: `POST /integrations/:provider/connect` creates a catalog-backed integration account when the tenant does not already have one, then marks it connected.
+
+Context: Production HAR showed `POST /integrations/INSTAGRAM/connect` returning `404 Integration was not found` for a workspace where Instagram existed in the UI catalog but not in `integrationAccount`.
+
+Consequences:
+
+- Catalog integrations like Instagram can be connected from the UI without pre-seeded DB rows.
+- Settings, disconnect, test, and sample endpoints still require an existing integration account.
+- `qa:integrations:connect-missing` covers the missing-row connect path.
+
 ## 2026-07-08: Drop Telegram Account Switching From Public Login
 
 Decision: `/login` and `/signup` keep a single ordinary Telegram Login Widget flow. LeadVirt renders a branded visual button above the official Telegram iframe, but no longer exposes `Другой Telegram аккаунт`, no longer opens `Telegram.Login.auth` for switching, and no longer tries to clear or reject Telegram-domain sessions.
