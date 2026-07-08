@@ -1,5 +1,18 @@
 # Decision Log
 
+## 2026-07-08: Return Public Auth To Telegram Login Widget
+
+Decision: `/login` and `/signup` now render the official legacy Telegram Login Widget through `telegram-widget.js` with `data-telegram-login`, `data-onauth`, and `data-request-access=write`. The frontend no longer renders a custom visual button, no longer overlays a LeadVirt button on top of Telegram, and no longer opens a custom OIDC popup for public auth.
+
+Context: The OIDC popup variants kept failing on staging before a stable backend login result. The legacy widget is Telegram's documented iframe widget path for returning signed `id`, `auth_date`, and `hash` payloads, and LeadVirt already has server-side HMAC verification for that payload.
+
+Consequences:
+
+- Public login uses `POST /auth/telegram` again and keeps the bot token server-side.
+- `/auth/telegram/config` exposes the bot username from `TELEGRAM_LOGIN_BOT_USERNAME` or `NEXT_PUBLIC_TELEGRAM_LOGIN_BOT` so the widget can render.
+- `/auth/telegram/oidc` remains available for compatibility but is not used by `/login` or `/signup`.
+- Account selection is delegated to Telegram's own widget UI; LeadVirt does not attempt to clear Telegram's browser session.
+
 ## 2026-07-07: Remove Archived UI References And Slim Deploy
 
 Decision: LeadVirt no longer keeps the design-only React export, copied Figma reference tree, legacy functional UI, old prompt/docs bundle, or full design-only visual comparison in the active repo. `qa:ui:smoke` replaces the old design-reference `qa:visual` workflow.

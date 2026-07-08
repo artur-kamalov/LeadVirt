@@ -21,6 +21,7 @@ export type TelegramAuthPayload = {
 
 export type TelegramLoginConfig = {
   botId: string | null;
+  botUsername?: string | null;
 };
 
 export type TelegramOidcAuthPayload = {

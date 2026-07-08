@@ -8,6 +8,7 @@ No open Umnico onboarding tasks.
 
 ## Done
 
+- [x] Replaced `/login` and `/signup` Telegram auth with the official `telegram-widget.js` Login Widget: removed custom/OIDC popup buttons and account-switch button, exposed `botUsername` through `/auth/telegram/config`, returned auth to signed `POST /auth/telegram`, and verified web/api typecheck, lint, build, plus focused `auth-flow` Playwright coverage.
 - [x] Reviewed local Meta Instagram preflight changes, documented `META_DEBUG_INSTAGRAM=1`, and checked the script syntax.
 - [x] Fixed staging Telegram auth `origin required` by replacing the SDK popup with an explicit `oauth.telegram.org/auth` popup that sends `origin`, keeps server-side OIDC verification, adds best-effort `prompt=login select_account` for account switching, and passes web typecheck/lint/build plus focused `auth-flow` Playwright coverage.
 - [x] Fixed the Dockerfile install command typo caught by the pushed auto-deploy run.

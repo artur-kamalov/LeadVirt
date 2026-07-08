@@ -164,6 +164,11 @@ function telegramBotId() {
   return tokenPrefix && /^\d+$/.test(tokenPrefix) ? tokenPrefix : null;
 }
 
+function telegramBotUsername() {
+  const configured = (process.env.TELEGRAM_LOGIN_BOT_USERNAME || process.env.NEXT_PUBLIC_TELEGRAM_LOGIN_BOT || "").trim().replace(/^@/, "");
+  return /^[a-zA-Z][a-zA-Z0-9_]{3,31}$/.test(configured) ? configured : null;
+}
+
 function technicalTelegramEmail(telegramId: number) {
   return `telegram-${telegramId}@telegram.leadvirt.internal`;
 }
@@ -560,7 +565,7 @@ export class AuthService {
   }
 
   telegramLoginConfig() {
-    return { botId: telegramBotId() };
+    return { botId: telegramBotId(), botUsername: telegramBotUsername() };
   }
 
   private async loginWithTelegramIdentity(identity: TelegramIdentity, meta: AuthMeta = {}) {
