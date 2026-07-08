@@ -12,6 +12,19 @@ Consequences:
 - Docker builds install from manifest layers, copy only runtime source plus needed QA scripts/evals, and build only api/worker/web dependency trees.
 - GitHub Actions uses pnpm cache through `actions/setup-node`; the VPS still builds locally from the release package.
 
+## 2026-07-07: Use Explicit Telegram OAuth Origin
+
+Decision: `/login` and `/signup` open a first-party `oauth.telegram.org/auth` popup URL instead of `Telegram.Login.auth`. The URL includes `origin`, `response_type=post_message`, the numeric Telegram client id, `/login` as `redirect_uri`, `openid profile telegram:bot_access` scope, and a nonce; the account-switch action also sends `prompt=login select_account`.
+
+Context: Staging showed Telegram's `origin required` error before the API received any `/auth/telegram/oidc` request. Telegram's current `telegram-login.js` popup path does not include `origin`, while direct OAuth checks and community fixes confirm that `oauth.telegram.org/auth` now requires it.
+
+Consequences:
+
+- The API OIDC verification and session issuance stay unchanged.
+- The page no longer depends on `telegram-login.js` loading or its popup URL builder.
+- Account switching clears the LeadVirt session before submitting the new Telegram OIDC token, but Telegram account selection remains best-effort because Telegram owns its OAuth browser session.
+- BotFather Web Login allowed URLs must include the site origin, e.g. `https://leadvirt.ru`.
+
 ## 2026-07-07: Let Users Switch Telegram Login Accounts
 
 Decision: Telegram login now exposes the public numeric bot id through `/auth/telegram/config`. The `/login` and `/signup` pages use Telegram's official `telegram-login.js` SDK for primary login and the "different account" action, then send the returned OIDC `id_token` to `/auth/telegram/oidc`. The API verifies the token against Telegram JWKS and maps it to the same `telegram:<id>` user identity.

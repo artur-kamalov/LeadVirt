@@ -36,23 +36,35 @@ const apiMockHeaders = {
 };
 
 const telegramOidcToken = "mock-telegram-id-token";
-const telegramLoginSdkMock = `
-  window.Telegram = window.Telegram || {};
-  window.Telegram.Login = {
-    auth(options, callback) {
-      window.leadvirtTelegramSdkCalls = window.leadvirtTelegramSdkCalls || [];
-      window.leadvirtTelegramSdkCalls.push({ options });
-      const result = window.leadvirtTelegramNextResult || {
-        id_token: "${telegramOidcToken}",
-        user: { id: 100000001, name: "Local Telegram", preferred_username: "leadvirt_local" }
-      };
-      window.setTimeout(() => callback(result), 0);
-    },
-    close() {
-      window.leadvirtTelegramClosed = true;
-    }
-  };
-`;
+
+function telegramPopupInitScript(token: string) {
+  window.open = ((url?: string | URL, target?: string, features?: string) => {
+    const testWindow = window as Window & {
+      leadvirtTelegramNextMessage?: unknown;
+      leadvirtTelegramPopupCalls?: Array<{ url: string; target?: string; features?: string }>;
+      leadvirtTelegramPopupMode?: "closed";
+    };
+    testWindow.leadvirtTelegramPopupCalls = testWindow.leadvirtTelegramPopupCalls ?? [];
+    testWindow.leadvirtTelegramPopupCalls.push({ url: String(url), target, features });
+    const popup = {
+      closed: false,
+      focus() {},
+      close() {
+        popup.closed = true;
+      }
+    };
+    window.setTimeout(() => {
+      if (testWindow.leadvirtTelegramPopupMode === "closed") {
+        popup.closed = true;
+        return;
+      }
+      const data = testWindow.leadvirtTelegramNextMessage ?? { event: "auth_result", result: token };
+      window.dispatchEvent(new MessageEvent("message", { origin: "https://oauth.telegram.org", data: JSON.stringify(data) }));
+      popup.closed = true;
+    }, 0);
+    return popup as Window;
+  }) as typeof window.open;
+}
 
 async function completeTelegramAuth(page: Page) {
   const authButton = page.getByTestId("telegram-auth-button");
@@ -67,9 +79,7 @@ test.describe("telegram auth flow", () => {
     await page.route("**/api/auth/telegram", async (route) => {
       await route.fulfill({ headers: apiMockHeaders, json: authResponse });
     });
-    await page.route("https://telegram.org/js/telegram-login.js", async (route) => {
-      await route.fulfill({ contentType: "application/javascript", body: telegramLoginSdkMock });
-    });
+    await page.addInitScript(telegramPopupInitScript, telegramOidcToken);
     await page.route("**/api/auth/telegram/config", async (route) => {
       await route.fulfill({ headers: apiMockHeaders, json: { data: { botId: "123456" } } });
     });
@@ -95,17 +105,24 @@ test.describe("telegram auth flow", () => {
     await completeTelegramAuth(page);
 
     await expect(page).toHaveURL(`${webBase}/app`, { timeout: 15000 });
-    const sdkCalls = await page.evaluate(() => (window as Window & { leadvirtTelegramSdkCalls?: Array<{ options: { client_id: number; scope: string[]; lang?: string; nonce?: string } }> }).leadvirtTelegramSdkCalls ?? []);
-    expect(sdkCalls[0]?.options.client_id).toBe(123456);
-    expect(sdkCalls[0]?.options.scope).toEqual(["profile", "write"]);
-    expect(sdkCalls[0]?.options.lang).toBe("ru");
-    expect(sdkCalls[0]?.options.nonce).toBeTruthy();
+    const popupCalls = await page.evaluate(() => (window as Window & { leadvirtTelegramPopupCalls?: Array<{ url: string }> }).leadvirtTelegramPopupCalls ?? []);
+    const authUrl = new URL(popupCalls[0]?.url ?? "");
+    expect(authUrl.origin).toBe("https://oauth.telegram.org");
+    expect(authUrl.pathname).toBe("/auth");
+    expect(authUrl.searchParams.get("response_type")).toBe("post_message");
+    expect(authUrl.searchParams.get("client_id")).toBe("123456");
+    expect(authUrl.searchParams.get("origin")).toBe(webBase);
+    expect(authUrl.searchParams.get("redirect_uri")).toBe(`${webBase}/login`);
+    expect(authUrl.searchParams.get("scope")).toBe("openid profile telegram:bot_access");
+    expect(authUrl.searchParams.get("lang")).toBe("ru");
+    expect(authUrl.searchParams.get("nonce")).toBeTruthy();
+    expect(authUrl.searchParams.get("prompt")).toBeNull();
     await expect.poll(async () => {
       return page.evaluate(() => window.localStorage.getItem("leadvirt.auth.session") ?? "");
     }).toContain("telegram");
   });
 
-  test("switch account clears local session and logs in through Telegram Login SDK", async ({ page }) => {
+  test("switch account clears local session and logs in through Telegram popup", async ({ page }) => {
     let logoutRequests = 0;
     let oidcRequests = 0;
     await page.route("**/api/auth/logout", async (route) => {
@@ -133,12 +150,15 @@ test.describe("telegram auth flow", () => {
 
     await switchAccountButton.click();
 
-    const sdkCalls = await page.evaluate(() => (window as Window & { leadvirtTelegramSdkCalls?: Array<{ options: { client_id: number; scope: string[]; lang?: string; nonce?: string } }> }).leadvirtTelegramSdkCalls ?? []);
-    expect(sdkCalls).toHaveLength(1);
-    expect(sdkCalls[0]?.options.client_id).toBe(123456);
-    expect(sdkCalls[0]?.options.scope).toEqual(["profile", "write"]);
-    expect(sdkCalls[0]?.options.lang).toBe("ru");
-    expect(sdkCalls[0]?.options.nonce).toBeTruthy();
+    const popupCalls = await page.evaluate(() => (window as Window & { leadvirtTelegramPopupCalls?: Array<{ url: string }> }).leadvirtTelegramPopupCalls ?? []);
+    expect(popupCalls).toHaveLength(1);
+    const authUrl = new URL(popupCalls[0]?.url ?? "");
+    expect(authUrl.searchParams.get("client_id")).toBe("123456");
+    expect(authUrl.searchParams.get("origin")).toBe(webBase);
+    expect(authUrl.searchParams.get("scope")).toBe("openid profile telegram:bot_access");
+    expect(authUrl.searchParams.get("lang")).toBe("ru");
+    expect(authUrl.searchParams.get("nonce")).toBeTruthy();
+    expect(authUrl.searchParams.get("prompt")).toBe("login select_account");
     await expect
       .poll(() => page.evaluate(() => window.localStorage.getItem("leadvirt.auth.session")))
       .toBeNull();
@@ -148,12 +168,12 @@ test.describe("telegram auth flow", () => {
     expect(oidcRequests).toBe(1);
   });
 
-  test("switch account reports Telegram SDK popup close", async ({ page }) => {
+  test("switch account reports Telegram popup close", async ({ page }) => {
     await page.route("**/api/auth/logout", async (route) => {
       await route.fulfill({ headers: apiMockHeaders, json: { data: { loggedOut: true } } });
     });
     await page.addInitScript(() => {
-      (window as Window & { leadvirtTelegramNextResult?: { error: string } }).leadvirtTelegramNextResult = { error: "popup_closed" };
+      (window as Window & { leadvirtTelegramPopupMode?: "closed" }).leadvirtTelegramPopupMode = "closed";
     });
 
     await page.setViewportSize({ width: 1440, height: 1000 });

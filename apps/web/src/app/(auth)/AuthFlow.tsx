@@ -41,21 +41,14 @@ const modeCopy: Record<
 };
 
 const highlights = ["Без пароля", "Подписанный Telegram вход", "Workspace из БД"];
-const telegramLoginScriptSrc = "https://telegram.org/js/telegram-login.js";
+const telegramOidcOrigin = "https://oauth.telegram.org";
 const telegramLoginTimeoutMs = 5 * 60 * 1000;
 const allowLocalTelegramMock = process.env.NODE_ENV !== "production";
 
-type TelegramLoginSdkResult = {
-  id_token?: string;
-  user?: unknown;
-  error?: string;
-};
-
-type TelegramLoginSdkOptions = {
-  client_id: number;
-  scope: Array<"profile" | "phone" | "write" | "telegram:bot_access">;
-  lang?: string;
-  nonce?: string;
+type TelegramAuthMessage = {
+  event?: unknown;
+  result?: unknown;
+  error?: unknown;
 };
 
 function randomNonce() {
@@ -65,49 +58,21 @@ function randomNonce() {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-declare global {
-  interface Window {
-    Telegram?: {
-      Login?: {
-        auth: (options: TelegramLoginSdkOptions, callback: (result: TelegramLoginSdkResult) => void) => void;
-        close?: () => void;
-      };
-    };
-  }
-}
-
-let telegramLoginSdkPromise: Promise<void> | null = null;
-
-function loadTelegramLoginSdk() {
-  if (typeof window === "undefined") return Promise.reject(new Error("browser_required"));
-  if (window.Telegram?.Login?.auth) return Promise.resolve();
-
-  telegramLoginSdkPromise ??= new Promise<void>((resolve, reject) => {
-    const existing = document.querySelector<HTMLScriptElement>(`script[src="${telegramLoginScriptSrc}"]`);
-    const script = existing ?? document.createElement("script");
-
-    const finish = () => {
-      if (window.Telegram?.Login?.auth) {
-        resolve();
-      } else {
-        reject(new Error("telegram_sdk_unavailable"));
-      }
-    };
-
-    script.addEventListener("load", finish, { once: true });
-    script.addEventListener("error", () => reject(new Error("telegram_sdk_failed")), { once: true });
-
-    if (!existing) {
-      script.src = telegramLoginScriptSrc;
-      script.async = true;
-      document.body.appendChild(script);
+function parseTelegramAuthMessage(data: unknown): TelegramAuthMessage | null {
+  let parsed = data;
+  if (typeof parsed === "string") {
+    try {
+      parsed = JSON.parse(parsed) as unknown;
+    } catch {
+      return null;
     }
-  });
-
-  return telegramLoginSdkPromise;
+  }
+  if (!parsed || typeof parsed !== "object") return null;
+  const message = parsed as TelegramAuthMessage;
+  return message.event === "auth_result" ? message : null;
 }
 
-function telegramLoginWithSdk(botId: string) {
+function telegramLoginWithPopup(botId: string, options: { switchAccount: boolean }) {
   const clientId = Number(botId);
   if (!Number.isSafeInteger(clientId) || clientId <= 0) {
     return Promise.reject(new Error("invalid_bot_id"));
@@ -116,42 +81,72 @@ function telegramLoginWithSdk(botId: string) {
   const nonce = randomNonce();
   return new Promise<TelegramOidcAuthPayload>((resolve, reject) => {
     let finished = false;
+    let popup: Window | null = null;
+
+    const authUrl = new URL("/auth", telegramOidcOrigin);
+    authUrl.searchParams.set("response_type", "post_message");
+    authUrl.searchParams.set("client_id", String(clientId));
+    authUrl.searchParams.set("origin", window.location.origin);
+    authUrl.searchParams.set("redirect_uri", `${window.location.origin}/login`);
+    authUrl.searchParams.set("scope", "openid profile telegram:bot_access");
+    authUrl.searchParams.set("lang", "ru");
+    authUrl.searchParams.set("nonce", nonce);
+    if (options.switchAccount) {
+      authUrl.searchParams.set("prompt", "login select_account");
+    }
+
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== telegramOidcOrigin) return;
+      const message = parseTelegramAuthMessage(event.data);
+      if (!message) return;
+      const telegramError = typeof message.error === "string" ? message.error : "";
+      if (telegramError) {
+        finish(() => reject(new Error(telegramError)));
+        return;
+      }
+      const idToken = typeof message.result === "string" ? message.result : "";
+      if (!idToken) {
+        finish(() => reject(new Error("missing_id_token")));
+        return;
+      }
+      finish(() => resolve({ idToken, nonce }));
+    };
+
+    const width = 550;
+    const height = 650;
+    const left = Math.max(0, Math.round(window.screenX + (window.outerWidth - width) / 2));
+    const top = Math.max(0, Math.round(window.screenY + (window.outerHeight - height) / 2));
+    const features = `width=${width},height=${height},left=${left},top=${top},status=0,location=0,menubar=0,toolbar=0`;
+
     const timeout = window.setTimeout(() => {
       if (finished) return;
-      finished = true;
-      window.Telegram?.Login?.close?.();
-      reject(new Error("timeout"));
+      finish(() => reject(new Error("timeout")));
     }, telegramLoginTimeoutMs);
+    const closeTimer = window.setInterval(() => {
+      if (!popup || !popup.closed || finished) return;
+      finish(() => reject(new Error("popup_closed")), false);
+    }, 200);
 
-    const finish = (callback: () => void) => {
+    function finish(callback: () => void, closePopup = true) {
       if (finished) return;
       finished = true;
       window.clearTimeout(timeout);
+      window.clearInterval(closeTimer);
+      window.removeEventListener("message", onMessage);
+      if (closePopup && popup && !popup.closed) popup.close();
       callback();
-    };
+    }
 
     try {
-      window.Telegram?.Login?.auth(
-        {
-          client_id: clientId,
-          scope: ["profile", "write"],
-          lang: "ru",
-          nonce
-        },
-        (result) => {
-          if (result.error) {
-            finish(() => reject(new Error(result.error)));
-            return;
-          }
-          if (!result.id_token) {
-            finish(() => reject(new Error("missing_id_token")));
-            return;
-          }
-          finish(() => resolve({ idToken: result.id_token, nonce }));
-        }
-      );
+      window.addEventListener("message", onMessage);
+      popup = window.open(authUrl.toString(), "telegram_oidc_login", features);
+      if (!popup) {
+        finish(() => reject(new Error("popup_blocked")), false);
+        return;
+      }
+      popup.focus();
     } catch (caught) {
-      finish(() => reject(caught instanceof Error ? caught : new Error("telegram_sdk_failed")));
+      finish(() => reject(caught instanceof Error ? caught : new Error("telegram_popup_failed")));
     }
   });
 }
@@ -169,26 +164,20 @@ function TelegramLoginButton({
 }) {
   const [telegramBotId, setTelegramBotId] = React.useState<string | null>(null);
   const [configLoaded, setConfigLoaded] = React.useState(false);
-  const [sdkReady, setSdkReady] = React.useState(false);
-  const [sdkFailed, setSdkFailed] = React.useState(false);
   const [authenticating, setAuthenticating] = React.useState(false);
   const [switchingAccount, setSwitchingAccount] = React.useState(false);
 
   React.useEffect(() => {
     let cancelled = false;
     getTelegramLoginConfig()
-      .then(async (config) => {
+      .then((config) => {
         if (cancelled) return;
         setTelegramBotId(config.botId);
         setConfigLoaded(true);
-        if (!config.botId) return;
-        await loadTelegramLoginSdk();
-        if (!cancelled) setSdkReady(true);
       })
       .catch(() => {
         if (!cancelled) {
           setConfigLoaded(true);
-          setSdkFailed(true);
         }
       });
     return () => {
@@ -198,7 +187,7 @@ function TelegramLoginButton({
 
   const startTelegramLogin = React.useCallback(
     async (switchAccount: boolean) => {
-      if (!telegramBotId || !sdkReady) {
+      if (!telegramBotId) {
         toast.error("Telegram Login ещё не готов");
         return;
       }
@@ -206,7 +195,7 @@ function TelegramLoginButton({
       setAuthenticating(true);
       setSwitchingAccount(switchAccount);
       try {
-        const telegramAuth = telegramLoginWithSdk(telegramBotId);
+        const telegramAuth = telegramLoginWithPopup(telegramBotId, { switchAccount });
         if (switchAccount) {
           window.localStorage.removeItem("leadvirt.auth.session");
           window.localStorage.removeItem("leadvirt.demo.session");
@@ -226,7 +215,7 @@ function TelegramLoginButton({
         setSwitchingAccount(false);
       }
     },
-    [onOidcAuth, sdkReady, telegramBotId]
+    [onOidcAuth, telegramBotId]
   );
 
   if (allowLocalTelegramMock && configLoaded && !telegramBotId) {
@@ -253,16 +242,12 @@ function TelegramLoginButton({
     );
   }
 
-  const loginDisabled = loading || authenticating || !telegramBotId || !sdkReady;
+  const loginDisabled = loading || authenticating || !telegramBotId;
   const statusText = !configLoaded
     ? "Готовим Telegram Login..."
     : !telegramBotId
       ? "Telegram Login client id не задан на API."
-      : sdkFailed
-        ? "Не удалось загрузить Telegram Login SDK."
-        : !sdkReady
-          ? "Готовим Telegram Login..."
-        : "";
+      : "";
 
   return (
     <div className="space-y-3">

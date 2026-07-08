@@ -8,6 +8,7 @@ No open Umnico onboarding tasks.
 
 ## Done
 
+- [x] Fixed staging Telegram auth `origin required` by replacing the SDK popup with an explicit `oauth.telegram.org/auth` popup that sends `origin`, keeps server-side OIDC verification, adds best-effort `prompt=login select_account` for account switching, and passes web typecheck/lint/build plus focused `auth-flow` Playwright coverage.
 - [x] Fixed the Dockerfile install command typo caught by the pushed auto-deploy run.
 - [x] Fixed GitHub Actions pnpm cache bootstrap by installing pnpm before `actions/setup-node` resolves the pnpm store path.
 - [x] Re-verified the cleanup/deploy optimization suite and deployed release `20260707114255-cleanup-staging` to staging VPS; `https://leadvirt.ru/health` returned `200` and no-cookie `/api/auth/me` returned `401`.
