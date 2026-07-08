@@ -1,5 +1,17 @@
 # Decision Log
 
+## 2026-07-08: Open Telegram Account Switch With Official Popup API
+
+Decision: The `/login` `Другой Telegram аккаунт` action now calls Telegram's official `Telegram.Login.auth` API when the numeric `botId` is available. It still clears LeadVirt local/session state and remounts the widget, but the same user click also opens Telegram's own popup.
+
+Context: Live diagnostics on `https://leadvirt.ru/login` showed the widget iframe loaded correctly and opened Telegram when clicked directly, while the LeadVirt switch button only remounted the iframe and showed a toast. LeadVirt cannot programmatically click a cross-origin Telegram iframe, so the supported path is Telegram's public widget API.
+
+Consequences:
+
+- The switch action can open the Telegram popup directly instead of requiring a second click on the iframe.
+- If the Telegram SDK is not ready, the fallback remains the official iframe button.
+- Telegram still controls account selection and Telegram-domain cookies.
+
 ## 2026-07-08: Make Telegram Account Switching Best-Effort
 
 Decision: `/login` now shows a `Другой Telegram аккаунт` action under the official Telegram widget. It clears only the LeadVirt session/local storage, calls `/auth/logout`, and remounts the official widget with a cache-busted script URL.

@@ -57,6 +57,15 @@ const telegramWidgetMock = `
     lang: script.getAttribute("data-lang"),
     onauth: script.getAttribute("data-onauth")
   });
+  testWindow.Telegram = testWindow.Telegram || {};
+  testWindow.Telegram.Login = testWindow.Telegram.Login || {};
+  testWindow.Telegram.Login.auth = (options, callback) => {
+    testWindow.leadvirtTelegramLoginAuthCalls = testWindow.leadvirtTelegramLoginAuthCalls || [];
+    testWindow.leadvirtTelegramLoginAuthCalls.push(options);
+    if (testWindow.leadvirtTelegramAuthCallbackPayload) {
+      callback(testWindow.leadvirtTelegramAuthCallbackPayload);
+    }
+  };
   const button = document.createElement("button");
   button.type = "button";
   button.dataset.testid = "telegram-widget-mock-button";
@@ -126,7 +135,7 @@ test.describe("telegram auth flow", () => {
     await expect.poll(async () => page.evaluate(() => window.localStorage.getItem("leadvirt.auth.session") ?? "")).toContain("telegram");
   });
 
-  test("switch account clears LeadVirt session and remounts Telegram widget", async ({ page }) => {
+  test("switch account clears LeadVirt session, remounts widget, and opens Telegram auth", async ({ page }) => {
     let logoutRequests = 0;
     await page.route("**/api/auth/logout", async (route) => {
       logoutRequests += 1;
@@ -149,6 +158,12 @@ test.describe("telegram auth flow", () => {
     await expect.poll(() => page.evaluate(() => window.localStorage.getItem("leadvirt.demo.session"))).toBeNull();
     await expect.poll(() => logoutRequests).toBe(1);
     await expect(page.getByTestId("telegram-auth-button")).toHaveAttribute("data-telegram-widget-mount", "1");
+    const authCalls = await page.evaluate(
+      () =>
+        (window as Window & { leadvirtTelegramLoginAuthCalls?: Array<{ bot_id: string; request_access?: string; lang?: string }> })
+          .leadvirtTelegramLoginAuthCalls ?? []
+    );
+    expect(authCalls).toEqual([{ bot_id: "123456", request_access: "write", lang: "ru" }]);
   });
 
   test("invalid Telegram widget payload stays on login", async ({ page }) => {

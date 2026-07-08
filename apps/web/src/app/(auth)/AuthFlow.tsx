@@ -47,7 +47,20 @@ const allowLocalTelegramMock = process.env.NODE_ENV !== "production";
 declare global {
   interface Window {
     __leadvirtTelegramAuth?: (payload: unknown) => void;
+    Telegram?: {
+      Login?: {
+        auth?: (
+          options: { bot_id: string; request_access?: "write"; lang?: string },
+          callback: (payload: unknown) => void
+        ) => void;
+      };
+    };
   }
+}
+
+function normalizeTelegramBotId(value: string | null | undefined) {
+  const normalized = value?.trim() ?? "";
+  return /^\d+$/.test(normalized) ? normalized : null;
 }
 
 function normalizeTelegramBotUsername(value: string | null | undefined) {
@@ -93,6 +106,19 @@ function mountTelegramWidget(host: HTMLDivElement, botUsername: string, mountId:
   host.appendChild(script);
 }
 
+function openTelegramAuthPopup(botId: string) {
+  const auth = window.Telegram?.Login?.auth;
+  if (typeof auth !== "function") return false;
+  try {
+    auth({ bot_id: botId, request_access: "write", lang: "ru" }, (payload) => {
+      window.__leadvirtTelegramAuth?.(payload);
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function TelegramLoginButton({
   label,
   loading,
@@ -103,6 +129,7 @@ function TelegramLoginButton({
   onAuth: (payload: TelegramAuthPayload) => void;
 }) {
   const [telegramBotUsername, setTelegramBotUsername] = React.useState<string | null>(null);
+  const [telegramBotId, setTelegramBotId] = React.useState<string | null>(null);
   const [configLoaded, setConfigLoaded] = React.useState(false);
   const [switchingAccount, setSwitchingAccount] = React.useState(false);
   const [widgetMountId, setWidgetMountId] = React.useState(0);
@@ -128,11 +155,13 @@ function TelegramLoginButton({
     getTelegramLoginConfig()
       .then((config) => {
         if (cancelled) return;
+        setTelegramBotId(normalizeTelegramBotId(config.botId));
         setTelegramBotUsername(normalizeTelegramBotUsername(config.botUsername) ?? publicBotUsername);
         setConfigLoaded(true);
       })
       .catch(() => {
         if (!cancelled) {
+          setTelegramBotId(null);
           setTelegramBotUsername(publicBotUsername);
           setConfigLoaded(true);
         }
@@ -153,6 +182,7 @@ function TelegramLoginButton({
 
   const resetLeadVirtSession = React.useCallback(async () => {
     setSwitchingAccount(true);
+    const authPopupOpened = telegramBotId ? openTelegramAuthPopup(telegramBotId) : false;
     try {
       window.localStorage.removeItem("leadvirt.auth.session");
       window.localStorage.removeItem("leadvirt.demo.session");
@@ -163,11 +193,15 @@ function TelegramLoginButton({
       if (host && telegramBotUsername) {
         mountTelegramWidget(host, telegramBotUsername, nextMountId);
       }
-      toast.info("Сессия LeadVirt очищена. Выберите другой аккаунт в окне Telegram, если он доступен.");
+      toast.info(
+        authPopupOpened
+          ? "Сессия LeadVirt очищена. Продолжите вход в окне Telegram."
+          : "Сессия LeadVirt очищена. Нажмите официальную кнопку Telegram ещё раз."
+      );
     } finally {
       setSwitchingAccount(false);
     }
-  }, [telegramBotUsername, widgetMountId]);
+  }, [telegramBotId, telegramBotUsername, widgetMountId]);
 
   if (allowLocalTelegramMock && configLoaded && !telegramBotUsername) {
     return (

@@ -8,7 +8,7 @@ No open Umnico onboarding tasks.
 
 ## Done
 
-- [x] Added best-effort Telegram account switching on `/login`: clears LeadVirt session/local storage, calls `/auth/logout`, remounts the official Telegram widget, and keeps Telegram cookie/account selection delegated to Telegram; verified web lint/build/typecheck and focused `auth-flow` Playwright coverage.
+- [x] Fixed `/login` Telegram account switching to open Telegram's official popup via `Telegram.Login.auth`: clears LeadVirt session/local storage, calls `/auth/logout`, remounts the official widget, and verifies the popup path through focused `auth-flow` coverage.
 - [x] Replaced `/login` and `/signup` Telegram auth with the official `telegram-widget.js` Login Widget: removed custom/OIDC popup buttons and account-switch button, exposed `botUsername` through `/auth/telegram/config`, returned auth to signed `POST /auth/telegram`, and verified web/api typecheck, lint, build, plus focused `auth-flow` Playwright coverage.
 - [x] Reviewed local Meta Instagram preflight changes, documented `META_DEBUG_INSTAGRAM=1`, and checked the script syntax.
 - [x] Fixed staging Telegram auth `origin required` by replacing the SDK popup with an explicit `oauth.telegram.org/auth` popup that sends `origin`, keeps server-side OIDC verification, adds best-effort `prompt=login select_account` for account switching, and passes web typecheck/lint/build plus focused `auth-flow` Playwright coverage.
