@@ -9,8 +9,19 @@ Context: Pilot onboarding should avoid legal and platform-review complexity such
 Consequences:
 
 - Pilot readiness focuses on low-friction channels such as Telegram, Website Widget, and Webhook/API.
-- Instagram can still be handled manually through Umnico when needed, but it is not advertised as self-serve.
 - Future native Meta integrations should become self-serve only after the required verification/review path is complete.
+
+## 2026-07-08: Remove Retired Instagram Bridge From Pilot
+
+Decision: The previously tested third-party Instagram bridge is removed from runtime code, Integrations UI, QA scripts, and operator docs. Webhook/API returns to generic inbound-only behavior.
+
+Context: The pilot should avoid extra provider registration, hidden token storage, and any onboarding path that suggests Instagram can be connected without the required platform review or business setup.
+
+Consequences:
+
+- Integrations keeps Instagram and WhatsApp Business as request-only channels.
+- Webhook/API remains useful for direct forms, partner backends, and manual smoke leads.
+- Native social channel work must be implemented as a separate reviewed integration path later.
 
 ## 2026-07-08: Create Missing Integration Accounts On Connect
 
@@ -112,56 +123,6 @@ Consequences:
 - The old signed payload endpoint remains available for local/test fallback and backward compatibility.
 - `/login` clears the LeadVirt session before opening the account-switch flow without relying on cross-domain cookie deletion.
 - Hand-built `oauth.telegram.org/auth` URL construction and hidden iframe logout are avoided.
-
-## 2026-07-07: Onboard Umnico From Integrations UI
-
-Decision: The Integrations page is the UI onboarding surface for Umnico-backed `WEBHOOK_API`: users enter the Umnico token, copy the Umnico webhook URL with `secret` query parameter, see `apiTokenStatus`, and send a test lead from the page.
-
-Context: Backend settings already store the token only on the Webhook/API channel and redact it from integration DTOs. Operators still needed SQL/manual provisioning steps to complete client setup.
-
-Consequences:
-
-- The UI sends `provider: "umnico"` and a new token only when the user enters one.
-- Existing tokens are shown only as `apiTokenStatus`, never prefilled into the browser form.
-- The no-SQL path is covered by `integrations-api.spec.ts` and backend redaction remains covered by `qa:umnico:settings`.
-
-## 2026-07-07: Send Umnico Replies Through Channel Delivery
-
-Decision: LeadVirt sends Umnico-backed Webhook/API conversation replies through the worker `channels.sendMessage` queue and Umnico `POST /v1.3/messaging/<lead-id>/send`.
-
-Context: Umnico inbound Instagram messages reached LeadVirt, but replies from the LeadVirt Inbox were only stored locally because the generic Webhook adapter was a stub.
-
-Consequences:
-
-- Manual Inbox messages for active Webhook/API conversations are queued for external delivery instead of being marked sent locally only.
-- The Umnico adapter derives `lead-id` from `externalConversationId`, uses inbound `source.realId` when available, and falls back to Umnico API source/manager lookups.
-- Channels must store Umnico API credentials in channel settings before real delivery can work in production.
-- `qa:umnico:outbound` covers the outbound adapter payload shape.
-
-## 2026-07-07: Store Umnico Tokens On Channels, Not Integration DTOs
-
-Decision: `WEBHOOK_API` integration settings can configure Umnico delivery, but the API token is persisted only in the associated Webhook/API channel settings. Integration settings expose `apiTokenStatus` instead of returning the token.
-
-Context: The Integrations page is the natural client onboarding surface, while channel delivery workers read credentials from channels. Returning third-party tokens in list responses would leak secrets to the browser.
-
-Consequences:
-
-- `PATCH /integrations/WEBHOOK_API/settings` updates the Webhook/API channel's `webhook.umnico` settings.
-- `/integrations` can show whether Umnico is configured without exposing the token.
-- `qa:umnico:settings` verifies the credential placement and redaction boundary.
-
-## 2026-07-07: Use Umnico As Instagram Inbound Bridge First
-
-Decision: Pilot Instagram through Umnico by routing Umnico `message.incoming` webhooks into the existing LeadVirt Webhook/API channel. Because Umnico webhook registration accepts a URL but no custom headers, LeadVirt also accepts the Webhook/API secret as a `secret` query parameter for this public endpoint.
-
-Context: Native Meta Instagram Messaging API access passed preflight, but real DM visibility remained unreliable for release testing. Umnico can receive Instagram messages and forward webhook events to LeadVirt.
-
-Consequences:
-
-- Umnico inbound messages create real tenant leads/conversations through the same public Webhook/API path as other bridge integrations.
-- Non-inbound Umnico events are acknowledged as ignored so they do not create fake leads.
-- The query-secret URL is provider-compatibility glue; prefer header secrets for integrations that support custom headers.
-- Outbound replies use the dedicated Umnico delivery adapter when channel credentials are configured.
 
 ## 2026-07-06: Gate Native Instagram Work With Meta Preflight
 

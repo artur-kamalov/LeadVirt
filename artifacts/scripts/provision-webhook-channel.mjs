@@ -116,14 +116,12 @@ function packet(channel) {
   const publicKey = channel.publicKey ?? "";
   const secret = webhookSecret(channel);
   const endpoint = webhookEndpoint(publicKey);
-  const umnicoWebhookUrl = `${endpoint}?secret=${encodeURIComponent(secret)}`;
   return {
     channelId: channel.id,
     channelName: channel.name,
     publicKey,
     secret,
     endpoint,
-    umnicoWebhookUrl,
     secretHeader: "x-leadvirt-webhook-secret",
   };
 }
@@ -142,7 +140,6 @@ function renderPacket(details) {
     `LEADVIRT_AI_ADMIN_ENABLED=true`,
     `LEADVIRT_WEBHOOK_URL=${details.endpoint}`,
     `LEADVIRT_WEBHOOK_SECRET=${details.secret}`,
-    `UMNICO_WEBHOOK_URL=${details.umnicoWebhookUrl}`,
     "",
     "## LeadVirt public preflight env",
     "",
@@ -154,7 +151,6 @@ function renderPacket(details) {
     `$env:LEADVIRT_AI_ADMIN_ENABLED="true"`,
     `$env:LEADVIRT_WEBHOOK_URL="${details.endpoint}"`,
     `$env:LEADVIRT_WEBHOOK_SECRET="${details.secret}"`,
-    `$env:UMNICO_WEBHOOK_URL="${details.umnicoWebhookUrl}"`,
     `$env:LEADVIRT_PUBLIC_WEBHOOK_KEY="${details.publicKey}"`,
     `$env:LEADVIRT_PUBLIC_WEBHOOK_SECRET="${details.secret}"`,
     "",

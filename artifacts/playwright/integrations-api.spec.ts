@@ -87,28 +87,6 @@ function channel(type: string, publicKey: string) {
   };
 }
 
-function webhookSettings(apiTokenStatus: "configured" | "missing" = "configured") {
-  return {
-    provider: "umnico",
-    apiTokenStatus,
-    endpointUrl: "https://api.umnico.com/v1.3",
-    webhook: {
-      provider: "umnico",
-      umnico: {
-        apiBase: "https://api.umnico.com/v1.3",
-        apiTokenStatus,
-      },
-    },
-  };
-}
-
-function webhookIntegration(status: "CONNECTED" | "DISCONNECTED" = "CONNECTED") {
-  return {
-    ...integration("WEBHOOK_API", status),
-    settings: webhookSettings(),
-  };
-}
-
 test("integrations page starts empty when API returns no tenant integrations", async ({ page }) => {
   await page.route("**/api/integrations", async (route) => {
     await route.fulfill({ json: { data: [] } });
@@ -131,7 +109,6 @@ test("integrations page connects and disconnects through provider API", async ({
   let disconnectedProvider = "";
   const sampledProviders: string[] = [];
   let savedSettings: unknown = null;
-  let savedWebhookSettings: unknown = null;
 
   await page.route("**/api/integrations", async (route) => {
     await route.fulfill({
@@ -150,7 +127,7 @@ test("integrations page connects and disconnects through provider API", async ({
           },
           integration("RETAILCRM", "DISCONNECTED"),
           integration("TELEGRAM", "CONNECTED"),
-          webhookIntegration("CONNECTED"),
+          integration("WEBHOOK_API", "CONNECTED"),
         ],
       },
     });
@@ -185,18 +162,6 @@ test("integrations page connects and disconnects through provider API", async ({
         data: {
           ...integration("AMOCRM", "CONNECTED"),
           settings: (savedSettings as { settings?: unknown }).settings ?? {},
-        },
-      },
-    });
-  });
-
-  await page.route("**/api/integrations/WEBHOOK_API/settings", async (route) => {
-    savedWebhookSettings = await route.request().postDataJSON();
-    await route.fulfill({
-      json: {
-        data: {
-          ...webhookIntegration("CONNECTED"),
-          settings: webhookSettings("configured"),
         },
       },
     });
@@ -238,7 +203,7 @@ test("integrations page connects and disconnects through provider API", async ({
           aiMessageId: null,
           outboundStatus: "queued",
           reply: null,
-          integration: webhookIntegration("CONNECTED"),
+          integration: integration("WEBHOOK_API", "CONNECTED"),
         },
       },
     });
@@ -263,13 +228,7 @@ test("integrations page connects and disconnects through provider API", async ({
     "x-leadvirt-webhook-secret",
   );
   await expect(page.getByTestId("api-webhook-payload")).toContainText("leadvirt-sample-event");
-  await expect(page.getByTestId("api-webhook-umnicoWebhook")).toContainText(
-    "http://localhost:4001/api/public/channels/webhook/demo-generic-webhook/events?secret=demo-webhook-secret",
-  );
-  await expect(page.getByTestId("api-webhook-umnico-status")).toContainText("Umnico delivery");
-  await expect(page.getByTestId("api-webhook-umnico-status")).toContainText(
-    "Umnico token сохранён",
-  );
+  await expect(page.getByTestId("api-webhook-status")).toContainText("Webhook/API готов");
   await expect(page.getByTestId("integration-card-instagram")).toContainText(
     "Подключение по запросу",
   );
@@ -364,61 +323,21 @@ test("integrations page connects and disconnects through provider API", async ({
   const webhookCard = page.locator(".group").filter({ hasText: "Webhook / API" }).first();
   await webhookCard.getByRole("button", { name: /Настроить/ }).click();
   await page.getByRole("menuitem", { name: /^Настроить$/ }).click();
-  const webhookDialog = page.getByRole("dialog", { name: /Webhook \/ API: Umnico onboarding/ });
+  const webhookDialog = page.getByRole("dialog", { name: /Webhook \/ API: настройки/ });
   await expect(webhookDialog).toBeVisible();
-  await expect(webhookDialog.getByTestId("umnico-token-status")).toContainText("Сохранён");
-  await expect(webhookDialog.getByTestId("umnico-webhook-url")).toContainText(
-    "http://localhost:4001/api/public/channels/webhook/demo-generic-webhook/events?secret=demo-webhook-secret",
-  );
-  await expect(webhookDialog.getByLabel("Umnico API URL")).toHaveValue(
-    "https://api.umnico.com/v1.3",
-  );
-  await expect(webhookDialog.getByLabel("Umnico API token")).toHaveValue("");
+  await expect(webhookDialog.getByText("http://localhost:4001/api/public/channels/webhook/demo-generic-webhook/events")).toBeVisible();
+  await expect(webhookDialog.getByText("demo-generic-webhook", { exact: true })).toBeVisible();
+  await expect(webhookDialog.getByText("x-leadvirt-webhook-secret")).toBeVisible();
+  await expect(webhookDialog.getByLabel("Endpoint URL")).toHaveValue("");
   const modalWebhookSamples = sampledProviders.filter(
     (provider) => provider === "WEBHOOK_API",
   ).length;
-  await webhookDialog.getByTestId("umnico-settings-sample").click();
+  await webhookDialog.getByTestId("webhook-settings-sample").click();
   await expect
     .poll(() => sampledProviders.filter((provider) => provider === "WEBHOOK_API").length)
     .toBe(modalWebhookSamples + 1);
-  await webhookDialog.getByLabel("Umnico API token").fill("umnico-secret-token-43");
-  await expect(webhookDialog.getByLabel("Umnico API token")).toHaveValue("umnico-secret-token-43");
-  await webhookDialog.getByRole("button", { name: "Сохранить настройки" }).click();
-  await expect
-    .poll(
-      () =>
-        (savedWebhookSettings as { settings?: { provider?: string } } | null)?.settings?.provider,
-    )
-    .toBe("umnico");
-  await expect
-    .poll(
-      () =>
-        (savedWebhookSettings as { settings?: { apiToken?: string } } | null)?.settings?.apiToken,
-    )
-    .toBe("umnico-secret-token-43");
-  await expect
-    .poll(
-      () =>
-        (
-          savedWebhookSettings as {
-            settings?: { webhook?: { umnico?: { apiBase?: string; apiToken?: string } } };
-          } | null
-        )?.settings?.webhook?.umnico?.apiBase,
-    )
-    .toBe("https://api.umnico.com/v1.3");
-  await expect
-    .poll(
-      () =>
-        (
-          savedWebhookSettings as {
-            settings?: { webhook?: { umnico?: { apiToken?: string } } };
-          } | null
-        )?.settings?.webhook?.umnico?.apiToken,
-    )
-    .toBeUndefined();
-  await expect(
-    page.getByRole("dialog", { name: /Webhook \/ API: Umnico onboarding/ }),
-  ).toBeHidden();
+  await page.getByRole("button", { name: "Отмена" }).click();
+  await expect(webhookDialog).toBeHidden();
 
   const retailCard = page.locator(".group").filter({ hasText: "RetailCRM" }).first();
   await expect(retailCard.getByRole("button", { name: /Подключить/ })).toBeVisible();

@@ -149,7 +149,7 @@ export class IntegrationsService {
       status: integration.status,
       name: integration.name,
       category: integration.category,
-      settings: this.integrationSettings(integration.provider, integration.settings, channels),
+      settings: this.integrationSettings(integration.provider, integration.settings),
       connectedAt: integration.connectedAt?.toISOString() ?? null,
       lastSyncAt: integration.lastSyncAt?.toISOString() ?? null,
       inboundEndpoint: this.inboundEndpointForProvider(integration.provider, channels),
@@ -445,23 +445,14 @@ export class IntegrationsService {
 
     const currentSettings = asRecord(channel.settings);
     const currentWebhook = asRecord(currentSettings.webhook);
-    const currentUmnico = asRecord(currentWebhook.umnico);
-    const incomingWebhook = asRecord(settings.webhook);
-    const incomingUmnico = isRecord(settings.umnico) ? settings.umnico : asRecord(incomingWebhook.umnico);
-    const apiToken = optionalString(firstString(settings.apiToken, settings.umnicoApiToken, incomingUmnico.apiToken, incomingUmnico.token));
-    const apiBase = optionalString(firstString(settings.endpointUrl, settings.umnicoApiBase, incomingUmnico.apiBase, incomingUmnico.baseUrl));
-    const provider = optionalString(firstString(settings.provider, incomingWebhook.provider, incomingUmnico.provider)) ?? (apiToken || currentUmnico.apiToken ? "umnico" : firstString(currentWebhook.provider, "generic"));
-
-    const nextUmnico: Prisma.InputJsonObject = {
-      ...currentUmnico,
-      ...(apiBase ? { apiBase } : {}),
-      ...(apiToken ? { apiToken } : {})
-    };
-    const nextWebhook: Prisma.InputJsonObject = {
-      ...currentWebhook,
-      provider,
-      ...(provider === "umnico" ? { umnico: nextUmnico } : {})
-    };
+    const provider = "generic";
+    const nextWebhook: Record<string, Prisma.InputJsonValue> = { provider };
+    for (const key of ["publicKey", "secret", "webhookSecret", "acceptedHeaders"]) {
+      const value = currentWebhook[key];
+      if (value !== undefined) {
+        nextWebhook[key] = value as Prisma.InputJsonValue;
+      }
+    }
 
     await this.prisma.channel.update({
       where: { id: channel.id },
@@ -473,27 +464,18 @@ export class IntegrationsService {
       }
     });
 
-    const sanitized = { ...settings };
-    delete sanitized.apiToken;
-    delete sanitized.umnicoApiToken;
-    const tokenConfigured = Boolean(apiToken || currentUmnico.apiToken);
+    const sanitizedWebhook = asRecord(settings.webhook);
     return {
-      ...sanitized,
+      ...(typeof settings.displayName === "string" ? { displayName: settings.displayName.trim() } : {}),
+      ...(typeof settings.endpointUrl === "string" ? { endpointUrl: settings.endpointUrl.trim() } : {}),
+      ...(typeof settings.syncMode === "string" ? { syncMode: settings.syncMode } : {}),
+      ...(typeof settings.syncEnabled === "boolean" ? { syncEnabled: settings.syncEnabled } : {}),
+      ...(typeof settings.notes === "string" ? { notes: settings.notes.trim() } : {}),
+      ...(isRecord(settings.ui) ? { ui: settings.ui as Prisma.InputJsonObject } : {}),
       provider,
-      apiTokenStatus: tokenConfigured ? "configured" : "missing",
-      endpointUrl: apiBase ?? firstString(currentUmnico.apiBase, ""),
       webhook: {
-        ...asRecord(sanitized.webhook),
-        provider,
-        ...(provider === "umnico"
-          ? {
-              umnico: {
-                ...asRecord(asRecord(sanitized.webhook).umnico),
-                ...(apiBase ? { apiBase } : {}),
-                apiTokenStatus: tokenConfigured ? "configured" : "missing"
-              }
-            }
-          : {})
+        ...(typeof sanitizedWebhook.endpointUrl === "string" ? { endpointUrl: sanitizedWebhook.endpointUrl.trim() } : {}),
+        provider
       }
     };
   }
@@ -642,34 +624,22 @@ export class IntegrationsService {
 
   private integrationSettings(
     provider: ProviderParam,
-    settings: Prisma.JsonValue | null,
-    channels: { id: string; type: ChannelType; publicKey: string | null; settings?: Prisma.JsonValue | null }[]
+    settings: Prisma.JsonValue | null
   ) {
     const base = asRecord(settings);
     if (provider !== "WEBHOOK_API") return base;
 
-    const channel = channels.find((item) => item.type === "WEBHOOK");
-    const channelSettings = asRecord(channel?.settings);
-    const webhook = asRecord(channelSettings.webhook);
-    const umnico = asRecord(webhook.umnico);
-    const apiTokenConfigured = Boolean(umnico.apiToken);
+    const genericProvider = "generic";
     return {
-      ...base,
-      provider: firstString(webhook.provider, base.provider),
-      apiTokenStatus: apiTokenConfigured ? "configured" : firstString(base.apiTokenStatus, "missing"),
-      endpointUrl: firstString(umnico.apiBase, base.endpointUrl),
+      ...(typeof base.displayName === "string" ? { displayName: base.displayName } : {}),
+      ...(typeof base.endpointUrl === "string" ? { endpointUrl: base.endpointUrl } : {}),
+      ...(typeof base.syncMode === "string" ? { syncMode: base.syncMode } : {}),
+      ...(typeof base.syncEnabled === "boolean" ? { syncEnabled: base.syncEnabled } : {}),
+      ...(typeof base.notes === "string" ? { notes: base.notes } : {}),
+      ...(isRecord(base.ui) ? { ui: base.ui } : {}),
+      provider: genericProvider,
       webhook: {
-        ...asRecord(base.webhook),
-        provider: firstString(webhook.provider, asRecord(base.webhook).provider),
-        ...(webhook.provider === "umnico"
-          ? {
-              umnico: {
-                ...asRecord(asRecord(base.webhook).umnico),
-                apiBase: firstString(umnico.apiBase),
-                apiTokenStatus: apiTokenConfigured ? "configured" : "missing"
-              }
-            }
-          : {})
+        provider: genericProvider
       }
     };
   }

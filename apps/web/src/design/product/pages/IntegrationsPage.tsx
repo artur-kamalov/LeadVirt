@@ -240,9 +240,6 @@ function availabilityLabel(integration: Integration) {
 }
 
 type SyncMode = "leads-to-service" | "two-way" | "events-only";
-type UmnicoTokenStatus = "configured" | "missing";
-
-const DEFAULT_UMNICO_API_BASE = "https://api.umnico.com/v1.3";
 
 interface IntegrationSettingsForm {
   displayName: string;
@@ -277,13 +274,6 @@ function booleanSetting(settings: Record<string, unknown>, key: string, fallback
   return typeof value === "boolean" ? value : fallback;
 }
 
-function firstString(...values: unknown[]) {
-  for (const value of values) {
-    if (typeof value === "string" && value.trim().length > 0) return value.trim();
-  }
-  return undefined;
-}
-
 function syncModeSetting(settings: Record<string, unknown>): SyncMode {
   const value = settings.syncMode;
   return value === "two-way" || value === "events-only" || value === "leads-to-service"
@@ -291,72 +281,16 @@ function syncModeSetting(settings: Record<string, unknown>): SyncMode {
     : "leads-to-service";
 }
 
-function webhookSettings(account?: IntegrationAccount | null) {
-  return asRecord(asRecord(account?.settings).webhook);
-}
-
-function umnicoSettings(account?: IntegrationAccount | null) {
-  const settings = asRecord(account?.settings);
-  return isRecord(settings.umnico) ? settings.umnico : asRecord(webhookSettings(account).umnico);
-}
-
-function webhookProvider(account?: IntegrationAccount | null) {
-  const settings = asRecord(account?.settings);
-  return firstString(
-    settings.provider,
-    webhookSettings(account).provider,
-    umnicoSettings(account).provider,
-  );
-}
-
-function umnicoTokenStatus(account?: IntegrationAccount | null): UmnicoTokenStatus {
-  const settings = asRecord(account?.settings);
-  const status = firstString(settings.apiTokenStatus, umnicoSettings(account).apiTokenStatus);
-  return status === "configured" ? "configured" : "missing";
-}
-
-function isUmnicoWebhook(account?: IntegrationAccount | null) {
-  return (
-    webhookProvider(account)?.toLowerCase() === "umnico" ||
-    umnicoTokenStatus(account) === "configured"
-  );
-}
-
-function webhookChannel(channels?: Channel[] | null) {
-  return channels?.find((channel) => channel.type === "WEBHOOK") ?? null;
-}
-
-function webhookSecret(channel?: Channel | null) {
-  const settings = asRecord(channel?.settings);
-  const webhook = asRecord(settings.webhook);
-  return firstString(
-    webhook.secret,
-    webhook.webhookSecret,
-    settings.secret,
-    settings.webhookSecret,
-  );
-}
-
-function withSecretQuery(url: string, secret?: string) {
-  if (!url || !secret) return url;
-  return `${url}${url.includes("?") ? "&" : "?"}secret=${encodeURIComponent(secret)}`;
-}
-
 function formFromSettings(
   integration: Integration,
   account?: IntegrationAccount | null,
 ): IntegrationSettingsForm {
   const settings = asRecord(account?.settings);
-  const isWebhookApi = integration.provider === "WEBHOOK_API";
-  const umnico = umnicoSettings(account);
 
   return {
     displayName: stringSetting(settings, "displayName", integration.name),
-    endpointUrl: isWebhookApi
-      ? (firstString(settings.endpointUrl, umnico.apiBase, DEFAULT_UMNICO_API_BASE) ??
-        DEFAULT_UMNICO_API_BASE)
-      : stringSetting(settings, "endpointUrl"),
-    apiToken: isWebhookApi ? "" : stringSetting(settings, "apiToken"),
+    endpointUrl: stringSetting(settings, "endpointUrl"),
+    apiToken: stringSetting(settings, "apiToken"),
     syncMode: syncModeSetting(settings),
     syncEnabled: booleanSetting(settings, "syncEnabled", true),
     notes: stringSetting(settings, "notes"),
@@ -383,31 +317,12 @@ function settingsFromForm(
   };
 
   if (provider === "WEBHOOK_API") {
-    const endpointUrl = form.endpointUrl.trim() || DEFAULT_UMNICO_API_BASE;
-    const apiToken = form.apiToken.trim();
-    const webhook = asRecord(currentSettings.webhook);
-    const umnico = asRecord(webhook.umnico);
-    const safeUmnico: Record<string, unknown> = { ...umnico };
-    const sanitized: Record<string, unknown> = { ...base };
-    delete sanitized.apiToken;
-    delete sanitized.umnicoApiToken;
-    delete safeUmnico.apiToken;
-    delete safeUmnico.token;
-    delete safeUmnico.jwt;
-    delete safeUmnico.accessToken;
-
     return {
-      ...sanitized,
-      endpointUrl,
-      provider: "umnico",
-      ...(apiToken ? { apiToken } : {}),
+      ...base,
+      provider: "generic",
       webhook: {
-        ...webhook,
-        provider: "umnico",
-        umnico: {
-          ...safeUmnico,
-          apiBase: endpointUrl,
-        },
+        ...asRecord(currentSettings.webhook),
+        provider: "generic",
       },
     };
   }
@@ -772,7 +687,6 @@ function SettingsSwitch({
 function IntegrationSettingsModal({
   integration,
   account,
-  channels,
   open,
   saving,
   sampleBusy,
@@ -782,7 +696,6 @@ function IntegrationSettingsModal({
 }: {
   integration: Integration | null;
   account?: IntegrationAccount | null;
-  channels?: Channel[] | null;
   open: boolean;
   saving: boolean;
   sampleBusy: boolean;
@@ -810,26 +723,16 @@ function IntegrationSettingsModal({
   const isWebhookApi = integration.provider === "WEBHOOK_API";
   const inboundEndpoint = account?.inboundEndpoint ?? null;
   const fullEndpointUrl = inboundEndpoint ? inboundEndpointUrl(inboundEndpoint.endpointPath) : "";
-  const umnicoWebhookUrl = isWebhookApi
-    ? withSecretQuery(fullEndpointUrl, webhookSecret(webhookChannel(channels)))
-    : "";
   const samplePayload = inboundEndpoint
     ? JSON.stringify(inboundEndpoint.samplePayload, null, 2)
     : "";
-  const tokenStatus = umnicoTokenStatus(account);
-  const tokenConfigured = tokenStatus === "configured";
-  const umnicoDelivery = isUmnicoWebhook(account);
 
   return (
     <Modal
       open={open}
       onOpenChange={onOpenChange}
-      title={isWebhookApi ? "Webhook / API: Umnico onboarding" : `${integration.name}: настройки`}
-      description={
-        isWebhookApi
-          ? "Подключите Umnico token к Webhook/API каналу и проверьте входящий тестовый лид."
-          : "Сохраните параметры подключения, которые будут использоваться при синхронизации лидов и событий."
-      }
+      title={`${integration.name}: настройки`}
+      description="Сохраните параметры подключения, которые будут использоваться при синхронизации лидов и событий."
       className="max-w-2xl"
       footer={
         <>
@@ -842,50 +745,6 @@ function IntegrationSettingsModal({
         </>
       }
     >
-      {isWebhookApi && (
-        <div
-          data-testid="umnico-onboarding-status"
-          className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3"
-        >
-          <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-3">
-            <p className="text-xs uppercase tracking-widest text-zinc-500">Delivery</p>
-            <p
-              className={cn(
-                "mt-1 text-sm font-semibold",
-                umnicoDelivery ? "text-emerald-300" : "text-amber-300",
-              )}
-            >
-              {umnicoDelivery ? "Umnico" : "Не выбран"}
-            </p>
-          </div>
-          <div
-            className="rounded-2xl border border-white/5 bg-white/[0.03] p-3"
-            data-testid="umnico-token-status"
-          >
-            <p className="text-xs uppercase tracking-widest text-zinc-500">Token</p>
-            <p
-              className={cn(
-                "mt-1 text-sm font-semibold",
-                tokenConfigured ? "text-emerald-300" : "text-amber-300",
-              )}
-            >
-              {tokenConfigured ? "Сохранён" : "Нужен token"}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-3">
-            <p className="text-xs uppercase tracking-widest text-zinc-500">Webhook</p>
-            <p
-              className={cn(
-                "mt-1 text-sm font-semibold",
-                umnicoWebhookUrl ? "text-emerald-300" : "text-amber-300",
-              )}
-            >
-              {umnicoWebhookUrl ? "URL готов" : "Нужен канал"}
-            </p>
-          </div>
-        </div>
-      )}
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Название подключения">
           <DarkInput
@@ -907,35 +766,27 @@ function IntegrationSettingsModal({
         </Field>
 
         <Field
-          label={isWebhookApi ? "Umnico API URL" : "Endpoint / URL"}
-          hint={isWebhookApi ? "По умолчанию используется официальный API Umnico v1.3." : undefined}
+          label="Endpoint / URL"
         >
           <DarkInput
-            aria-label={isWebhookApi ? "Umnico API URL" : "Endpoint URL"}
-            placeholder={isWebhookApi ? DEFAULT_UMNICO_API_BASE : "https://example.com/webhook"}
+            aria-label="Endpoint URL"
+            placeholder="https://example.com/webhook"
             value={form.endpointUrl}
             onChange={(event) => setForm((prev) => ({ ...prev, endpointUrl: event.target.value }))}
           />
         </Field>
 
-        <Field
-          label={isWebhookApi ? "Umnico API token" : "API token"}
-          hint={
-            isWebhookApi && tokenConfigured
-              ? "Оставьте поле пустым, чтобы сохранить текущий token."
-              : undefined
-          }
-        >
-          <DarkInput
-            aria-label={isWebhookApi ? "Umnico API token" : "API token"}
-            type="password"
-            placeholder={
-              isWebhookApi && tokenConfigured ? "Введите новый token для замены" : "Введите токен"
-            }
-            value={form.apiToken}
-            onChange={(event) => setForm((prev) => ({ ...prev, apiToken: event.target.value }))}
-          />
-        </Field>
+        {!isWebhookApi && (
+          <Field label="API token">
+            <DarkInput
+              aria-label="API token"
+              type="password"
+              placeholder="Введите токен"
+              value={form.apiToken}
+              onChange={(event) => setForm((prev) => ({ ...prev, apiToken: event.target.value }))}
+            />
+          </Field>
+        )}
       </div>
 
       <div className="mt-4 rounded-2xl border border-white/5 bg-white/[0.03] p-4 flex items-center justify-between gap-4">
@@ -957,9 +808,7 @@ function IntegrationSettingsModal({
             <div>
               <p className="text-sm font-semibold text-emerald-300">Публичный входящий endpoint</p>
               <p className="mt-0.5 text-xs text-zinc-500">
-                {isWebhookApi
-                  ? "Этот URL укажите в Umnico как webhook для входящих сообщений."
-                  : "Используйте эти данные для первого пилота или внешней формы."}
+                Используйте эти данные для первого пилота или внешней формы.
               </p>
             </div>
             <Pill className="border border-emerald-500/20 bg-emerald-500/10 text-emerald-300">
@@ -968,21 +817,6 @@ function IntegrationSettingsModal({
           </div>
 
           <div className="space-y-3">
-            {isWebhookApi && (
-              <div>
-                <div className="mb-1 flex items-center justify-between gap-2">
-                  <span className="text-xs font-medium text-zinc-400">Umnico webhook URL</span>
-                  <EndpointCopyButton value={umnicoWebhookUrl} />
-                </div>
-                <div
-                  data-testid="umnico-webhook-url"
-                  className="break-all rounded-xl border border-white/5 bg-zinc-950/60 px-3 py-2 font-mono text-xs text-zinc-200"
-                >
-                  {umnicoWebhookUrl || "Webhook channel secret недоступен"}
-                </div>
-              </div>
-            )}
-
             <div>
               <div className="mb-1 flex items-center justify-between gap-2">
                 <span className="text-xs font-medium text-zinc-400">Endpoint URL</span>
@@ -1033,7 +867,7 @@ function IntegrationSettingsModal({
                 className="h-9 w-full rounded-xl text-xs"
                 disabled={sampleBusy || !inboundEndpoint}
                 onClick={onSendSample}
-                data-testid="umnico-settings-sample"
+                data-testid="webhook-settings-sample"
               >
                 <Send className="h-3.5 w-3.5" />
                 {sampleBusy ? "Отправляем..." : "Отправить тестовый лид"}
@@ -1229,16 +1063,14 @@ function IntegrationCard({
 /* ============================================================
    API Card
    ============================================================ */
-type ApiCopyTarget = "endpoint" | "umnicoWebhook" | "publicKey" | "secretHeader" | "payload";
+type ApiCopyTarget = "endpoint" | "publicKey" | "secretHeader" | "payload";
 
 function ApiCard({
   accounts,
-  channels,
   pendingId,
   onSendSample,
 }: {
   accounts: IntegrationAccount[];
-  channels?: Channel[] | null;
   pendingId: string | null;
   onSendSample: (integrationId: string) => void;
 }) {
@@ -1246,10 +1078,6 @@ function ApiCard({
   const webhookAccount = accounts.find((account) => account.provider === "WEBHOOK_API");
   const endpoint = webhookAccount?.inboundEndpoint ?? null;
   const endpointUrl = endpoint ? inboundEndpointUrl(endpoint.endpointPath) : "";
-  const umnicoUrl = withSecretQuery(endpointUrl, webhookSecret(webhookChannel(channels)));
-  const tokenStatus = umnicoTokenStatus(webhookAccount);
-  const tokenConfigured = tokenStatus === "configured";
-  const umnicoDelivery = isUmnicoWebhook(webhookAccount);
   const samplePayload = endpoint?.samplePayload
     ? JSON.stringify(endpoint.samplePayload, null, 2)
     : "";
@@ -1259,12 +1087,6 @@ function ApiCard({
       label: "Webhook URL",
       value: endpointUrl,
       empty: "Подключите Webhook / API, чтобы получить URL",
-    },
-    {
-      id: "umnicoWebhook",
-      label: "Umnico webhook URL",
-      value: umnicoUrl,
-      empty: "Подключите Webhook / API, чтобы получить Umnico URL",
     },
     {
       id: "publicKey",
@@ -1336,7 +1158,7 @@ function ApiCard({
           </div>
 
           <div className="flex flex-col gap-3 md:pt-6 md:shrink-0">
-            <div data-testid="api-webhook-umnico-status" className="flex flex-col gap-2">
+            <div data-testid="api-webhook-status" className="flex flex-col gap-2">
               <Pill
                 className={cn(
                   "justify-center text-[11px]",
@@ -1346,24 +1168,6 @@ function ApiCard({
                 )}
               >
                 {endpoint ? "Webhook/API готов" : "Нужна настройка"}
-              </Pill>
-              <Pill
-                className={cn(
-                  "justify-center text-[11px]",
-                  umnicoDelivery ? "bg-sky-500/15 text-sky-300" : "bg-white/5 text-zinc-400",
-                )}
-              >
-                {umnicoDelivery ? "Umnico delivery" : "Generic webhook"}
-              </Pill>
-              <Pill
-                className={cn(
-                  "justify-center text-[11px]",
-                  tokenConfigured
-                    ? "bg-emerald-500/15 text-emerald-300"
-                    : "bg-amber-500/15 text-amber-300",
-                )}
-              >
-                {tokenConfigured ? "Umnico token сохранён" : "Нужен Umnico token"}
               </Pill>
             </div>
             <Button
@@ -1688,7 +1492,6 @@ export function IntegrationsPage() {
           />
           <ApiCard
             accounts={accounts}
-            channels={channels}
             pendingId={pendingId}
             onSendSample={(id) => void sendSample(id)}
           />
@@ -1697,7 +1500,6 @@ export function IntegrationsPage() {
         <IntegrationSettingsModal
           integration={settingsIntegration}
           account={settingsAccount}
-          channels={channels}
           open={settingsIntegrationId !== null}
           saving={pendingId === settingsIntegrationId}
           sampleBusy={pendingId === "webhook"}
