@@ -4,6 +4,7 @@ const targetPageId = (process.env.META_PAGE_ID || "").trim();
 const targetIgAccountId = (process.env.META_IG_ACCOUNT_ID || "").trim();
 const requireConversation = process.env.META_REQUIRE_INSTAGRAM_CONVERSATION === "1";
 const printMessageText = process.env.META_PRINT_INSTAGRAM_MESSAGE_TEXT === "1";
+const debugInstagram = process.env.META_DEBUG_INSTAGRAM === "1";
 
 const requiredPermissions = ["pages_show_list", "pages_manage_metadata", "instagram_basic", "instagram_manage_messages"];
 
@@ -29,6 +30,14 @@ function publicTokenHint(token) {
 
 function arrayValue(value) {
   return Array.isArray(value) ? value : [];
+}
+
+async function graphOrError(path, accessToken, params = {}) {
+  try {
+    return { ok: true, payload: await graph(path, accessToken, params) };
+  } catch (error) {
+    return { ok: false, error };
+  }
 }
 
 async function graph(path, accessToken, params = {}) {
@@ -59,6 +68,7 @@ async function main() {
   console.log(`Graph version: ${graphVersion}`);
   console.log(`User token: ${publicTokenHint(userToken)}`);
   console.log(`Require Instagram conversation: ${requireConversation ? "yes" : "no"}`);
+  console.log(`Instagram debug: ${debugInstagram ? "yes" : "no"}`);
 
   const me = await graph("/me", userToken, { fields: "id,name" });
   console.log(`User: ${me.name || "unknown"} (${me.id || "no-id"})`);
@@ -118,14 +128,49 @@ async function main() {
     }
 
     try {
-      const conversations = await graph(`/${pageId}/conversations`, pageToken, {
-        platform: "instagram",
-        limit: "1",
-        fields: "id,updated_time"
-      });
+      if (debugInstagram) {
+        const subscribedApps = await graphOrError(`/${pageId}/subscribed_apps`, pageToken);
+        if (subscribedApps.ok) {
+          const apps = arrayValue(subscribedApps.payload.data);
+          console.log(`- Page subscribed apps: ${apps.length}`);
+          for (const app of apps) {
+            const row = compactRecord(app);
+            const name = String(row.name || "unnamed");
+            const subscribedFields = arrayValue(row.subscribed_fields).join(",");
+            console.log(`  - ${name}${subscribedFields ? ` fields=${subscribedFields}` : ""}`);
+          }
+        } else {
+          console.log(`- Page subscribed apps query failed: ${subscribedApps.error.message}`);
+        }
+      }
+
+      const conversationAttempts = [
+        { label: "platform=instagram", params: { platform: "instagram", limit: "1", fields: "id,updated_time" } },
+        { label: "platform=instagram unread", params: { platform: "instagram", folder: "unread", limit: "1", fields: "id,updated_time" } },
+        { label: "all platforms", params: { limit: "1", fields: "id,updated_time" } }
+      ];
+      let conversations = null;
+      let count = 0;
+      for (const attempt of conversationAttempts) {
+        const result = await graphOrError(`/${pageId}/conversations`, pageToken, attempt.params);
+        if (!result.ok) {
+          if (debugInstagram) console.log(`- Instagram conversations query (${attempt.label}) failed: ${result.error.message}`);
+          continue;
+        }
+        const rows = arrayValue(result.payload.data);
+        if (debugInstagram || attempt.label === "platform=instagram") {
+          console.log(`- Instagram conversations query (${attempt.label}): OK (${rows.length} returned with limit=1)`);
+        }
+        if (!conversations || rows.length > count) {
+          conversations = result.payload;
+          count = rows.length;
+        }
+        if (rows.length > 0) break;
+      }
+      if (!conversations) {
+        throw new Error("all conversations query variants failed");
+      }
       const conversationRows = arrayValue(conversations.data);
-      const count = conversationRows.length;
-      console.log(`- Instagram conversations query: OK (${count} returned with limit=1)`);
       if (count > 0) {
         const conversation = compactRecord(conversationRows[0]);
         const conversationId = String(conversation.id || "");
@@ -151,7 +196,9 @@ async function main() {
         }
       }
       if (requireConversation && count === 0) {
-        pageFailures.push(`${pageName} (${pageId}): no Instagram DM conversations returned; send a DM to @${ig.username || ig.id} from a different Instagram account and retry.`);
+        pageFailures.push(
+          `${pageName} (${pageId}): no Instagram DM conversations returned; confirm the sender is an app role/tester while the app is in development mode, enable Instagram Connected tools message access, and verify the thread appears in Meta Business Suite Inbox.`
+        );
         continue;
       }
       workingInstagramPage = { pageId, pageName, igId: String(ig.id), igUsername: String(ig.username || ""), conversationCount: count };

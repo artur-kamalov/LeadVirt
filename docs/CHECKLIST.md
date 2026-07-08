@@ -1,6 +1,6 @@
 # LeadVirt Checklist
 
-Last updated: 2026-07-07
+Last updated: 2026-07-08
 
 ## Next
 
@@ -8,6 +8,7 @@ No open Umnico onboarding tasks.
 
 ## Done
 
+- [x] Reviewed local Meta Instagram preflight changes, documented `META_DEBUG_INSTAGRAM=1`, and checked the script syntax.
 - [x] Fixed staging Telegram auth `origin required` by replacing the SDK popup with an explicit `oauth.telegram.org/auth` popup that sends `origin`, keeps server-side OIDC verification, adds best-effort `prompt=login select_account` for account switching, and passes web typecheck/lint/build plus focused `auth-flow` Playwright coverage.
 - [x] Fixed the Dockerfile install command typo caught by the pushed auto-deploy run.
 - [x] Fixed GitHub Actions pnpm cache bootstrap by installing pnpm before `actions/setup-node` resolves the pnpm store path.
