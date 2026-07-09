@@ -10,6 +10,9 @@ Last updated: 2026-07-09
 
 ## Done
 
+- [x] Added pilot control coverage for Dashboard quick actions, product theme toggle, landing desktop CTAs, and landing mobile menu routes; `qa:api` now covers 49 Playwright tests.
+- [x] Converted Dashboard quick actions to real Next links so they navigate reliably on first click.
+- [x] Changed the Landing mobile menu to a native disclosure control and added route smoke coverage for first-touch mobile navigation.
 - [x] Enforced the pilot integration boundary in the API: request-only/soon providers such as Instagram, WhatsApp Business, VK, Shopify, Shop-Script, and Other now reject direct self-service `connect` calls.
 - [x] Updated `qa:integrations:connect-missing` so Instagram direct connect is blocked while missing self-serve catalog rows such as RetailCRM can still be created.
 - [x] Cleaned staging integration data: no retired bridge strings remain in Channel/IntegrationAccount data, active public channels are Website widget and Webhook/API, and the stale Instagram row is disconnected.
@@ -573,6 +576,8 @@ corepack pnpm dlx @playwright/test test artifacts/playwright/conversation-ai-dra
 corepack pnpm dlx @playwright/test test artifacts/playwright/conversation-events-timeline.spec.ts --reporter=line
 corepack pnpm dlx @playwright/test test artifacts/playwright/conversation-export.spec.ts --reporter=line
 corepack pnpm dlx @playwright/test test artifacts/playwright/pipeline-actions.spec.ts --reporter=line
+corepack pnpm dlx @playwright/test test artifacts/playwright/pilot-core-controls.spec.ts --reporter=line
+corepack pnpm dlx @playwright/test test artifacts/playwright/public-entry-controls.spec.ts --reporter=line
 corepack pnpm dlx @playwright/test test artifacts/playwright/product-layout-identity.spec.ts --reporter=line
 ```
 

@@ -1,5 +1,16 @@
 # Decision Log
 
+## 2026-07-09: Prefer First-Touch Safe Navigation Controls
+
+Decision: Pilot-critical navigation controls should use real links or native browser controls when possible. Dashboard quick actions are Next links, and the Landing mobile menu uses native disclosure behavior.
+
+Context: Pilot users may click before React hydration finishes or while a page is compiling locally. Visible controls should not depend on delayed client handlers for basic navigation.
+
+Consequences:
+
+- Public entry points and core product quick actions work more reliably on first click.
+- New control smoke coverage lives in `pilot-core-controls.spec.ts` and `public-entry-controls.spec.ts`.
+
 ## 2026-07-09: Enforce Pilot Self-Service Integration Boundary
 
 Decision: Request-only or soon integrations cannot be connected through the API during the pilot. `POST /integrations/:provider/connect` now rejects Instagram, WhatsApp Business, VK, Shopify, Shop-Script, and Other. Existing staging rows for those providers should stay disconnected.

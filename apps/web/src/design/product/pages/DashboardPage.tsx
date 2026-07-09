@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { motion } from "motion/react";
 import {
   Users,
@@ -33,7 +34,7 @@ import {
   ChannelBadge,
   StatusPill,
 } from "../shared";
-import { useNav } from "../nav";
+import { hrefForRoute, useNav } from "../nav";
 import { Button } from "../../components/ui/Button";
 import { Skeleton } from "../ui";
 import { cn } from "../../lib/utils";
@@ -164,7 +165,7 @@ function dashboardDeltaConfig(deltas: DashboardMetricDeltas | undefined) {
    DashboardPage
 ══════════════════════════════════════════════════ */
 export function DashboardPage() {
-  const { go } = useNav();
+  const { go, mode } = useNav();
   const summaryResource = useDashboardSummaryResource();
   const tenantResource = useCurrentTenantResource();
   const summary = summaryResource.data;
@@ -306,28 +307,37 @@ export function DashboardPage() {
 
           <div className="flex items-center gap-2 flex-wrap">
             <Button
+              asChild
               variant="primary"
               size="sm"
-              onClick={() => go("inbox")}
+              data-testid="dashboard-new-lead"
             >
-              <UserPlus className="w-4 h-4 mr-1.5" />
-              Новый лид
+              <Link href={hrefForRoute("inbox", {}, mode)}>
+                <UserPlus className="w-4 h-4 mr-1.5" />
+                Новый лид
+              </Link>
             </Button>
             <Button
+              asChild
               variant="secondary"
               size="sm"
-              onClick={() => go("automation")}
+              data-testid="dashboard-scenarios"
             >
-              <Sparkles className="w-4 h-4 mr-1.5" />
-              Сценарии
+              <Link href={hrefForRoute("automation", {}, mode)}>
+                <Sparkles className="w-4 h-4 mr-1.5" />
+                Сценарии
+              </Link>
             </Button>
             <Button
+              asChild
               variant="outline"
               size="sm"
-              onClick={() => go("analytics")}
+              data-testid="dashboard-analytics"
             >
-              <Zap className="w-4 h-4 mr-1.5" />
-              Аналитика
+              <Link href={hrefForRoute("analytics", {}, mode)}>
+                <Zap className="w-4 h-4 mr-1.5" />
+                Аналитика
+              </Link>
             </Button>
           </div>
         </motion.div>
