@@ -23,4 +23,13 @@ export interface ChatMessage {
   from: "client" | "ai" | "manager";
   text: string;
   time: string;
+  attachments?: ChatAttachment[];
+}
+
+export interface ChatAttachment {
+  id: string;
+  filename?: string | null;
+  mimeType?: string | null;
+  url: string;
+  sizeBytes?: number | null;
 }

@@ -1,14 +1,21 @@
 import type { AiDraftReply, ConversationDetail, ConversationStatus } from "@leadvirt/types";
 import { apiData, jsonBody } from "./client";
 
+export type ConversationAttachmentDraft = {
+  filename?: string;
+  mimeType?: string;
+  dataUrl: string;
+  sizeBytes?: number;
+};
+
 export function getConversation(id: string) {
   return apiData<ConversationDetail>(`/conversations/${id}`);
 }
 
-export function sendConversationMessage(id: string, text: string) {
+export function sendConversationMessage(id: string, text: string, attachments?: ConversationAttachmentDraft[]) {
   return apiData<ConversationDetail>(`/conversations/${id}/messages`, {
     method: "POST",
-    ...jsonBody({ text })
+    ...jsonBody({ text, ...(attachments?.length ? { attachments } : {}) })
   });
 }
 

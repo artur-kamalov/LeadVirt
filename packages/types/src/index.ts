@@ -164,6 +164,19 @@ export interface Message {
   text?: string | null;
   status?: MessageStatus;
   createdAt: string;
+  attachments?: MessageAttachment[];
+}
+
+export interface MessageAttachment {
+  id: string;
+  tenantId: string;
+  messageId: string;
+  kind: string;
+  filename?: string | null;
+  mimeType?: string | null;
+  url: string;
+  sizeBytes?: number | null;
+  createdAt: string;
 }
 
 export interface ConversationDetail extends Conversation {

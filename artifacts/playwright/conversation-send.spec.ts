@@ -65,10 +65,15 @@ const baseConversation = {
 
 test("conversation detail sends a message through the API adapter", async ({ page }) => {
   let postedText = "";
+  let postedAttachments: Array<{ filename?: string; mimeType?: string; dataUrl?: string; sizeBytes?: number }> = [];
 
   await page.route("**/api/conversations/pw-conversation/messages", async (route) => {
-    const body = route.request().postDataJSON() as { text?: string };
+    const body = route.request().postDataJSON() as {
+      text?: string;
+      attachments?: Array<{ filename?: string; mimeType?: string; dataUrl?: string; sizeBytes?: number }>;
+    };
     postedText = body.text ?? "";
+    postedAttachments = body.attachments ?? [];
 
     await route.fulfill({
       json: {
@@ -85,7 +90,18 @@ test("conversation detail sends a message through the API adapter", async ({ pag
               senderType: "USER",
               text: postedText,
               status: "SENT",
-              createdAt: "2026-06-22T10:01:00.000Z"
+              createdAt: "2026-06-22T10:01:00.000Z",
+              attachments: postedAttachments.map((attachment, index) => ({
+                id: `attachment-${index + 1}`,
+                tenantId: "tenant-demo",
+                messageId: "message-2",
+                kind: "file",
+                filename: attachment.filename,
+                mimeType: attachment.mimeType,
+                url: attachment.dataUrl,
+                sizeBytes: attachment.sizeBytes,
+                createdAt: "2026-06-22T10:01:00.000Z"
+              }))
             },
             {
               id: "message-3",
@@ -112,11 +128,20 @@ test("conversation detail sends a message through the API adapter", async ({ pag
   await expect(page.getByText("Playwright Клиент")).toBeVisible();
   await expect(page.getByText("Здравствуйте, хочу уточнить детали")).toBeVisible();
 
+  await page.getByTestId("conversation-attachment-input").setInputFiles({
+    name: "pilot-note.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("pilot attachment", "utf8"),
+  });
+  await expect(page.getByTestId("conversation-pending-attachment")).toContainText("pilot-note.txt");
+
   await page.getByPlaceholder("Написать сообщение...").fill("Проверка API отправки");
   await page.getByPlaceholder("Написать сообщение...").press("Enter");
 
   await expect.poll(() => postedText).toBe("Проверка API отправки");
+  await expect.poll(() => postedAttachments[0]?.filename).toBe("pilot-note.txt");
   await expect(page.getByText("Проверка API отправки")).toBeVisible();
+  await expect(page.getByText("pilot-note.txt")).toBeVisible();
   await expect(page.getByText("API ответ принят")).toBeVisible();
 });
 

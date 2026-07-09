@@ -213,11 +213,20 @@ function chatMessageFromApi(message: Message): ChatMessage {
     from: message.senderType === "AI" ? "ai" : message.senderType === "CUSTOMER" ? "client" : "manager",
     text: localizeSeedText(message.text) || "",
     time: formatMessageTime(message.createdAt),
+    attachments: message.attachments?.map((attachment) => ({
+      id: attachment.id,
+      filename: attachment.filename,
+      mimeType: attachment.mimeType,
+      url: attachment.url,
+      sizeBytes: attachment.sizeBytes,
+    })),
   };
 }
 
 export function messagesFromConversation(conversation: ConversationDetail): ChatMessage[] {
-  const messages = conversation.messages.map(chatMessageFromApi).filter((message) => message.text.trim().length > 0);
+  const messages = conversation.messages
+    .map(chatMessageFromApi)
+    .filter((message) => message.text.trim().length > 0 || (message.attachments?.length ?? 0) > 0);
 
   if (messages.length > 0) {
     return messages;

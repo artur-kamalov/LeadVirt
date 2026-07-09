@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { Queue, type ConnectionOptions } from "bullmq";
 import { AI_PROVIDER_TOKEN, type AiProvider } from "@leadvirt/ai";
 import type { AiDraftReply, Channel, ChannelSendMessageJobData, ConversationDetail, Lead, Message, PaginatedEnvelope } from "@leadvirt/types";
@@ -27,7 +27,7 @@ type ConversationWithDetail = Prisma.ConversationGetPayload<{
   include: {
     lead: { include: { assignedTo: { select: { name: true } }; events: { orderBy: { createdAt: "desc" }; take: 20 } } };
     channel: true;
-    messages: { orderBy: { createdAt: "asc" } };
+    messages: { orderBy: { createdAt: "asc" }; include: { attachments: true } };
   };
 }>;
 
@@ -49,6 +49,16 @@ function connectionFromRedisUrl(redisUrl: string): ConnectionOptions {
   if (parsed.username) connection.username = decodeURIComponent(parsed.username);
   if (parsed.password) connection.password = decodeURIComponent(parsed.password);
   return connection;
+}
+
+function attachmentKind(mimeType?: string) {
+  if (mimeType?.startsWith("image/")) return "image";
+  if (mimeType === "application/pdf") return "document";
+  return "file";
+}
+
+function attachmentSummary(attachments: NonNullable<SendMessageDto["attachments"]>) {
+  return attachments.map((attachment) => attachment.filename ?? "attachment").join(", ");
 }
 
 @Injectable()
@@ -125,7 +135,12 @@ export class ConversationsService {
   async sendMessage(context: RequestContext, id: string, dto: SendMessageDto): Promise<ConversationDetail> {
     const conversation = await this.loadConversation(context.tenantId, id);
     const createdAt = new Date();
-    const deliverySource = channelSendSource(conversation.channel);
+    const attachments = dto.attachments ?? [];
+    const text = dto.text?.trim() ?? "";
+    if (!text && attachments.length === 0) {
+      throw new BadRequestException("Message text or attachment is required.");
+    }
+    const deliverySource = text ? channelSendSource(conversation.channel) : null;
 
     const userMessage = await this.prisma.message.create({
       data: {
@@ -134,13 +149,27 @@ export class ConversationsService {
         direction: "OUTBOUND",
         senderType: "USER",
         senderUserId: context.userId,
-        text: dto.text,
+        text: text || null,
         status: deliverySource ? "QUEUED" : "SENT",
-        ...(deliverySource ? { metadata: { outboundStatus: "queued" } } : {}),
+        ...(deliverySource ? { metadata: { outboundStatus: "queued", attachmentCount: attachments.length } } : {}),
         createdAt,
         updatedAt: createdAt
       }
     });
+
+    if (attachments.length > 0) {
+      await this.prisma.messageAttachment.createMany({
+        data: attachments.map((attachment) => ({
+          tenantId: context.tenantId,
+          messageId: userMessage.id,
+          kind: attachmentKind(attachment.mimeType),
+          url: attachment.dataUrl,
+          ...(attachment.filename ? { filename: attachment.filename } : {}),
+          ...(attachment.mimeType ? { mimeType: attachment.mimeType } : {}),
+          ...(typeof attachment.sizeBytes === "number" ? { sizeBytes: attachment.sizeBytes } : {})
+        }))
+      });
+    }
 
     await this.prisma.conversation.update({
       where: { id: conversation.id },
@@ -167,7 +196,7 @@ export class ConversationsService {
           leadId: conversation.leadId,
           type: "message_sent",
           title: "Message sent",
-          message: dto.text,
+          message: text || attachmentSummary(attachments),
           metadata: { conversationId: conversation.id }
         }
       });
@@ -182,7 +211,8 @@ export class ConversationsService {
         entityId: conversation.id,
         payload: {
           deliverySource,
-          deliveryJobId
+          deliveryJobId,
+          attachmentCount: attachments.length
         }
       }
     });
@@ -277,7 +307,7 @@ export class ConversationsService {
           }
         },
         channel: true,
-        messages: { orderBy: { createdAt: "asc" } }
+        messages: { orderBy: { createdAt: "asc" }, include: { attachments: true } }
       }
     });
     if (!conversation) {
@@ -377,7 +407,18 @@ export class ConversationsService {
       senderType: message.senderType,
       text: message.text,
       status: message.status,
-      createdAt: message.createdAt.toISOString()
+      createdAt: message.createdAt.toISOString(),
+      attachments: message.attachments.map((attachment) => ({
+        id: attachment.id,
+        tenantId: attachment.tenantId,
+        messageId: attachment.messageId,
+        kind: attachment.kind,
+        filename: attachment.filename,
+        mimeType: attachment.mimeType,
+        url: attachment.url,
+        sizeBytes: attachment.sizeBytes,
+        createdAt: attachment.createdAt.toISOString()
+      }))
     };
   }
 

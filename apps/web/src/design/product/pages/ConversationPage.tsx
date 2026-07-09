@@ -32,6 +32,7 @@ import {
   draftAiReply,
   getConversation,
   handoffConversation,
+  type ConversationAttachmentDraft,
   sendConversationMessage,
   updateConversationStatus,
 } from "@/lib/api/conversations";
@@ -47,6 +48,12 @@ import { leadFromConversation, messagesFromConversation, relativeTimeLabel } fro
 /* ── helpers ─────────────────────────────────────────────────── */
 function formatValue(v: number) {
   return v.toLocaleString("ru-RU");
+}
+
+function formatAttachmentSize(sizeBytes?: number | null) {
+  if (!sizeBytes) return "";
+  if (sizeBytes < 1024) return `${sizeBytes} B`;
+  return `${Math.round(sizeBytes / 1024)} KB`;
 }
 
 /* ── Timeline data ───────────────────────────────────────────── */
@@ -69,6 +76,16 @@ const emojiOptions = ["🙂", "👍", "🔥", "✅", "🙏", "❤️", "📅", "
 
 const demoReplayTypingMs = 900;
 const demoReplayGapMs = 2100;
+const ATTACHMENT_MAX_BYTES = 60 * 1024;
+const acceptedAttachmentTypes = ["image/png", "image/jpeg", "application/pdf", "text/plain"];
+
+type PendingAttachment = {
+  id: string;
+  filename: string;
+  mimeType: string;
+  url: string;
+  sizeBytes: number;
+};
 
 function liveTime() {
   return new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
@@ -233,7 +250,26 @@ function MessageBubble({ msg, index, customerInitial }: { msg: ChatMessage; inde
             isManager && "bg-indigo-500/15 border border-indigo-500/20 text-zinc-100 rounded-tr-sm"
           )}
         >
-          {msg.text}
+          {msg.text ? <p>{msg.text}</p> : null}
+          {msg.attachments?.length ? (
+            <div className={cn("flex flex-col gap-1.5", msg.text && "mt-2")}>
+              {msg.attachments.map((attachment) => (
+                <a
+                  key={attachment.id}
+                  href={attachment.url}
+                  download={attachment.filename ?? "attachment"}
+                  data-testid={`conversation-message-attachment-${attachment.id}`}
+                  className="flex max-w-64 items-center gap-2 rounded-xl border border-white/10 bg-black/15 px-3 py-2 text-xs text-zinc-200 transition-colors hover:border-emerald-400/30 hover:text-emerald-200"
+                >
+                  <Paperclip className="h-3.5 w-3.5 shrink-0" />
+                  <span className="min-w-0 flex-1 truncate">{attachment.filename ?? "attachment"}</span>
+                  {formatAttachmentSize(attachment.sizeBytes) ? (
+                    <span className="shrink-0 text-zinc-500">{formatAttachmentSize(attachment.sizeBytes)}</span>
+                  ) : null}
+                </a>
+              ))}
+            </div>
+          ) : null}
         </div>
         <span className="text-[10px] text-zinc-600 px-1">{msg.time}</span>
       </div>
@@ -427,6 +463,7 @@ export function ConversationPage() {
   const [demoReplayState, setDemoReplayState] = useState<"idle" | "playing" | "paused" | "done" | "skipped">("idle");
   const [demoTypingFrom, setDemoTypingFrom] = useState<ChatMessage["from"] | null>(null);
   const [inputValue, setInputValue] = useState("");
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [showLeadInfo, setShowLeadInfo] = useState(false);
   const [isLoadingConversation, setIsLoadingConversation] = useState(false);
@@ -436,6 +473,7 @@ export function ConversationPage() {
   const [pendingConversationAction, setPendingConversationAction] = useState<ConversationAction | null>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
   const demoReplayTimersRef = useRef<number[]>([]);
   const lead = apiConversation ? leadFromConversation(apiConversation) : null;
   const apiLeadId = apiConversation?.lead?.id ?? null;
@@ -522,6 +560,7 @@ export function ConversationPage() {
 
     setApiConversation(null);
     setMessages([]);
+    setPendingAttachments([]);
 
     if (!conversationId) {
       setIsLoadingConversation(false);
@@ -582,29 +621,82 @@ export function ConversationPage() {
     );
   }
 
+  async function handleAttachmentSelected(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    if (!acceptedAttachmentTypes.includes(file.type)) {
+      toast.error("Можно прикрепить PNG, JPG, PDF или TXT");
+      return;
+    }
+    if (file.size > ATTACHMENT_MAX_BYTES) {
+      toast.error("Файл должен быть до 60 КБ");
+      return;
+    }
+
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => (typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("empty")));
+        reader.onerror = () => reject(reader.error ?? new Error("read failed"));
+        reader.readAsDataURL(file);
+      });
+      setPendingAttachments([
+        {
+          id: `pending-${Date.now()}`,
+          filename: file.name,
+          mimeType: file.type,
+          url: dataUrl,
+          sizeBytes: file.size,
+        },
+      ]);
+      toast.success("Файл прикреплён");
+    } catch {
+      toast.error("Не удалось прочитать файл");
+    }
+  }
+
   async function handleSend() {
     const text = inputValue.trim();
-    if (!text || isSending) return;
+    if ((!text && pendingAttachments.length === 0) || isSending) return;
     pauseDemoReplayForInteraction();
+    const attachments = pendingAttachments;
     const newMsg: ChatMessage = {
       id: `m${Date.now()}`,
       from: "manager",
       text,
       time: new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }),
+      attachments: attachments.map((attachment) => ({
+        id: attachment.id,
+        filename: attachment.filename,
+        mimeType: attachment.mimeType,
+        url: attachment.url,
+        sizeBytes: attachment.sizeBytes,
+      })),
     };
     setMessages((prev) => [...prev, newMsg]);
     setInputValue("");
+    setPendingAttachments([]);
 
     if (!apiConversation) return;
 
     setIsSending(true);
     try {
-      const updated = await sendConversationMessage(apiConversation.id, text);
+      const attachmentPayload: ConversationAttachmentDraft[] = attachments.map((attachment) => ({
+        filename: attachment.filename,
+        mimeType: attachment.mimeType,
+        dataUrl: attachment.url,
+        sizeBytes: attachment.sizeBytes,
+      }));
+      const updated = await sendConversationMessage(apiConversation.id, text, attachmentPayload);
       setApiConversation(updated);
       const nextMessages = messagesFromConversation(updated);
       setMessages(nextMessages.length > 0 ? nextMessages : [newMsg]);
       toast.success("Сообщение отправлено");
     } catch (caught) {
+      setInputValue(text);
+      setPendingAttachments(attachments);
       toast.error(caught instanceof Error ? caught.message : "Не удалось отправить сообщение");
     } finally {
       setIsSending(false);
@@ -928,12 +1020,43 @@ export function ConversationPage() {
 
             {/* Input bar */}
             <div className="px-4 pb-4 pt-2 shrink-0">
+              {pendingAttachments.length ? (
+                <div className="mb-2 flex flex-wrap gap-2">
+                  {pendingAttachments.map((attachment) => (
+                    <div
+                      key={attachment.id}
+                      data-testid="conversation-pending-attachment"
+                      className="flex max-w-full items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-xs text-emerald-100"
+                    >
+                      <Paperclip className="h-3.5 w-3.5 shrink-0" />
+                      <span className="min-w-0 truncate">{attachment.filename}</span>
+                      <span className="shrink-0 text-emerald-300/70">{formatAttachmentSize(attachment.sizeBytes)}</span>
+                      <button
+                        type="button"
+                        aria-label="Удалить файл"
+                        onClick={() => setPendingAttachments([])}
+                        className="ml-1 rounded-md px-1 text-emerald-200/70 transition-colors hover:bg-white/10 hover:text-white"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
               <div className="flex items-end gap-2 rounded-2xl border border-white/10 bg-zinc-900 px-3 py-2 focus-within:border-emerald-500/40 transition-colors">
+                <input
+                  ref={attachmentInputRef}
+                  type="file"
+                  accept={acceptedAttachmentTypes.join(",")}
+                  className="hidden"
+                  data-testid="conversation-attachment-input"
+                  onChange={(event) => void handleAttachmentSelected(event)}
+                />
                 <button
                   type="button"
                   aria-label="Прикрепить файл"
                   data-testid="conversation-attach-file"
-                  onClick={() => toast("Файлы будут доступны после пилота")}
+                  onClick={() => attachmentInputRef.current?.click()}
                   className="mb-1 shrink-0 text-zinc-500 hover:text-zinc-300 transition-colors"
                 >
                   <Paperclip className="w-4.5 h-4.5 w-[18px] h-[18px]" />
@@ -978,10 +1101,10 @@ export function ConversationPage() {
                   <button
                     aria-label="Отправить сообщение"
                     onClick={handleSend}
-                    disabled={!inputValue.trim() || isSending}
+                    disabled={(!inputValue.trim() && pendingAttachments.length === 0) || isSending}
                     className={cn(
                       "w-8 h-8 rounded-xl flex items-center justify-center transition-all",
-                      inputValue.trim() && !isSending
+                      (inputValue.trim() || pendingAttachments.length > 0) && !isSending
                         ? "bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-[0_0_16px_rgba(52,211,153,0.4)]"
                         : "bg-white/5 text-zinc-600 cursor-not-allowed"
                     )}

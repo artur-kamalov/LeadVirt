@@ -1,5 +1,17 @@
 # Decision Log
 
+## 2026-07-09: Store Pilot Conversation Attachments In Message Records
+
+Decision: Pilot conversation attachments support one compact PNG/JPG/PDF/TXT file per outbound message. The file is stored as a data URL in `MessageAttachment.url`.
+
+Context: Users need the visible attachment button to work during the pilot, but general object storage and external-channel file delivery are still larger product work.
+
+Consequences:
+
+- File-only messages and text+file messages are visible in the transcript and survive API reloads.
+- The pilot limit is 60 KB per file to stay within normal JSON request limits.
+- External channel delivery remains text-first; broader attachment delivery/storage can be revisited after pilot feedback.
+
 ## 2026-07-09: Store Pilot Company Logos In Tenant Settings
 
 Decision: Settings > Profile company logos are stored as compact PNG/JPG data URLs under tenant profile settings during the pilot.

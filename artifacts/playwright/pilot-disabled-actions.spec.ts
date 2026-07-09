@@ -8,7 +8,7 @@ test.beforeEach(async ({ page }) => {
   await loginAsCleanUser(page, apiBase);
 });
 
-test("conversation toolbar handles deferred file upload and emoji picker", async ({ page }) => {
+test("conversation toolbar handles file upload and emoji picker", async ({ page }) => {
   await page.route("**/api/conversations/pilot-action-audit", async (route) => {
     await route.fulfill({
       json: {
@@ -73,8 +73,13 @@ test("conversation toolbar handles deferred file upload and emoji picker", async
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(`${webBase}/app/inbox/pilot-action-audit`, { waitUntil: "networkidle" });
 
-  await page.getByTestId("conversation-attach-file").click();
-  await expect(page.getByText("Файлы будут доступны после пилота")).toBeVisible();
+  await page.getByTestId("conversation-attachment-input").setInputFiles({
+    name: "pilot-note.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("pilot attachment", "utf8"),
+  });
+  await expect(page.getByText("Файл прикреплён")).toBeVisible();
+  await expect(page.getByTestId("conversation-pending-attachment")).toContainText("pilot-note.txt");
 
   await page.getByTestId("conversation-emoji").click();
   await expect(page.getByTestId("conversation-emoji-panel")).toBeVisible();

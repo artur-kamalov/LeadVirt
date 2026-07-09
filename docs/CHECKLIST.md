@@ -4,10 +4,11 @@ Last updated: 2026-07-09
 
 ## Next
 
-- [ ] Implement conversation file attachments; current pilot UI shows an explicit "available after pilot" toast.
+No active pilot-blocking UI button backlog.
 
 ## Done
 
+- [x] Implemented conversation file attachments for one compact PNG/JPG/PDF/TXT file per message with API persistence and Playwright coverage.
 - [x] Implemented Settings > Profile company logo upload/removal with compact PNG/JPG persistence in tenant settings and Playwright coverage.
 - [x] Implemented a real conversation emoji picker that inserts selected emojis into the composer; file attachment remains deferred with explicit feedback.
 - [x] Added pilot control coverage for Dashboard quick actions, product theme toggle, landing desktop CTAs, and landing mobile menu routes; `qa:api` now covers 52 Playwright tests.
