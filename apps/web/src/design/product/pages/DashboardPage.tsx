@@ -165,7 +165,7 @@ function dashboardDeltaConfig(deltas: DashboardMetricDeltas | undefined) {
    DashboardPage
 ══════════════════════════════════════════════════ */
 export function DashboardPage() {
-  const { go, mode } = useNav();
+  const { mode } = useNav();
   const summaryResource = useDashboardSummaryResource();
   const tenantResource = useCurrentTenantResource();
   const summary = summaryResource.data;
@@ -522,31 +522,34 @@ export function DashboardPage() {
                   </div>
                 )}
                 {recentLeads.map((lead, i) => (
-                  <motion.button
+                  <motion.div
                     key={lead.id}
                     initial={{ opacity: 0, x: -12 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.5 + i * 0.07, duration: 0.4 }}
-                    onClick={() => lead.conversationId ? go("conversation", { id: lead.conversationId }) : go("pipeline")}
-                    className="w-full flex items-center gap-3 rounded-2xl px-3 py-3 hover:bg-white/5 transition-colors text-left group"
                   >
-                    <Avatar name={leadName(lead)} size={38} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span className="text-sm font-medium text-zinc-100 truncate">{leadName(lead)}</span>
-                        <ChannelBadge id={channelIdFromType(lead.channelType)} />
+                    <Link
+                      href={lead.conversationId ? hrefForRoute("conversation", { id: lead.conversationId }, mode) : hrefForRoute("pipeline", {}, mode)}
+                      className="w-full flex items-center gap-3 rounded-2xl px-3 py-3 hover:bg-white/5 transition-colors text-left group"
+                    >
+                      <Avatar name={leadName(lead)} size={38} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-sm font-medium text-zinc-100 truncate">{leadName(lead)}</span>
+                          <ChannelBadge id={channelIdFromType(lead.channelType)} />
+                        </div>
+                        <span className="text-xs text-zinc-500 truncate block">{leadService(lead)}</span>
                       </div>
-                      <span className="text-xs text-zinc-500 truncate block">{leadService(lead)}</span>
-                    </div>
-                    <div className="flex flex-col items-end gap-1.5 shrink-0">
-                      <StatusPill stage={stageFromStatus(lead.status)} />
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold text-emerald-400">{formatRub(lead.valueAmount ?? 0)}</span>
-                        <span className="text-[10px] text-zinc-600">{leadTime(lead)}</span>
+                      <div className="flex flex-col items-end gap-1.5 shrink-0">
+                        <StatusPill stage={stageFromStatus(lead.status)} />
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold text-emerald-400">{formatRub(lead.valueAmount ?? 0)}</span>
+                          <span className="text-[10px] text-zinc-600">{leadTime(lead)}</span>
+                        </div>
                       </div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-zinc-700 group-hover:text-zinc-400 transition-colors shrink-0 ml-1" />
-                  </motion.button>
+                      <ChevronRight className="w-4 h-4 text-zinc-700 group-hover:text-zinc-400 transition-colors shrink-0 ml-1" />
+                    </Link>
+                  </motion.div>
                 ))}
               </div>
             </Card>

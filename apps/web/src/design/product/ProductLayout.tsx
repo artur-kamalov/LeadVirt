@@ -647,10 +647,10 @@ export function ProductLayout({
 
 /* Back button for sub-pages */
 export function BackButton({ to, label }: { to: Route; label: string }) {
-  const { go } = useNav();
+  const { mode } = useNav();
   return (
-    <button onClick={() => go(to)} className="inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-zinc-100 transition-colors mb-4">
+    <Link href={hrefForRoute(to, {}, mode)} className="inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-zinc-100 transition-colors mb-4">
       <ChevronLeft className="w-4 h-4" /> {label}
-    </button>
+    </Link>
   );
 }
