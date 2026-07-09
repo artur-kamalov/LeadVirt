@@ -1,5 +1,17 @@
 # Decision Log
 
+## 2026-07-09: Use Provider-Specific Integration Setup Dialogs
+
+Decision: Each integration card opens a setup dialog that matches the provider's real connection path. Self-serve providers save their relevant credentials/settings; request-only and soon providers show the required setup data and documentation without saving or marking the integration connected.
+
+Context: amoCRM/Google/Webasyst use OAuth-style setup, Bitrix24/Telegram/Meta/VK use webhook/token flows, RetailCRM/Shopify use API keys, and Email uses IMAP/SMTP. A single generic URL/token form made onboarding misleading.
+
+Consequences:
+
+- Users see the right fields/checklist for each provider before attempting setup.
+- Non-pilot providers remain visible as request/soon without dead buttons or fake connection state.
+- Future native provider work can reuse the dialog metadata and enable saving when backend support is ready.
+
 ## 2026-07-09: Integration Setup Does Not Mean Connected
 
 Decision: Clicking "Connect" on a disconnected integration card opens the settings dialog first. The UI must not mark the integration as connected until the backend returns `CONNECTED`.

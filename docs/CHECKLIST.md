@@ -8,6 +8,7 @@ No active pilot-blocking UI button backlog.
 
 ## Done
 
+- [x] Added provider-specific Integrations setup dialogs for amoCRM, Bitrix24, RetailCRM, Telegram, WhatsApp Business, Instagram, VK, Email, Google Calendar, Shopify, Shop-Script, and Webhook/API; request/soon cards now open requirements/docs instead of acting disabled or pretending to connect.
 - [x] Changed Integrations card "Connect" action to open settings first; disconnected cards no longer flip to connected until backend status is truly connected.
 - [x] Implemented conversation file attachments for one compact PNG/JPG/PDF/TXT file per message with API persistence and Playwright coverage.
 - [x] Implemented Settings > Profile company logo upload/removal with compact PNG/JPG persistence in tenant settings and Playwright coverage.

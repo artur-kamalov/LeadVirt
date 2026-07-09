@@ -250,15 +250,61 @@ test("integrations page opens setup settings without marking disconnected cards 
   await expect(page.getByTestId("integration-card-instagram")).toContainText(
     "Подключение по запросу",
   );
-  await expect(
-    page.getByTestId("integration-card-instagram").getByRole("button", {
-      name: "Подключение по запросу",
-    }),
-  ).toBeDisabled();
+  await page
+    .getByTestId("integration-card-instagram")
+    .getByRole("button", { name: "Подключение по запросу" })
+    .click();
+  const instagramDialog = page.getByRole("dialog", { name: /Instagram: настройки/ });
+  await expect(instagramDialog).toBeVisible();
+  await instagramDialog.screenshot({
+    path: "artifacts/playwright/integrations-provider-setup-instagram.png",
+  });
+  await expect(instagramDialog.getByText("Instagram Business Account ID")).toBeVisible();
+  await expect(instagramDialog.getByText("Professional Instagram account").first()).toBeVisible();
+  await instagramDialog.getByRole("button", { name: "Закрыть" }).click();
+  await expect(instagramDialog).toBeHidden();
   await expect(page.getByTestId("integration-card-whatsapp")).toContainText(
     "Подключение по запросу",
   );
+  await page
+    .getByTestId("integration-card-whatsapp")
+    .getByRole("button", { name: "Подключение по запросу" })
+    .click();
+  const whatsappDialog = page.getByRole("dialog", { name: /WhatsApp Business: настройки/ });
+  await expect(whatsappDialog).toBeVisible();
+  await expect(whatsappDialog.getByText("Phone number ID", { exact: true })).toBeVisible();
+  await expect(
+    whatsappDialog.getByText("WhatsApp Business Account ID", { exact: true }),
+  ).toBeVisible();
+  await whatsappDialog.getByRole("button", { name: "Закрыть" }).click();
+  await expect(whatsappDialog).toBeHidden();
   await expect(page.getByTestId("integration-card-vk")).toContainText("Скоро будет");
+  await page.getByTestId("integration-card-vk").getByRole("button", { name: "Скоро будет" }).click();
+  const vkDialog = page.getByRole("dialog", { name: /VK: настройки/ });
+  await expect(vkDialog).toBeVisible();
+  await expect(vkDialog.getByText("Community token", { exact: true })).toBeVisible();
+  await vkDialog.getByRole("button", { name: "Закрыть" }).click();
+  await expect(vkDialog).toBeHidden();
+  await page
+    .getByTestId("integration-card-shopify")
+    .getByRole("button", { name: "Скоро будет" })
+    .click();
+  const shopifyDialog = page.getByRole("dialog", { name: /Shopify: настройки/ });
+  await expect(shopifyDialog).toBeVisible();
+  await expect(shopifyDialog.getByText("Admin API access token", { exact: true })).toBeVisible();
+  await shopifyDialog.getByRole("button", { name: "Закрыть" }).click();
+  await expect(shopifyDialog).toBeHidden();
+  await page
+    .getByTestId("integration-card-shopscript")
+    .getByRole("button", { name: "Скоро будет" })
+    .click();
+  const shopScriptDialog = page.getByRole("dialog", { name: /Shop-Script: настройки/ });
+  await expect(shopScriptDialog).toBeVisible();
+  await expect(
+    shopScriptDialog.getByText("Webasyst installation URL", { exact: true }),
+  ).toBeVisible();
+  await shopScriptDialog.getByRole("button", { name: "Закрыть" }).click();
+  await expect(shopScriptDialog).toBeHidden();
   await expect(page.getByText("sk-admin")).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Открыть API ключи" })).toHaveAttribute(
     "href",
@@ -281,8 +327,10 @@ test("integrations page opens setup settings without marking disconnected cards 
   await page.getByRole("menuitem", { name: /^Настроить$/ }).click();
   await expect(page.getByRole("dialog", { name: /amoCRM: настройки/ })).toBeVisible();
   await page.getByLabel("Название подключения").fill("amoCRM production");
-  await page.getByLabel("Endpoint URL").fill("https://crm.example.test/webhook");
-  await page.getByLabel("API token").fill("secret-token-42");
+  await page.getByLabel("amoCRM account URL").fill("https://crm.example.test");
+  await page.getByLabel("Client ID").fill("client-id-42");
+  await page.getByLabel("Client secret").fill("client-secret-42");
+  await page.getByLabel("Authorization code").fill("authorization-code-42");
   await page.getByLabel("Синхронизация включена").click();
   await page.getByLabel("Заметки").fill("Production CRM account");
   await page.getByRole("button", { name: "Сохранить настройки" }).click();
@@ -297,10 +345,17 @@ test("integrations page opens setup settings without marking disconnected cards 
       () =>
         (savedSettings as { settings?: { endpointUrl?: string } } | null)?.settings?.endpointUrl,
     )
-    .toBe("https://crm.example.test/webhook");
+    .toBe("https://crm.example.test");
   await expect
-    .poll(() => (savedSettings as { settings?: { apiToken?: string } } | null)?.settings?.apiToken)
-    .toBe("secret-token-42");
+    .poll(() => (savedSettings as { settings?: { clientId?: string } } | null)?.settings?.clientId)
+    .toBe("client-id-42");
+  await expect
+    .poll(
+      () =>
+        (savedSettings as { settings?: { authorizationCode?: string } } | null)?.settings
+          ?.authorizationCode,
+    )
+    .toBe("authorization-code-42");
   await expect
     .poll(
       () =>
@@ -346,7 +401,6 @@ test("integrations page opens setup settings without marking disconnected cards 
   await expect(webhookDialog.getByText("http://localhost:4001/api/public/channels/webhook/demo-generic-webhook/events")).toBeVisible();
   await expect(webhookDialog.getByText("demo-generic-webhook", { exact: true })).toBeVisible();
   await expect(webhookDialog.getByText("x-leadvirt-webhook-secret")).toBeVisible();
-  await expect(webhookDialog.getByLabel("Endpoint URL")).toHaveValue("");
   const modalWebhookSamples = sampledProviders.filter(
     (provider) => provider === "WEBHOOK_API",
   ).length;
@@ -366,6 +420,9 @@ test("integrations page opens setup settings without marking disconnected cards 
   await expect.poll(() => connectedProvider).toBe("");
   await expect(retailCard.getByText("Подключено")).toHaveCount(0);
   await retailDialog.getByLabel("Название подключения").fill("RetailCRM setup");
+  await retailDialog.getByLabel("RetailCRM account URL").fill("https://shop.retailcrm.ru");
+  await retailDialog.getByLabel("API key").fill("retail-api-key-123456789012345678901234567890");
+  await retailDialog.getByLabel("Site code").fill("main");
   await retailDialog.getByRole("button", { name: "Сохранить настройки" }).click();
   await expect
     .poll(
@@ -374,6 +431,14 @@ test("integrations page opens setup settings without marking disconnected cards 
           ?.displayName,
     )
     .toBe("RetailCRM setup");
+  await expect
+    .poll(
+      () => (retailSettings as { settings?: { endpointUrl?: string } } | null)?.settings?.endpointUrl,
+    )
+    .toBe("https://shop.retailcrm.ru");
+  await expect
+    .poll(() => (retailSettings as { settings?: { siteCode?: string } } | null)?.settings?.siteCode)
+    .toBe("main");
   await expect(retailDialog).toBeHidden();
   await expect(retailCard.getByRole("button", { name: /Подключить/ })).toBeVisible();
 

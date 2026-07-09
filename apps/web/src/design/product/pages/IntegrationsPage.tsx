@@ -178,6 +178,18 @@ const INTEGRATIONS: Integration[] = [
     availability: "soon",
   },
   {
+    id: "shopscript",
+    provider: "SHOP_SCRIPT",
+    name: "Shop-Script",
+    category: "E-commerce",
+    description: "Заказы и клиенты из Webasyst Shop-Script",
+    icon: Store,
+    accentColor: "text-fuchsia-400",
+    accentBg: "bg-fuchsia-500/15",
+    connected: false,
+    availability: "soon",
+  },
+  {
     id: "webhook",
     provider: "WEBHOOK_API",
     name: "Webhook / API",
@@ -240,10 +252,28 @@ function availabilityLabel(integration: Integration) {
 
 type SyncMode = "leads-to-service" | "two-way" | "events-only";
 
+type SetupFieldKind = "text" | "password" | "url";
+
+interface ProviderSetupField {
+  key: string;
+  label: string;
+  placeholder?: string;
+  hint?: string;
+  kind?: SetupFieldKind;
+  defaultValue?: string;
+  wide?: boolean;
+}
+
+interface ProviderSetupConfig {
+  summary: string;
+  steps: string[];
+  fields: ProviderSetupField[];
+  docsUrl?: string;
+}
+
 interface IntegrationSettingsForm {
   displayName: string;
-  endpointUrl: string;
-  apiToken: string;
+  fields: Record<string, string>;
   syncMode: SyncMode;
   syncEnabled: boolean;
   notes: string;
@@ -254,6 +284,300 @@ const syncModeOptions = [
   { value: "two-way", label: "Двусторонняя" },
   { value: "events-only", label: "Только события" },
 ];
+
+const genericSetupConfig: ProviderSetupConfig = {
+  summary: "Ручное подключение через URL сервиса и секретный ключ.",
+  steps: ["Создайте ключ или webhook в сервисе.", "Вставьте URL и токен.", "Сохраните настройки и проверьте связь."],
+  fields: [
+    {
+      key: "endpointUrl",
+      label: "Endpoint URL",
+      placeholder: "https://example.com/api",
+      kind: "url",
+      wide: true,
+    },
+    {
+      key: "apiToken",
+      label: "API token",
+      placeholder: "Введите токен",
+      kind: "password",
+      wide: true,
+    },
+  ],
+};
+
+const providerSetupConfigs: Partial<Record<IntegrationProvider, ProviderSetupConfig>> = {
+  AMOCRM: {
+    summary: "amoCRM подключается через OAuth: аккаунт, ID/secret интеграции и короткоживущий authorization code.",
+    steps: [
+      "Создайте или откройте интеграцию в amoCRM.",
+      "Скопируйте Client ID, Client secret и Redirect URI.",
+      "Установите интеграцию в аккаунте и вставьте authorization code.",
+    ],
+    docsUrl: "https://www.amocrm.ru/developers/content/oauth/oauth",
+    fields: [
+      {
+        key: "endpointUrl",
+        label: "amoCRM account URL",
+        placeholder: "https://example.amocrm.ru",
+        kind: "url",
+        wide: true,
+      },
+      { key: "clientId", label: "Client ID", placeholder: "uuid интеграции" },
+      {
+        key: "clientSecret",
+        label: "Client secret",
+        placeholder: "Секрет интеграции",
+        kind: "password",
+      },
+      {
+        key: "authorizationCode",
+        label: "Authorization code",
+        placeholder: "Код живет около 20 минут",
+        kind: "password",
+        wide: true,
+      },
+      {
+        key: "redirectUri",
+        label: "Redirect URI",
+        placeholder: "https://leadvirt.ru/oauth/amocrm/callback",
+        kind: "url",
+        wide: true,
+      },
+    ],
+  },
+  BITRIX24: {
+    summary: "Bitrix24 можно подключать локальным входящим webhook для одного портала.",
+    steps: [
+      "В портале откройте Applications > Developer resources.",
+      "Создайте Incoming webhook с CRM правами.",
+      "Вставьте портал и webhook URL.",
+    ],
+    docsUrl: "https://apidocs.bitrix24.com/local-integrations/local-webhooks.html",
+    fields: [
+      {
+        key: "portalUrl",
+        label: "Bitrix24 portal URL",
+        placeholder: "https://example.bitrix24.ru",
+        kind: "url",
+        wide: true,
+      },
+      {
+        key: "webhookUrl",
+        label: "Incoming webhook URL",
+        placeholder: "https://example.bitrix24.ru/rest/1/key/crm.lead.add.json",
+        kind: "url",
+        wide: true,
+      },
+      {
+        key: "outgoingSecret",
+        label: "Outgoing webhook secret",
+        placeholder: "Если используете исходящие webhooks",
+        kind: "password",
+        wide: true,
+      },
+    ],
+  },
+  RETAILCRM: {
+    summary: "RetailCRM использует API key и URL аккаунта. Для нескольких магазинов нужен site code.",
+    steps: [
+      "Создайте API key в RetailCRM.",
+      "Разрешите нужные методы для лидов и заказов.",
+      "Вставьте account URL, API key и site code при необходимости.",
+    ],
+    docsUrl: "https://help.retailcrm.pro/Users/ApiKeys",
+    fields: [
+      {
+        key: "endpointUrl",
+        label: "RetailCRM account URL",
+        placeholder: "https://example.retailcrm.ru",
+        kind: "url",
+        wide: true,
+      },
+      {
+        key: "apiToken",
+        label: "API key",
+        placeholder: "Ключ длиной от 32 символов",
+        kind: "password",
+      },
+      { key: "siteCode", label: "Site code", placeholder: "main" },
+    ],
+  },
+  TELEGRAM: {
+    summary: "Telegram bot получает входящие через webhook. Нужны bot token и optional secret token.",
+    steps: [
+      "Создайте bot через BotFather.",
+      "Вставьте bot token.",
+      "Укажите webhook URL и secret token в Telegram setWebhook.",
+    ],
+    docsUrl: "https://core.telegram.org/bots/api#setwebhook",
+    fields: [
+      { key: "botUsername", label: "Bot username", placeholder: "@leadvirt_bot" },
+      {
+        key: "apiToken",
+        label: "Bot token",
+        placeholder: "123456:ABC...",
+        kind: "password",
+      },
+      {
+        key: "webhookSecret",
+        label: "Webhook secret token",
+        placeholder: "A-Z, a-z, 0-9, _ или -",
+        kind: "password",
+      },
+      {
+        key: "allowedUpdates",
+        label: "Allowed updates",
+        placeholder: "message, callback_query",
+        defaultValue: "message",
+      },
+    ],
+  },
+  WHATSAPP_BUSINESS: {
+    summary: "WhatsApp Cloud API требует Meta app, WABA, phone number ID, access token и webhook verify token.",
+    steps: [
+      "Подготовьте Meta app и WhatsApp Business Account.",
+      "Добавьте или выберите From phone number.",
+      "Передайте нам Phone number ID, WABA ID и webhook данные.",
+    ],
+    docsUrl: "https://developers.facebook.com/docs/whatsapp/cloud-api/get-started",
+    fields: [
+      { key: "businessPortfolioId", label: "Business portfolio ID" },
+      { key: "wabaId", label: "WhatsApp Business Account ID" },
+      { key: "phoneNumberId", label: "Phone number ID" },
+      { key: "appId", label: "Meta App ID" },
+      { key: "apiToken", label: "Access token", kind: "password", wide: true },
+      { key: "verifyToken", label: "Webhook verify token", kind: "password", wide: true },
+    ],
+  },
+  INSTAGRAM: {
+    summary: "Instagram Messaging требует Meta app, Facebook Page и Professional Instagram account.",
+    steps: [
+      "Свяжите Facebook Page с Professional Instagram account.",
+      "Настройте webhook fields для Instagram Messaging.",
+      "Подготовьте Page token, Page ID и Instagram account ID.",
+    ],
+    docsUrl: "https://developers.facebook.com/docs/messenger-platform/instagram/features/webhook",
+    fields: [
+      { key: "appId", label: "Meta App ID" },
+      { key: "facebookPageId", label: "Facebook Page ID" },
+      { key: "instagramBusinessAccountId", label: "Instagram Business Account ID", wide: true },
+      { key: "apiToken", label: "Page access token", kind: "password", wide: true },
+      { key: "verifyToken", label: "Webhook verify token", kind: "password", wide: true },
+    ],
+  },
+  VK: {
+    summary: "VK подключается через Callback API сообщества, confirmation code, secret key и community token.",
+    steps: [
+      "Создайте token сообщества с правами сообщений.",
+      "Укажите LeadVirt callback URL в настройках сообщества.",
+      "Скопируйте confirmation code и secret key.",
+    ],
+    docsUrl: "https://dev.vk.com/ru/api/callback/getting-started",
+    fields: [
+      { key: "groupId", label: "Community ID" },
+      { key: "apiToken", label: "Community token", kind: "password" },
+      { key: "confirmationCode", label: "Confirmation code", kind: "password" },
+      { key: "secretKey", label: "Secret key", kind: "password" },
+    ],
+  },
+  EMAIL: {
+    summary: "Email подключается через IMAP для входящих и SMTP для исходящих писем.",
+    steps: [
+      "Включите IMAP/SMTP у провайдера.",
+      "Создайте app password или OAuth token.",
+      "Вставьте адрес, серверы, порты и учетные данные.",
+    ],
+    docsUrl: "https://developers.google.com/workspace/gmail/imap/imap-smtp",
+    fields: [
+      { key: "emailAddress", label: "Email address", placeholder: "sales@example.com", wide: true },
+      { key: "imapHost", label: "IMAP host", placeholder: "imap.gmail.com" },
+      { key: "imapPort", label: "IMAP port", placeholder: "993", defaultValue: "993" },
+      { key: "smtpHost", label: "SMTP host", placeholder: "smtp.gmail.com" },
+      { key: "smtpPort", label: "SMTP port", placeholder: "465", defaultValue: "465" },
+      { key: "username", label: "Username", placeholder: "sales@example.com" },
+      {
+        key: "apiToken",
+        label: "App password / OAuth token",
+        placeholder: "16-digit app password or token",
+        kind: "password",
+      },
+    ],
+  },
+  GOOGLE_CALENDAR: {
+    summary: "Google Calendar подключается через OAuth client и calendar ID.",
+    steps: [
+      "Включите Google Calendar API в Google Cloud.",
+      "Создайте OAuth client.",
+      "Вставьте client credentials и calendar ID.",
+    ],
+    docsUrl: "https://developers.google.com/workspace/calendar/api/quickstart/nodejs",
+    fields: [
+      { key: "clientId", label: "OAuth Client ID", wide: true },
+      { key: "clientSecret", label: "OAuth Client secret", kind: "password", wide: true },
+      { key: "calendarId", label: "Calendar ID", placeholder: "primary" },
+      { key: "refreshToken", label: "Refresh token", kind: "password" },
+    ],
+  },
+  SHOPIFY: {
+    summary: "Shopify Admin API использует shop domain и Admin API access token с нужными scopes.",
+    steps: [
+      "Создайте custom app в Shopify admin.",
+      "Выдайте scopes для заказов и клиентов.",
+      "Установите app и скопируйте Admin API access token.",
+    ],
+    docsUrl:
+      "https://shopify.dev/docs/apps/build/authentication-authorization/access-tokens/generate-app-access-tokens-admin",
+    fields: [
+      { key: "shopDomain", label: "Shop domain", placeholder: "example.myshopify.com", wide: true },
+      { key: "apiToken", label: "Admin API access token", kind: "password", wide: true },
+      { key: "webhookSecret", label: "Webhook secret", kind: "password" },
+      { key: "scopes", label: "Scopes", placeholder: "read_orders, read_customers" },
+    ],
+  },
+  SHOP_SCRIPT: {
+    summary: "Shop-Script/Webasyst API работает через api.php и OAuth token установки.",
+    steps: [
+      "Откройте Webasyst installation URL.",
+      "Получите API token через OAuth flow.",
+      "Разрешите доступ к shop app API.",
+    ],
+    docsUrl: "https://developers.webasyst.com/docs/features/apis/",
+    fields: [
+      {
+        key: "endpointUrl",
+        label: "Webasyst installation URL",
+        placeholder: "https://shop.example.com",
+        kind: "url",
+        wide: true,
+      },
+      { key: "clientId", label: "Client ID" },
+      { key: "apiToken", label: "Access token", kind: "password" },
+    ],
+  },
+  WEBHOOK_API: {
+    summary: "Webhook/API уже дает публичный endpoint для внешних форм и серверных интеграций.",
+    steps: [
+      "Скопируйте endpoint URL, public key и secret header.",
+      "Отправляйте события POST-запросом на endpoint.",
+      "Проверьте поток кнопкой тестового лида.",
+    ],
+    fields: [
+      { key: "sourceName", label: "Source name", placeholder: "Landing page" },
+      { key: "externalIdPrefix", label: "External ID prefix", placeholder: "landing" },
+    ],
+  },
+};
+
+function setupConfigForProvider(provider: IntegrationProvider) {
+  return providerSetupConfigs[provider] ?? genericSetupConfig;
+}
+
+function setupFieldInputType(field: ProviderSetupField) {
+  if (field.kind === "password") return "password";
+  if (field.kind === "url") return "url";
+  return "text";
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -285,11 +609,17 @@ function formFromSettings(
   account?: IntegrationAccount | null,
 ): IntegrationSettingsForm {
   const settings = asRecord(account?.settings);
+  const setupConfig = setupConfigForProvider(integration.provider);
+  const fields = Object.fromEntries(
+    setupConfig.fields.map((field) => [
+      field.key,
+      stringSetting(settings, field.key, field.defaultValue ?? ""),
+    ]),
+  );
 
   return {
     displayName: stringSetting(settings, "displayName", integration.name),
-    endpointUrl: stringSetting(settings, "endpointUrl"),
-    apiToken: stringSetting(settings, "apiToken"),
+    fields,
     syncMode: syncModeSetting(settings),
     syncEnabled: booleanSetting(settings, "syncEnabled", true),
     notes: stringSetting(settings, "notes"),
@@ -301,10 +631,21 @@ function settingsFromForm(
   form: IntegrationSettingsForm,
   provider: IntegrationProvider,
 ) {
+  const setupConfig = setupConfigForProvider(provider);
+  const fieldKeys = new Set(setupConfig.fields.map((field) => field.key));
+  const retainedSettings: Record<string, unknown> = { ...currentSettings };
+
+  if (!fieldKeys.has("endpointUrl")) delete retainedSettings.endpointUrl;
+  if (!fieldKeys.has("apiToken")) delete retainedSettings.apiToken;
+
+  const fieldSettings = Object.fromEntries(
+    setupConfig.fields.map((field) => [field.key, (form.fields[field.key] ?? "").trim()]),
+  );
+
   const base = {
-    ...currentSettings,
+    ...retainedSettings,
+    ...fieldSettings,
     displayName: form.displayName.trim(),
-    endpointUrl: form.endpointUrl.trim(),
     syncMode: form.syncMode,
     syncEnabled: form.syncEnabled,
     notes: form.notes.trim(),
@@ -326,10 +667,7 @@ function settingsFromForm(
     };
   }
 
-  return {
-    ...base,
-    apiToken: form.apiToken.trim(),
-  };
+  return base;
 }
 
 function publicApiOrigin() {
@@ -720,86 +1058,183 @@ function IntegrationSettingsModal({
 
   if (!integration) return null;
   const isWebhookApi = integration.provider === "WEBHOOK_API";
+  const setupConfig = setupConfigForProvider(integration.provider);
+  const canSaveSettings = isSelfServeIntegration(integration);
+  const unavailableLabel = availabilityLabel(integration);
   const inboundEndpoint = account?.inboundEndpoint ?? null;
   const fullEndpointUrl = inboundEndpoint ? inboundEndpointUrl(inboundEndpoint.endpointPath) : "";
   const samplePayload = inboundEndpoint
     ? JSON.stringify(inboundEndpoint.samplePayload, null, 2)
     : "";
+  const updateField = (key: string, value: string) => {
+    setForm((prev) => ({ ...prev, fields: { ...prev.fields, [key]: value } }));
+  };
 
   return (
     <Modal
       open={open}
       onOpenChange={onOpenChange}
       title={`${integration.name}: настройки`}
-      description="Сохраните параметры подключения, которые будут использоваться при синхронизации лидов и событий."
+      description={setupConfig.summary}
       className="max-w-2xl"
       footer={
-        <>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-            Отмена
-          </Button>
-          <Button onClick={() => onSave(form)} disabled={saving}>
-            {saving ? "Сохраняем..." : "Сохранить настройки"}
-          </Button>
-        </>
+        canSaveSettings ? (
+          <>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+              Отмена
+            </Button>
+            <Button onClick={() => onSave(form)} disabled={saving}>
+              {saving ? "Сохраняем..." : "Сохранить настройки"}
+            </Button>
+          </>
+        ) : (
+          <>
+            {setupConfig.docsUrl && (
+              <Button asChild variant="outline">
+                <a href={setupConfig.docsUrl} target="_blank" rel="noreferrer">
+                  Документация
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              </Button>
+            )}
+            <Button onClick={() => onOpenChange(false)}>Закрыть</Button>
+          </>
+        )
       }
     >
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Название подключения">
-          <DarkInput
-            aria-label="Название подключения"
-            value={form.displayName}
-            onChange={(event) => setForm((prev) => ({ ...prev, displayName: event.target.value }))}
-          />
-        </Field>
-
-        <Field label="Режим синхронизации">
-          <BrandSelect
-            ariaLabel="Режим синхронизации"
-            value={form.syncMode}
-            options={syncModeOptions}
-            onValueChange={(syncMode) =>
-              setForm((prev) => ({ ...prev, syncMode: syncMode as SyncMode }))
-            }
-          />
-        </Field>
-
-        <Field
-          label="Endpoint / URL"
-        >
-          <DarkInput
-            aria-label="Endpoint URL"
-            placeholder="https://example.com/webhook"
-            value={form.endpointUrl}
-            onChange={(event) => setForm((prev) => ({ ...prev, endpointUrl: event.target.value }))}
-          />
-        </Field>
-
-        {!isWebhookApi && (
-          <Field label="API token">
-            <DarkInput
-              aria-label="API token"
-              type="password"
-              placeholder="Введите токен"
-              value={form.apiToken}
-              onChange={(event) => setForm((prev) => ({ ...prev, apiToken: event.target.value }))}
-            />
-          </Field>
+      <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-zinc-200">Сценарий подключения</p>
+          {unavailableLabel && (
+            <Pill
+              className={cn(
+                "border text-xs",
+                integration.availability === "soon"
+                  ? "border-zinc-700 bg-white/[0.03] text-zinc-400"
+                  : "border-amber-500/20 bg-amber-500/10 text-amber-300",
+              )}
+            >
+              {unavailableLabel}
+            </Pill>
+          )}
+        </div>
+        <ol className="space-y-2">
+          {setupConfig.steps.map((step, index) => (
+            <li key={step} className="flex gap-3 text-sm text-zinc-400">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/5 text-xs font-semibold text-zinc-300">
+                {index + 1}
+              </span>
+              <span className="pt-0.5">{step}</span>
+            </li>
+          ))}
+        </ol>
+        {setupConfig.docsUrl && canSaveSettings && (
+          <a
+            href={setupConfig.docsUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-emerald-300 transition-colors hover:text-emerald-200"
+          >
+            Открыть документацию
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
         )}
       </div>
 
-      <div className="mt-4 rounded-2xl border border-white/5 bg-white/[0.03] p-4 flex items-center justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-zinc-200">Синхронизация включена</p>
-          <p className="text-xs text-zinc-500 mt-0.5">
-            Отключите, чтобы сохранить подключение без автоматического обмена данными.
-          </p>
+      {canSaveSettings ? (
+        <>
+          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Field label="Название подключения">
+              <DarkInput
+                aria-label="Название подключения"
+                value={form.displayName}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, displayName: event.target.value }))
+                }
+              />
+            </Field>
+
+            <Field label="Режим синхронизации">
+              <BrandSelect
+                ariaLabel="Режим синхронизации"
+                value={form.syncMode}
+                options={syncModeOptions}
+                onValueChange={(syncMode) =>
+                  setForm((prev) => ({ ...prev, syncMode: syncMode as SyncMode }))
+                }
+              />
+            </Field>
+
+            {setupConfig.fields.map((field) => (
+              <div key={field.key} className={cn(field.wide && "md:col-span-2")}>
+                <Field label={field.label} hint={field.hint}>
+                  <DarkInput
+                    aria-label={field.label}
+                    type={setupFieldInputType(field)}
+                    placeholder={field.placeholder}
+                    value={form.fields[field.key] ?? ""}
+                    onChange={(event) => updateField(field.key, event.target.value)}
+                  />
+                </Field>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-white/5 bg-white/[0.03] p-4 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-zinc-200">Синхронизация включена</p>
+              <p className="text-xs text-zinc-500 mt-0.5">
+                Отключите, чтобы сохранить подключение без автоматического обмена данными.
+              </p>
+            </div>
+            <SettingsSwitch
+              checked={form.syncEnabled}
+              onChange={(syncEnabled) => setForm((prev) => ({ ...prev, syncEnabled }))}
+            />
+          </div>
+        </>
+      ) : (
+        <div className="mt-4 rounded-2xl border border-white/5 bg-zinc-950/40 p-4">
+          <p className="mb-3 text-sm font-semibold text-zinc-200">Что понадобится для подключения</p>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {setupConfig.fields.map((field) => (
+              <div
+                key={field.key}
+                className={cn(
+                  "rounded-xl border border-white/5 bg-white/[0.03] p-3",
+                  field.wide && "md:col-span-2",
+                )}
+              >
+                <p className="text-sm font-medium text-zinc-300">{field.label}</p>
+                {(field.placeholder || field.hint) && (
+                  <p className="mt-1 text-xs text-zinc-500">{field.hint ?? field.placeholder}</p>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
-        <SettingsSwitch
-          checked={form.syncEnabled}
-          onChange={(syncEnabled) => setForm((prev) => ({ ...prev, syncEnabled }))}
-        />
-      </div>
+      )}
+
+      {canSaveSettings && (
+        <div className="mt-4">
+          <Field label="Заметки">
+            <DarkTextarea
+              aria-label="Заметки"
+              rows={3}
+              placeholder="Например: основной аккаунт продаж, sandbox или продакшен."
+              value={form.notes}
+              onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))}
+            />
+          </Field>
+        </div>
+      )}
+
+      {!canSaveSettings && (
+        <div className="mt-4 rounded-2xl border border-amber-500/15 bg-amber-500/[0.04] p-4 text-sm text-amber-100/90">
+          Эта интеграция не входит в самостоятельное подключение пилота. Окно показывает реальные
+          требования, но не сохраняет настройки.
+        </div>
+      )}
 
       {inboundEndpoint && (
         <div className="mt-4 rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.04] p-4">
@@ -876,17 +1311,6 @@ function IntegrationSettingsModal({
         </div>
       )}
 
-      <div className="mt-4">
-        <Field label="Заметки">
-          <DarkTextarea
-            aria-label="Заметки"
-            rows={3}
-            placeholder="Например: основной аккаунт продаж, sandbox или продакшен."
-            value={form.notes}
-            onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))}
-          />
-        </Field>
-      </div>
     </Modal>
   );
 }
@@ -993,7 +1417,7 @@ function IntegrationCard({
                   variant="outline"
                   size="sm"
                   className="min-h-8 w-full whitespace-normal rounded-full px-3 py-2 text-xs"
-                  disabled
+                  onClick={onConfigure}
                 >
                   {availability}
                 </Button>
