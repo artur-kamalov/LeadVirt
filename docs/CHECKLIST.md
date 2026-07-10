@@ -4,11 +4,12 @@ Last updated: 2026-07-10
 
 ## Next
 
-- [ ] Change the Telegram Login Widget allowed domain to `leadvirt.com` and update external OAuth callbacks, webhooks, embeds, and operator bookmarks.
+- [ ] Update any third-party OAuth callbacks, webhook senders, widget embeds, and operator bookmarks that still use `leadvirt.ru`.
 - [ ] Add a tenant selector to `db:cleanup:pilot` so staging public-smoke cleanup does not require a tenant-scoped one-off command.
 
 ## Done
 
+- [x] Changed BotFather `/setdomain` for `@LeadVirtAi_bot` to `leadvirt.com`; the live iframe renders without `Bot domain invalid`, and its real button opens Telegram OAuth with the `.com` origin and return URL.
 - [x] Deployed release `1b5246588620` through GitHub Actions run `29088096062`; `leadvirt.com` now has trusted Let's Encrypt TLS, canonical/public env, secure cookies, `.com`/`www`/`.ru` redirects, healthy app services, certificate renewal, live browser renders, and 3/3 public widget preflight with disposable records cleaned to zero.
 - [x] Fixed the `.com` ACME preflight to write under `.well-known/acme-challenge`, preserved shared Master Budet HTTP routes with deferred Docker DNS, and verified both public ACME paths plus candidate-container nginx syntax and live Master Budet health proxying.
 - [x] Changed Beget DNS for `leadvirt.com` and `www.leadvirt.com` to `193.187.92.88`; Cloudflare and Google public resolvers return the VPS with a 300-second TTL and HTTP health returns `200`.

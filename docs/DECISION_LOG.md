@@ -1,5 +1,16 @@
 # Decision Log
 
+## 2026-07-10: Authorize Telegram Login On leadvirt.com
+
+Decision: BotFather `/setdomain` for `@LeadVirtAi_bot` uses `leadvirt.com`.
+
+Context: After the TLS cutover, the live Telegram iframe correctly used the `.com` origin but returned `Bot domain invalid` until the allowed domain was updated.
+
+Consequences:
+
+- The live iframe renders the Telegram login control without a domain error.
+- Clicking the real widget opens `oauth.telegram.org/auth` with `.com` origin and return URL parameters.
+
 ## 2026-07-10: Cut Over Production To leadvirt.com
 
 Decision: `https://leadvirt.com` is live as the canonical production origin on release `1b5246588620`.

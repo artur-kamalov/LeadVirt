@@ -1,6 +1,6 @@
 # LeadVirt.com Domain Migration
 
-Status on 2026-07-10: live at `https://leadvirt.com`. Apex and `www` resolve to `193.187.92.88`, Let's Encrypt TLS is active, and release `1b5246588620` passed public verification. Telegram login still requires BotFather `/setdomain` for `leadvirt.com`.
+Status on 2026-07-10: complete and live at `https://leadvirt.com`. Apex and `www` resolve to `193.187.92.88`, Let's Encrypt TLS is active, release `1b5246588620` passed public verification, and Telegram OAuth opens with the `.com` origin.
 
 ## 1. DNS
 
@@ -31,7 +31,7 @@ sh deploy/enable-leadvirt-com-https.sh
 
 ## 3. External Services
 
-- Set the Telegram Login Widget domain to `leadvirt.com` through BotFather.
+- BotFather `/setdomain` is set to `leadvirt.com` for `@LeadVirtAi_bot`.
 - Replace `.ru` OAuth callbacks, Telegram/webhook endpoints, widget embeds, bookmarks, and operator links with `.com`.
 - Keep `.ru` DNS and certificate active during the compatibility window.
 
