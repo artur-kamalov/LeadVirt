@@ -40,6 +40,7 @@ import { localizeSeedText, relativeTimeLabel } from "./apiAdapters";
 import { hrefForRoute, useNav, type Route } from "./nav";
 import { useTheme } from "./theme";
 import { Avatar } from "./shared";
+import { BrandMark } from "../components/BrandMark";
 import { Button } from "../components/ui/Button";
 import { TooltipProvider, Tip, Dropdown, DropdownItem, DropdownLabel, DropdownSeparator } from "./ui";
 import { useProductMode, type ProductMode } from "./ProductMode";
@@ -390,9 +391,7 @@ export function ProductLayout({
         data-testid="product-logo-link"
         className="flex h-20 w-full min-w-0 shrink-0 items-center gap-2 px-3"
       >
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-600 flex shrink-0 items-center justify-center">
-          <Bot className="w-5 h-5 text-zinc-950" />
-        </div>
+        <BrandMark className="h-8 w-8 rounded-lg" />
         <span className="truncate text-lg font-bold tracking-tight">AI Администратор</span>
       </Link>
 

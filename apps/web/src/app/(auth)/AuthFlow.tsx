@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React from "react";
 import { motion } from "motion/react";
-import { Bot, CheckCircle2, Loader2, Send, ShieldCheck, Sparkles } from "lucide-react";
+import { CheckCircle2, Loader2, Send, ShieldCheck, Sparkles } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { getTelegramLoginConfig, loginWithTelegram, type TelegramAuthPayload } from "@/lib/api/auth";
+import { BrandMark } from "@/design/components/BrandMark";
 import { Button } from "@/design/components/ui/Button";
 
 type AuthMode = "login" | "signup";
@@ -279,9 +280,7 @@ export function AuthFlow({ mode }: { mode: AuthMode }) {
       <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-6 sm:px-6 lg:px-8">
         <header className="flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600">
-              <Bot className="h-5 w-5 text-zinc-950" />
-            </span>
+            <BrandMark className="h-9 w-9 rounded-xl" />
             <span className="text-lg font-bold tracking-tight">AI Администратор</span>
           </Link>
           <Button variant="ghost" size="sm" asChild>

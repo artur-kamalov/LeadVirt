@@ -13,6 +13,7 @@ import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { LandingHeader } from "./LandingHeader";
 import { DeferredNichesSection } from "./DeferredNichesSection";
 import { PricingSection } from "./PricingSection";
+import { BrandMark } from "./BrandMark";
 
 export function LandingPage() {
   return (
@@ -271,7 +272,7 @@ export function LandingPage() {
       <footer className="border-t border-white/5 py-12 bg-zinc-950">
         <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-2">
-            <Bot className="w-5 h-5 text-emerald-400" />
+            <BrandMark className="h-6 w-6 rounded-md" />
             <span className="text-lg font-bold tracking-tight">AI Администратор</span>
           </div>
           <p className="text-zinc-500 text-sm">© 2026 AI Администратор. Все права защищены.</p>

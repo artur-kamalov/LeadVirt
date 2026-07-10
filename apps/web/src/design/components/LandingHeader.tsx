@@ -2,7 +2,8 @@
 
 import React from "react";
 import Link from "next/link";
-import { Bot, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
+import { BrandMark } from "./BrandMark";
 
 export function LandingHeader() {
   const mobileMenuRef = React.useRef<HTMLDetailsElement>(null);
@@ -16,9 +17,7 @@ export function LandingHeader() {
     <header className="fixed top-0 inset-x-0 z-50 border-b border-white/5 bg-zinc-950/85">
       <div className="container mx-auto px-6 h-20 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center">
-            <Bot className="w-5 h-5 text-zinc-950" />
-          </div>
+          <BrandMark className="h-8 w-8 rounded-lg" />
           <span className="text-xl font-bold tracking-tight">AI Администратор</span>
         </div>
 

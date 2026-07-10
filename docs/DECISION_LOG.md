@@ -35,6 +35,18 @@ Consequences:
 - The live iframe renders the Telegram login control without a domain error.
 - Clicking the real widget opens `oauth.telegram.org/auth` with `.com` origin and return URL parameters.
 
+## 2026-07-10: Use The LeadVirt Logo In Frontend Brand Placements
+
+Decision: `/brand/logo.png` is the shared frontend brand asset. Compact brand placements show its symbol through `BrandMark`; functional AI/bot icons remain unchanged.
+
+Context: The supplied logo combines the symbol and wordmark on a square canvas, while the existing landing, auth, onboarding, and product-shell placeholders are 24–36 px marks beside product copy.
+
+Consequences:
+
+- Landing header/footer, auth, onboarding, and product sidebar use one reusable brand component.
+- The compact crop keeps the symbol legible without changing existing layout or product-name text.
+- A future standalone transparent symbol can replace the source or crop inside `BrandMark` without editing every surface.
+
 ## 2026-07-10: Cut Over Production To leadvirt.com
 
 Decision: `https://leadvirt.com` is live as the canonical production origin on release `1b5246588620`.

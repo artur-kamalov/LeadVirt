@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { useNav } from "../nav";
 import { Button } from "../../components/ui/Button";
+import { BrandMark } from "../../components/BrandMark";
 import { Card, channels } from "../shared";
 import { cn } from "../../lib/utils";
 import { completeOnboardingStep, getOnboardingState, updateOnboardingState } from "@/lib/api/onboarding";
@@ -162,10 +163,8 @@ function GlowOrbs() {
 
 function Logo({ onClick }: { onClick: () => void }) {
   return (
-    <button onClick={onClick} className="flex items-center gap-2.5 group">
-      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-        <Bot className="w-5 h-5 text-zinc-950" />
-      </div>
+    <button onClick={onClick} className="flex items-center gap-2.5 group" aria-label="AI Администратор">
+      <BrandMark className="h-9 w-9 rounded-xl shadow-lg shadow-emerald-500/20" />
       <span className="font-bold text-zinc-100 tracking-tight text-sm hidden sm:block">
         AI Администратор
       </span>
