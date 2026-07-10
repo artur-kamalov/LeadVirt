@@ -124,5 +124,13 @@ assert(
   nginx.includes("resolver 127.0.0.11 valid=30s ipv6=off;"),
   "Master Budet proxy does not use deferred Docker DNS.",
 );
+assert(
+  nginx.includes("ssl_certificate /etc/letsencrypt/live/masterbudet.ru/fullchain.pem;"),
+  "Master Budet apex TLS certificate is not configured.",
+);
+assert(
+  nginx.includes("return 308 https://masterbudet.ru$request_uri;"),
+  "Master Budet HTTP traffic does not redirect to the HTTPS apex.",
+);
 
 console.log("PASS: LeadVirt.com cutover is gated and legacy-domain compatibility is configured.");
