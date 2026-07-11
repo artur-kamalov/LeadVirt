@@ -12,6 +12,7 @@ import type { WebhookService } from "../../apps/api/src/modules/webhook/webhook.
 
 loadEnvFile();
 process.env.API_URL = "https://leadvirt.test";
+process.env.TELEGRAM_WEBHOOK_BASE_URL = "https://telegram-gateway.test/telegram-webhook/";
 process.env.INTEGRATION_CREDENTIALS_ENCRYPTION_KEY = "telegram-managed-connection-smoke";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -99,8 +100,9 @@ async function main() {
       "Bot username was not derived from getMe.",
     );
     assert(
-      webhookUrl.includes("/api/public/channels/telegram/lvtg_"),
-      "Managed webhook URL was not registered.",
+      webhookUrl.startsWith("https://telegram-gateway.test/telegram-webhook/lvtg_") &&
+        webhookUrl.endsWith("/webhook"),
+      "Managed webhook relay URL was not registered.",
     );
     assert(webhookSecret.length >= 24, "Managed webhook secret was not generated.");
     assert(
@@ -150,7 +152,7 @@ async function main() {
     const disabledChannel = await prisma.channel.findUnique({ where: { id: channel.id } });
     assert(disabledChannel?.status === "DISABLED", "Telegram channel was not disabled.");
 
-    console.log("Telegram managed connection smoke: 20/20 checks passed");
+    console.log("Telegram managed connection smoke: 21/21 checks passed");
   } finally {
     if (tenantId) await prisma.tenant.delete({ where: { id: tenantId } }).catch(() => undefined);
     if (userId) await prisma.user.delete({ where: { id: userId } }).catch(() => undefined);

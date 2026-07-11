@@ -169,6 +169,7 @@ Runtime:
 - Public IPv4: `147.90.14.240`
 - OpenAI gateway URL: `https://147-90-14-240.sslip.io:8443/v1`
 - Telegram gateway URL: `https://147-90-14-240.sslip.io:8443/telegram`
+- Telegram webhook relay URL: `https://147-90-14-240.sslip.io:8443/telegram-webhook`
 - Source path: `/opt/leadvirt/ai-gateway`
 - Compose file: `deploy/ai-gateway/docker-compose.yml`
 - Reverse proxy: nginx on ports `80` and `8443`
@@ -179,7 +180,8 @@ Runtime:
 Purpose:
 
 - Route staging OpenAI and Telegram Bot API traffic through a supported-region VPS.
-- Allow proxy access only from main staging IP `193.187.92.88`; Telegram access and non-emergency error logs are disabled to avoid recording bot tokens.
+- Allow outbound proxy access only from main staging IP `193.187.92.88`; accept POST-only inbound Telegram webhooks and forward them to LeadVirt for secret verification.
+- Disable Telegram access and non-emergency error logs to avoid recording bot paths or tokens.
 - Keep local/direct access to OpenAI routes blocked with `403 forbidden`.
 
 Verified:

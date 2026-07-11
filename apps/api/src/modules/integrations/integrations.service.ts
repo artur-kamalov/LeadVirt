@@ -485,6 +485,10 @@ export class IntegrationsService {
   }
 
   private telegramWebhookUrl(publicKey: string) {
+    const relayUrl = process.env.TELEGRAM_WEBHOOK_BASE_URL?.trim();
+    if (relayUrl) {
+      return `${relayUrl.replace(/\/+$/, "")}/${publicKey}/webhook`;
+    }
     const apiUrl = (process.env.API_URL ?? "http://localhost:4001").replace(/\/+$/, "");
     return `${apiUrl}/api/public/channels/telegram/${publicKey}/webhook`;
   }
