@@ -1,4 +1,8 @@
 import type { ChannelType } from "@leadvirt/types";
+import { TelegramBotApiClient } from "./telegram-bot-api.js";
+
+export * from "./credentials.js";
+export * from "./telegram-bot-api.js";
 
 export interface WebhookVerificationInput {
   headers: Record<string, string | string[] | undefined>;
@@ -107,6 +111,10 @@ export class WebsiteWidgetAdapter extends StubChannelAdapter {
 export class TelegramAdapter extends StubChannelAdapter {
   type = "TELEGRAM" as const;
 
+  constructor(private readonly botApi = new TelegramBotApiClient()) {
+    super();
+  }
+
   verifyWebhook(input: WebhookVerificationInput): Promise<boolean> {
     if (!input.secret) {
       return Promise.resolve(true);
@@ -143,6 +151,27 @@ export class TelegramAdapter extends StubChannelAdapter {
       timestamp: unixDate ? new Date(unixDate * 1000).toISOString() : new Date().toISOString(),
       raw: input
     });
+  }
+
+  override async sendMessage(input: SendMessageInput): Promise<SendMessageResult> {
+    const credentials = isRecord(input.credentials) ? input.credentials : {};
+    const botToken = firstString(credentials.botToken, credentials.token);
+    if (!botToken) return super.sendMessage(input);
+    const metadata = isRecord(input.metadata) ? input.metadata : {};
+    const raw = isRecord(metadata.raw) ? metadata.raw : {};
+    const rawMessage = firstRecord(raw.message, raw.edited_message);
+    const rawSender = isRecord(rawMessage.from) ? rawMessage.from : {};
+    if (metadata.sample === true || rawSender.username === "leadvirt_sample") {
+      return super.sendMessage(input);
+    }
+
+    const chatId = input.externalConversationId.replace(/^telegram:/, "").trim();
+    if (!chatId) throw new Error("Telegram chat id is missing.");
+    const message = await this.botApi.sendMessage({ botToken, chatId, text: input.text });
+    return {
+      externalMessageId: `telegram:${message.message_id}`,
+      status: "sent"
+    };
   }
 }
 
@@ -245,28 +274,6 @@ function firstString(...values: unknown[]): string | undefined {
 
 function firstRecord(...values: unknown[]): Record<string, unknown> {
   return values.find(isRecord) ?? {};
-}
-
-function normalizeAttachments(...values: unknown[]): NormalizedAttachment[] | undefined {
-  const records = values.flatMap((value) => {
-    if (Array.isArray(value)) return value.filter(isRecord);
-    return isRecord(value) ? [value] : [];
-  });
-  const attachments = records
-    .map((record) => {
-      const media = firstRecord(record.media, record.file);
-      const url = firstString(record.url, record.src, record.href, record.path, media.url, media.src, media.path);
-      if (!url) return null;
-      const mimeType = firstString(record.mimeType, record.mime_type, record.mime, record.contentType, record.content_type, media.mimeType, media.mime_type, media.mime, media.contentType);
-      const fileName = firstString(record.fileName, record.file_name, record.name, record.filename, media.fileName, media.file_name, media.name, media.filename);
-      return {
-        url,
-        ...(mimeType ? { mimeType } : {}),
-        ...(fileName ? { fileName } : {})
-      };
-    })
-    .filter((attachment): attachment is NormalizedAttachment => Boolean(attachment));
-  return attachments.length > 0 ? attachments : undefined;
 }
 
 function normalizeTimestamp(value: unknown): string {

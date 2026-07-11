@@ -1,5 +1,19 @@
 # Decision Log
 
+## 2026-07-11: Manage Telegram Setup Behind One Bot Token
+
+Decision: Clients provide only the BotFather token. LeadVirt owns Telegram webhook provisioning, verification, security, health checks, reconnect, disconnect, and outbound delivery.
+
+Context: Asking clients for bot usernames, webhook URLs, secret headers, and allowed updates exposed infrastructure details and still did not register the webhook automatically. The channel layer already generated a secure secret, but the integrations form and Bot API lifecycle were disconnected.
+
+Consequences:
+
+- `POST /integrations/TELEGRAM/connect` validates the token with `getMe`, prevents active cross-workspace bot reuse, creates or reuses the tenant channel, calls `setWebhook`, and verifies the exact URL with `getWebhookInfo`.
+- Bot tokens are AES-256-GCM encrypted in `Channel.encryptedCredentials`; Telegram webhook secrets remain server-managed and are redacted from channel and integration responses.
+- Reconnecting without a token reuses stored credentials. Replacing a bot rotates the webhook secret before activation so the previous webhook is invalid immediately.
+- Telegram delivery uses the real Bot API when encrypted credentials exist; demo/sample traffic retains deterministic simulated delivery.
+- Standard Telegram bots still need to be created in BotFather, but no Telegram infrastructure knowledge is required from the client after token creation.
+
 ## 2026-07-11: Keep Product Scrolling Compositor-Safe
 
 Decision: LeadVirt product surfaces use opaque or semi-opaque backgrounds without persistent `backdrop-filter` layers, oversized fixed CSS blurs, or hover blur glows.

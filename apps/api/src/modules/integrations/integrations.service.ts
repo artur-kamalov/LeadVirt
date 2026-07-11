@@ -1,5 +1,5 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
-import { AmoCrmAdapter, BitrixAdapter, type CrmAdapter } from "@leadvirt/integrations";
+import { AmoCrmAdapter, BitrixAdapter, decryptIntegrationCredentials, encryptIntegrationCredentials, type CrmAdapter } from "@leadvirt/integrations";
 import type {
   ChannelType,
   IntegrationAccount,
@@ -10,9 +10,12 @@ import type {
 } from "@leadvirt/types";
 import type { Prisma } from "@leadvirt/db";
 import type { RequestContext } from "../../common/request-context.js";
+import { ChannelsService } from "../channels/channels.service.js";
 import { PrismaService } from "../database/prisma.service.js";
+import { TelegramBotApiService } from "../telegram/telegram-bot-api.service.js";
 import { TelegramService } from "../telegram/telegram.service.js";
 import { WebhookService } from "../webhook/webhook.service.js";
+import type { ConnectIntegrationDto } from "./dto/connect-integration.dto.js";
 import type { UpdateIntegrationSettingsDto } from "./dto/update-integration-settings.dto.js";
 
 const providers = [
@@ -103,6 +106,8 @@ export interface CrmLeadSyncResult {
 export class IntegrationsService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(ChannelsService) private readonly channelsService: ChannelsService,
+    @Inject(TelegramBotApiService) private readonly telegramBotApi: TelegramBotApiService,
     @Inject(TelegramService) private readonly telegramService: TelegramService,
     @Inject(WebhookService) private readonly webhookService: WebhookService
   ) {}
@@ -174,11 +179,12 @@ export class IntegrationsService {
     }));
   }
 
-  async connect(context: RequestContext, provider: string): Promise<IntegrationAccount> {
+  async connect(context: RequestContext, provider: string, dto: ConnectIntegrationDto = {}): Promise<IntegrationAccount> {
     const parsedProvider = this.parseProvider(provider);
     if (!selfServeConnectProviders.has(parsedProvider)) {
       throw new BadRequestException("This integration is not available for self-service connection in the pilot.");
     }
+    if (parsedProvider === "TELEGRAM") return this.connectTelegram(context, dto.botToken);
 
     const integration = await this.loadOrCreateByProvider(context.tenantId, parsedProvider);
     const updated = await this.prisma.integrationAccount.update({
@@ -192,6 +198,15 @@ export class IntegrationsService {
 
   async disconnect(context: RequestContext, provider: string): Promise<IntegrationAccount> {
     const integration = await this.loadByProvider(context.tenantId, provider);
+    if (integration.provider === "TELEGRAM") {
+      const channel = await this.prisma.channel.findFirst({
+        where: { tenantId: context.tenantId, type: "TELEGRAM", deletedAt: null },
+        select: { encryptedCredentials: true }
+      });
+      const botToken = this.telegramBotToken(channel?.encryptedCredentials);
+      if (botToken) await this.telegramBotApi.deleteWebhook(botToken).catch(() => undefined);
+      await this.channelsService.disableTelegramChannel(context);
+    }
     const updated = await this.prisma.integrationAccount.update({
       where: { id: integration.id },
       data: { status: "DISCONNECTED", connectedAt: null }
@@ -203,6 +218,9 @@ export class IntegrationsService {
 
   async updateSettings(context: RequestContext, provider: string, dto: UpdateIntegrationSettingsDto): Promise<IntegrationAccount> {
     const parsedProvider = this.parseProvider(provider);
+    if (parsedProvider === "TELEGRAM") {
+      throw new BadRequestException("Use the Telegram connect flow to update the bot safely.");
+    }
     const integration = selfServeConnectProviders.has(parsedProvider)
       ? await this.loadOrCreateByProvider(context.tenantId, parsedProvider)
       : await this.loadByProvider(context.tenantId, provider);
@@ -216,6 +234,7 @@ export class IntegrationsService {
   }
 
   async testConnection(context: RequestContext, provider: string): Promise<IntegrationTestResult> {
+    if (this.parseProvider(provider) === "TELEGRAM") return this.testTelegramConnection(context);
     const integration = await this.loadByProvider(context.tenantId, provider);
     const checkedAt = new Date();
     const status = this.connectionTestStatus(integration.status);
@@ -318,6 +337,169 @@ export class IntegrationsService {
     }
 
     throw new BadRequestException("Тестовый входящий трафик доступен для Telegram и Webhook/API.");
+  }
+
+  private async connectTelegram(context: RequestContext, submittedBotToken?: string) {
+    const existingChannel = await this.prisma.channel.findFirst({
+      where: { tenantId: context.tenantId, type: "TELEGRAM", deletedAt: null },
+      select: { encryptedCredentials: true }
+    });
+    const existingBotToken = this.telegramBotToken(existingChannel?.encryptedCredentials);
+    const botToken = optionalString(submittedBotToken) ?? existingBotToken;
+    if (!botToken) throw new BadRequestException("Paste the bot token from BotFather to connect Telegram.");
+
+    let profile: Awaited<ReturnType<TelegramBotApiService["getMe"]>>;
+    try {
+      profile = await this.telegramBotApi.getMe(botToken);
+    } catch (error) {
+      throw new BadRequestException(this.telegramErrorMessage(error));
+    }
+    if (!profile.is_bot || !profile.username) {
+      throw new BadRequestException("Telegram did not return a valid bot username.");
+    }
+    const duplicateBot = await this.prisma.channel.findFirst({
+      where: {
+        type: "TELEGRAM",
+        externalId: String(profile.id),
+        tenantId: { not: context.tenantId },
+        status: "ACTIVE",
+        deletedAt: null
+      },
+      select: { id: true }
+    });
+    if (duplicateBot) throw new BadRequestException("This Telegram bot is already connected to another workspace.");
+
+    const integration = await this.loadOrCreateByProvider(context.tenantId, "TELEGRAM");
+    const replacingBot = Boolean(existingBotToken && existingBotToken !== botToken);
+    const channel = await this.channelsService.prepareTelegramChannel(context, { rotateWebhookSecret: replacingBot });
+    const webhookUrl = this.telegramWebhookUrl(channel.publicKey);
+    try {
+      await this.telegramBotApi.setWebhook({
+        botToken,
+        url: webhookUrl,
+        secretToken: channel.webhookSecret,
+        allowedUpdates: ["message", "edited_message"]
+      });
+      const webhookInfo = await this.telegramBotApi.getWebhookInfo(botToken);
+      if (webhookInfo.url !== webhookUrl) throw new Error("Telegram webhook verification failed. Please try again.");
+      if (replacingBot && existingBotToken) {
+        await this.telegramBotApi.deleteWebhook(existingBotToken).catch(() => undefined);
+      }
+    } catch (error) {
+      throw new BadRequestException(this.telegramErrorMessage(error));
+    }
+
+    await this.channelsService.activateTelegramChannel(context, {
+      channelId: channel.id,
+      botId: profile.id,
+      botUsername: profile.username,
+      encryptedCredentials: encryptIntegrationCredentials({ botToken })
+    });
+    const connectedAt = new Date();
+    const updated = await this.prisma.integrationAccount.update({
+      where: { id: integration.id },
+      data: {
+        status: "CONNECTED",
+        name: `Telegram @${profile.username}`,
+        connectedAt,
+        lastSyncAt: connectedAt,
+        settings: {
+          syncDirection: "two-way",
+          botId: String(profile.id),
+          botUsername: profile.username,
+          tokenConfigured: true,
+          webhookConfigured: true,
+          managedByLeadVirt: true,
+          allowedUpdates: ["message", "edited_message"]
+        }
+      }
+    });
+    await this.logSync(context.tenantId, updated.id, "connect", "SUCCESS", `Telegram @${profile.username} connected automatically.`);
+    await this.logAudit(context, "integration.connected", updated.id, {
+      provider: "TELEGRAM",
+      botId: String(profile.id),
+      botUsername: profile.username,
+      webhookManaged: true
+    });
+    return (await this.list(context)).find((item) => item.id === updated.id) ?? this.toDto(updated);
+  }
+
+  private async testTelegramConnection(context: RequestContext): Promise<IntegrationTestResult> {
+    const integration = await this.loadByProvider(context.tenantId, "TELEGRAM");
+    const channel = await this.prisma.channel.findFirst({
+      where: { tenantId: context.tenantId, type: "TELEGRAM", deletedAt: null },
+      select: { id: true, publicKey: true, encryptedCredentials: true }
+    });
+    const botToken = this.telegramBotToken(channel?.encryptedCredentials);
+    const checkedAt = new Date();
+    let status: "SUCCESS" | "FAILED" = "FAILED";
+    let message = "Telegram is not connected. Paste the bot token and connect it again.";
+
+    if (botToken && channel?.publicKey) {
+      try {
+        const [profile, webhookInfo] = await Promise.all([
+          this.telegramBotApi.getMe(botToken),
+          this.telegramBotApi.getWebhookInfo(botToken)
+        ]);
+        if (webhookInfo.url !== this.telegramWebhookUrl(channel.publicKey)) {
+          message = "Telegram webhook needs repair. Reconnect the bot in one click.";
+        } else {
+          status = "SUCCESS";
+          message = `Telegram @${profile.username ?? profile.first_name} is connected and ready.`;
+          await Promise.all([
+            this.prisma.channel.update({ where: { id: channel.id }, data: { status: "ACTIVE", lastHealthAt: checkedAt } }),
+            this.prisma.integrationAccount.update({ where: { id: integration.id }, data: { status: "CONNECTED", lastSyncAt: checkedAt } })
+          ]);
+        }
+      } catch (error) {
+        message = this.telegramErrorMessage(error);
+      }
+    }
+
+    const syncLog = await this.prisma.integrationSyncLog.create({
+      data: {
+        tenantId: context.tenantId,
+        integrationId: integration.id,
+        action: "test_connection",
+        status,
+        message,
+        metadata: { provider: "TELEGRAM", webhookManaged: true },
+        createdAt: checkedAt
+      }
+    });
+    await this.logAudit(context, "integration.test_connection", integration.id, {
+      provider: "TELEGRAM",
+      status,
+      syncLogId: syncLog.id
+    });
+    const current = (await this.list(context)).find((item) => item.id === integration.id);
+    return {
+      ok: status === "SUCCESS",
+      provider: "TELEGRAM",
+      integrationId: integration.id,
+      status,
+      message,
+      checkedAt: checkedAt.toISOString(),
+      integration: current ?? this.toDto(integration)
+    };
+  }
+
+  private telegramWebhookUrl(publicKey: string) {
+    const apiUrl = (process.env.API_URL ?? "http://localhost:4001").replace(/\/+$/, "");
+    return `${apiUrl}/api/public/channels/telegram/${publicKey}/webhook`;
+  }
+
+  private telegramBotToken(encryptedCredentials?: string | null) {
+    if (!encryptedCredentials) return undefined;
+    try {
+      return firstString(decryptIntegrationCredentials(encryptedCredentials).botToken);
+    } catch {
+      return undefined;
+    }
+  }
+
+  private telegramErrorMessage(error: unknown) {
+    return error instanceof Error && error.message.trim() ? error.message.trim() : "Telegram setup failed. Please try again.";
   }
 
   async syncLeadToCrm(context: RequestContext, lead: LeadForCrmSync): Promise<CrmLeadSyncResult> {
@@ -644,6 +826,16 @@ export class IntegrationsService {
     settings: Prisma.JsonValue | null
   ) {
     const base = asRecord(settings);
+    if (provider === "TELEGRAM") {
+      return {
+        ...(typeof base.botId === "string" ? { botId: base.botId } : {}),
+        ...(typeof base.botUsername === "string" ? { botUsername: base.botUsername } : {}),
+        tokenConfigured: base.tokenConfigured === true || typeof base.apiToken === "string" || typeof base.botToken === "string",
+        webhookConfigured: base.webhookConfigured === true,
+        managedByLeadVirt: base.managedByLeadVirt === true,
+        syncDirection: "two-way"
+      };
+    }
     if (provider !== "WEBHOOK_API") return base;
 
     const genericProvider = "generic";

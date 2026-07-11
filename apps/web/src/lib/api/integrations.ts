@@ -5,8 +5,11 @@ export function listIntegrations() {
   return apiData<IntegrationAccount[]>("/integrations");
 }
 
-export function connectIntegration(provider: string) {
-  return apiData<IntegrationAccount>(`/integrations/${provider}/connect`, { method: "POST" });
+export function connectIntegration(provider: string, input: { botToken?: string } = {}) {
+  return apiData<IntegrationAccount>(`/integrations/${provider}/connect`, {
+    method: "POST",
+    ...jsonBody(input)
+  });
 }
 
 export function disconnectIntegration(provider: string) {

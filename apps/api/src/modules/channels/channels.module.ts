@@ -5,6 +5,7 @@ import { ChannelsService } from "./channels.service.js";
 
 @Module({
   controllers: [ChannelsController],
-  providers: [ChannelsService, RolesGuard]
+  providers: [ChannelsService, RolesGuard],
+  exports: [ChannelsService],
 })
 export class ChannelsModule {}

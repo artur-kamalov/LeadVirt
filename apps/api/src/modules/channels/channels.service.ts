@@ -11,6 +11,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
+}
+
 function publicKeyPrefix(type: CreateChannelDto["type"]) {
   if (type === "WEBSITE") return "lvw";
   if (type === "TELEGRAM") return "lvtg";
@@ -123,6 +127,101 @@ export class ChannelsService {
     });
 
     return this.mapChannel(channel);
+  }
+
+  async prepareTelegramChannel(context: RequestContext, options: { rotateWebhookSecret?: boolean } = {}) {
+    const existing = await this.prisma.channel.findFirst({
+      where: { tenantId: context.tenantId, type: "TELEGRAM", deletedAt: null }
+    });
+    if (existing?.publicKey) {
+      const settings = isRecord(existing.settings) ? existing.settings : {};
+      const telegram = isRecord(settings.telegram) ? settings.telegram : {};
+      const webhookSecret =
+        !options.rotateWebhookSecret && typeof telegram.webhookSecret === "string" && telegram.webhookSecret.trim()
+          ? telegram.webhookSecret.trim()
+          : generatedSecret();
+      if (telegram.webhookSecret !== webhookSecret) {
+        await this.prisma.channel.update({
+          where: { id: existing.id },
+          data: {
+            settings: {
+              ...settings,
+              telegram: { ...telegram, webhookPublicKey: existing.publicKey, webhookSecret }
+            }
+          }
+        });
+      }
+      return {
+        id: existing.id,
+        publicKey: existing.publicKey,
+        webhookSecret,
+        encryptedCredentials: existing.encryptedCredentials
+      };
+    }
+
+    const publicKey = await this.resolvePublicKey("TELEGRAM", undefined);
+    const settings = this.defaultSettings("TELEGRAM", publicKey, {});
+    const telegram = asRecord(asRecord(settings).telegram);
+    const webhookSecret = String(telegram.webhookSecret);
+    const channel = await this.prisma.channel.create({
+      data: {
+        tenantId: context.tenantId,
+        type: "TELEGRAM",
+        status: "PENDING",
+        name: "Telegram",
+        publicKey,
+        settings
+      }
+    });
+    return { id: channel.id, publicKey, webhookSecret, encryptedCredentials: null };
+  }
+
+  async activateTelegramChannel(
+    context: RequestContext,
+    input: { channelId: string; botId: number; botUsername: string; encryptedCredentials: string }
+  ) {
+    const current = await this.prisma.channel.findFirst({
+      where: { id: input.channelId, tenantId: context.tenantId, type: "TELEGRAM", deletedAt: null }
+    });
+    if (!current?.publicKey) throw new NotFoundException("Telegram channel was not found.");
+
+    const settings = isRecord(current.settings) ? current.settings : {};
+    const telegram = isRecord(settings.telegram) ? settings.telegram : {};
+    const channel = await this.prisma.channel.update({
+      where: { id: current.id },
+      data: {
+        status: "ACTIVE",
+        name: `@${input.botUsername}`,
+        externalId: String(input.botId),
+        encryptedCredentials: input.encryptedCredentials,
+        lastHealthAt: new Date(),
+        settings: {
+          ...settings,
+          telegram: {
+            ...telegram,
+            webhookPublicKey: current.publicKey,
+            botId: String(input.botId),
+            botUsername: input.botUsername,
+            webhookConfigured: true,
+            autoReply: true
+          }
+        }
+      }
+    });
+    await this.ensureCompanionIntegration(context, "TELEGRAM", channel);
+    return this.mapChannel(channel);
+  }
+
+  async disableTelegramChannel(context: RequestContext) {
+    const channel = await this.prisma.channel.findFirst({
+      where: { tenantId: context.tenantId, type: "TELEGRAM", deletedAt: null }
+    });
+    if (!channel) return null;
+    const updated = await this.prisma.channel.update({
+      where: { id: channel.id },
+      data: { status: "DISABLED" }
+    });
+    return this.mapChannel(updated);
   }
 
   private async resolvePublicKey(type: CreateChannelDto["type"], requestedPublicKey: string | undefined) {
@@ -246,6 +345,18 @@ export class ChannelsService {
     settings: Prisma.JsonValue | null;
     lastHealthAt: Date | null;
   }): Channel {
+    const storedSettings = asRecord(channel.settings);
+    const telegramSettings = asRecord(storedSettings.telegram);
+    const settings =
+      channel.type === "TELEGRAM"
+        ? {
+            ...storedSettings,
+            telegram: {
+              ...Object.fromEntries(Object.entries(telegramSettings).filter(([key]) => key !== "webhookSecret")),
+              webhookConfigured: telegramSettings.webhookConfigured === true || typeof telegramSettings.webhookSecret === "string"
+            }
+          }
+        : channel.settings;
     return {
       id: channel.id,
       tenantId: channel.tenantId,
@@ -253,7 +364,7 @@ export class ChannelsService {
       status: channel.status,
       name: channel.name,
       publicKey: channel.publicKey,
-      settings: channel.settings,
+      settings,
       lastHealthAt: channel.lastHealthAt?.toISOString() ?? null
     };
   }

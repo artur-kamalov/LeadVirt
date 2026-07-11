@@ -2,8 +2,10 @@ import { randomUUID } from "node:crypto";
 import { loadEnvFile } from "@leadvirt/config";
 import { prisma } from "@leadvirt/db";
 import type { RequestContext } from "../../apps/api/src/common/request-context.js";
+import type { ChannelsService } from "../../apps/api/src/modules/channels/channels.service.js";
 import type { PrismaService } from "../../apps/api/src/modules/database/prisma.service.js";
 import { IntegrationsService } from "../../apps/api/src/modules/integrations/integrations.service.js";
+import type { TelegramBotApiService } from "../../apps/api/src/modules/telegram/telegram-bot-api.service.js";
 import type { TelegramService } from "../../apps/api/src/modules/telegram/telegram.service.js";
 import type { WebhookService } from "../../apps/api/src/modules/webhook/webhook.service.js";
 
@@ -47,6 +49,8 @@ async function main() {
   let userId: string | null = null;
   const service = new IntegrationsService(
     prisma as unknown as PrismaService,
+    {} as ChannelsService,
+    {} as TelegramBotApiService,
     {} as TelegramService,
     {} as WebhookService
   );

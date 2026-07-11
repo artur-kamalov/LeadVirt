@@ -104,7 +104,65 @@ test("integrations page starts empty when API returns no tenant integrations", a
   await expect(page.getByTestId("pilot-readiness-panel")).toContainText("0/3");
 });
 
-test("integrations page opens setup settings without marking disconnected cards connected", async ({ page }) => {
+test("Telegram connects from one bot token while LeadVirt manages webhook security", async ({
+  page,
+}) => {
+  let connectBody: unknown = null;
+  await page.route("**/api/integrations", async (route) => {
+    await route.fulfill({ json: { data: [integration("TELEGRAM", "DISCONNECTED")] } });
+  });
+  await page.route("**/api/channels", async (route) => {
+    await route.fulfill({ json: { data: [] } });
+  });
+  await page.route("**/api/integrations/TELEGRAM/connect", async (route) => {
+    connectBody = await route.request().postDataJSON();
+    await route.fulfill({
+      json: {
+        data: {
+          ...integration("TELEGRAM", "CONNECTED"),
+          name: "Telegram @client_magic_bot",
+          settings: {
+            botId: "987654321",
+            botUsername: "client_magic_bot",
+            tokenConfigured: true,
+            webhookConfigured: true,
+            managedByLeadVirt: true,
+          },
+        },
+      },
+    });
+  });
+
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(`${webBase}/app/integrations`, { waitUntil: "networkidle" });
+  await page
+    .getByTestId("integration-card-telegram")
+    .getByRole("button", { name: "Подключить" })
+    .click();
+
+  const dialog = page.getByRole("dialog", { name: "Подключить Telegram" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator("input")).toHaveCount(1);
+  await expect(dialog.getByText("Webhook secret token")).toHaveCount(0);
+  await expect(dialog.getByText("Allowed updates")).toHaveCount(0);
+  await dialog.screenshot({
+    path: "artifacts/playwright/telegram-magic-connect-desktop.png",
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await dialog.screenshot({
+    path: "artifacts/playwright/telegram-magic-connect-mobile.png",
+  });
+
+  await page.getByTestId("telegram-bot-token").fill("987654321:AA-client-token");
+  await page.getByTestId("telegram-connect-submit").click();
+  await expect.poll(() => connectBody).toEqual({ botToken: "987654321:AA-client-token" });
+  await expect(dialog).toBeHidden();
+  await expect(page.getByTestId("integration-card-telegram")).toContainText("Подключено");
+});
+
+test("integrations page opens setup settings without marking disconnected cards connected", async ({
+  page,
+}) => {
   let connectedProvider = "";
   let disconnectedProvider = "";
   const sampledProviders: string[] = [];
@@ -127,7 +185,17 @@ test("integrations page opens setup settings without marking disconnected cards 
             },
           },
           integration("RETAILCRM", "DISCONNECTED"),
-          integration("TELEGRAM", "CONNECTED"),
+          {
+            ...integration("TELEGRAM", "CONNECTED"),
+            name: "Telegram @demo_telegram_bot",
+            settings: {
+              botId: "123456789",
+              botUsername: "demo_telegram_bot",
+              tokenConfigured: true,
+              webhookConfigured: true,
+              managedByLeadVirt: true,
+            },
+          },
           integration("WEBHOOK_API", "CONNECTED"),
         ],
       },
@@ -200,7 +268,17 @@ test("integrations page opens setup settings without marking disconnected cards 
           aiMessageId: null,
           outboundStatus: "queued",
           reply: null,
-          integration: integration("TELEGRAM", "CONNECTED"),
+          integration: {
+            ...integration("TELEGRAM", "CONNECTED"),
+            name: "Telegram @demo_telegram_bot",
+            settings: {
+              botId: "123456789",
+              botUsername: "demo_telegram_bot",
+              tokenConfigured: true,
+              webhookConfigured: true,
+              managedByLeadVirt: true,
+            },
+          },
         },
       },
     });
@@ -284,9 +362,7 @@ test("integrations page opens setup settings without marking disconnected cards 
   const instagramDialog = page.getByRole("dialog", { name: /Instagram: настройки/ });
   await expect(instagramDialog).toBeVisible();
   await expect
-    .poll(() =>
-      instagramDialog.evaluate((element) => element.scrollWidth - element.clientWidth),
-    )
+    .poll(() => instagramDialog.evaluate((element) => element.scrollWidth - element.clientWidth))
     .toBe(0);
   await expect
     .poll(() => page.evaluate(() => getComputedStyle(document.documentElement).scrollBehavior))
@@ -296,9 +372,7 @@ test("integrations page opens setup settings without marking disconnected cards 
   });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect
-    .poll(() =>
-      instagramDialog.evaluate((element) => element.scrollWidth - element.clientWidth),
-    )
+    .poll(() => instagramDialog.evaluate((element) => element.scrollWidth - element.clientWidth))
     .toBe(0);
   await instagramDialog.screenshot({
     path: "artifacts/playwright/integrations-provider-setup-instagram-mobile.png",
@@ -344,7 +418,10 @@ test("integrations page opens setup settings without marking disconnected cards 
   await whatsappDialog.getByRole("button", { name: "Закрыть" }).click();
   await expect(whatsappDialog).toBeHidden();
   await expect(page.getByTestId("integration-card-vk")).toContainText("Скоро будет");
-  await page.getByTestId("integration-card-vk").getByRole("button", { name: "Скоро будет" }).click();
+  await page
+    .getByTestId("integration-card-vk")
+    .getByRole("button", { name: "Скоро будет" })
+    .click();
   const vkDialog = page.getByRole("dialog", { name: /VK: настройки/ });
   await expect(vkDialog).toBeVisible();
   await expect(vkDialog.getByText("Community token", { exact: true })).toBeVisible();
@@ -442,19 +519,14 @@ test("integrations page opens setup settings without marking disconnected cards 
   const telegramCard = page.locator(".group").filter({ hasText: "Telegram" }).first();
   await telegramCard.getByRole("button", { name: /Настроить/ }).click();
   await page.getByRole("menuitem", { name: /^Настроить$/ }).click();
-  const telegramDialog = page.getByRole("dialog", { name: /Telegram: настройки/ });
+  const telegramDialog = page.getByRole("dialog", { name: "Telegram @demo_telegram_bot" });
   await expect(telegramDialog).toBeVisible();
-  await expect(telegramDialog.getByText("Публичный входящий endpoint")).toBeVisible();
+  await expect(telegramDialog.getByText("Бот подключён")).toBeVisible();
   await expect(
-    telegramDialog.getByText(
-      "http://localhost:4001/api/public/channels/telegram/demo-telegram-webhook/webhook",
-    ),
+    telegramDialog.getByText("@demo_telegram_bot управляется LeadVirt.ai"),
   ).toBeVisible();
-  await expect(telegramDialog.getByText("demo-telegram-webhook", { exact: true })).toBeVisible();
-  await expect(telegramDialog.getByText("x-telegram-bot-api-secret-token")).toBeVisible();
-  await expect(
-    telegramDialog.getByText("I want to book an appointment from Telegram"),
-  ).toBeVisible();
+  await expect(telegramDialog.getByText("Webhook secret token")).toHaveCount(0);
+  await expect(telegramDialog.getByText("x-telegram-bot-api-secret-token")).toHaveCount(0);
   await page.getByRole("button", { name: "Отмена" }).click();
   await expect(telegramDialog).toBeHidden();
 
@@ -463,7 +535,11 @@ test("integrations page opens setup settings without marking disconnected cards 
   await page.getByRole("menuitem", { name: /^Настроить$/ }).click();
   const webhookDialog = page.getByRole("dialog", { name: /Webhook \/ API: настройки/ });
   await expect(webhookDialog).toBeVisible();
-  await expect(webhookDialog.getByText("http://localhost:4001/api/public/channels/webhook/demo-generic-webhook/events")).toBeVisible();
+  await expect(
+    webhookDialog.getByText(
+      "http://localhost:4001/api/public/channels/webhook/demo-generic-webhook/events",
+    ),
+  ).toBeVisible();
   await expect(webhookDialog.getByText("demo-generic-webhook", { exact: true })).toBeVisible();
   await expect(webhookDialog.getByText("x-leadvirt-webhook-secret")).toBeVisible();
   const modalWebhookSamples = sampledProviders.filter(
@@ -492,13 +568,13 @@ test("integrations page opens setup settings without marking disconnected cards 
   await expect
     .poll(
       () =>
-        (retailSettings as { settings?: { displayName?: string } } | null)?.settings
-          ?.displayName,
+        (retailSettings as { settings?: { displayName?: string } } | null)?.settings?.displayName,
     )
     .toBe("RetailCRM setup");
   await expect
     .poll(
-      () => (retailSettings as { settings?: { endpointUrl?: string } } | null)?.settings?.endpointUrl,
+      () =>
+        (retailSettings as { settings?: { endpointUrl?: string } } | null)?.settings?.endpointUrl,
     )
     .toBe("https://shop.retailcrm.ru");
   await expect

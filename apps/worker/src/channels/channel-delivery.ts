@@ -1,4 +1,4 @@
-import { TelegramAdapter, WebhookAdapter, type ChannelAdapter, type SendMessageResult } from "@leadvirt/integrations";
+import { decryptIntegrationCredentials, TelegramAdapter, WebhookAdapter, type ChannelAdapter, type SendMessageResult } from "@leadvirt/integrations";
 import { prisma, type Prisma } from "@leadvirt/db";
 import type { ChannelSendMessageJobData } from "@leadvirt/types";
 import { recordSpanError, setSpanOk, SpanKind, startSpan } from "@leadvirt/observability";
@@ -162,6 +162,16 @@ export async function deliverChannelMessage(data: ChannelSendMessageJobData, job
     throw new Error(result.reason ?? "message_text_empty");
   }
 
+  if (
+    channel.type === "TELEGRAM" &&
+    !channel.encryptedCredentials &&
+    !channel.publicKey?.toLowerCase().startsWith("demo-")
+  ) {
+    const result = await markFailed(message, "telegram_credentials_missing", jobId);
+    throw new Error(result.reason ?? "telegram_credentials_missing");
+  }
+
+  const credentials = channel.encryptedCredentials ? decryptIntegrationCredentials(channel.encryptedCredentials) : undefined;
   const outbound = await adapter.sendMessage({
     tenantId: data.tenantId,
     channelAccountId: channel.externalId ?? channel.id,
@@ -169,7 +179,7 @@ export async function deliverChannelMessage(data: ChannelSendMessageJobData, job
     externalConversationId: message.conversation.externalConversationId ?? message.conversationId,
     text,
     settings: channel.settings,
-    credentials: channel.encryptedCredentials,
+    ...(credentials ? { credentials } : {}),
     metadata: {
       messageId: message.id,
       graphRunId: data.graphRunId ?? null,

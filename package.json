@@ -20,6 +20,8 @@
     "qa:domain-migration": "node artifacts/scripts/domain-migration-smoke.mjs",
     "qa:meta:instagram": "node artifacts/scripts/meta-instagram-preflight.mjs",
     "qa:integrations:connect-missing": "corepack pnpm --filter @leadvirt/api exec tsx ../../artifacts/scripts/integration-connect-missing-smoke.ts",
+    "qa:telegram:contract": "corepack pnpm --filter @leadvirt/api exec tsx ../../artifacts/scripts/telegram-managed-connection-contract-smoke.ts",
+    "qa:telegram:managed": "corepack pnpm --filter @leadvirt/api exec tsx ../../artifacts/scripts/telegram-managed-connection-smoke.ts",
     "qa:channels:provisioning": "node artifacts/scripts/channel-provisioning.mjs",
     "provision:webhook-channel": "node artifacts/scripts/provision-webhook-channel.mjs",
     "qa:auth:guard": "node artifacts/scripts/auth-temporary-password-guard.mjs",

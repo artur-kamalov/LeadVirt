@@ -4,6 +4,7 @@ import { Roles } from "../../common/decorators/roles.decorator.js";
 import { RolesGuard } from "../../common/guards/roles.guard.js";
 import type { RequestContext } from "../../common/request-context.js";
 import { WorkspaceAuthGuard } from "../auth/workspace-auth.guard.js";
+import { ConnectIntegrationDto } from "./dto/connect-integration.dto.js";
 import { UpdateIntegrationSettingsDto } from "./dto/update-integration-settings.dto.js";
 import { IntegrationsService } from "./integrations.service.js";
 
@@ -19,8 +20,8 @@ export class IntegrationsController {
 
   @Roles("OWNER", "ADMIN", "MANAGER")
   @Post(":provider/connect")
-  async connect(@CurrentContext() context: RequestContext, @Param("provider") provider: string) {
-    return { data: await this.integrationsService.connect(context, provider) };
+  async connect(@CurrentContext() context: RequestContext, @Param("provider") provider: string, @Body() dto: ConnectIntegrationDto) {
+    return { data: await this.integrationsService.connect(context, provider, dto) };
   }
 
   @Roles("OWNER", "ADMIN", "MANAGER")
@@ -51,4 +52,3 @@ export class IntegrationsController {
     return { data: await this.integrationsService.updateSettings(context, provider, dto) };
   }
 }
-

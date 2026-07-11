@@ -27,6 +27,7 @@ import { Card, SectionTitle, Pill } from "../shared";
 import { Button } from "../../components/ui/Button";
 import { cn } from "../../lib/utils";
 import {
+  connectIntegration,
   disconnectIntegration,
   listIntegrations,
   sendSampleInbound,
@@ -287,7 +288,11 @@ const syncModeOptions = [
 
 const genericSetupConfig: ProviderSetupConfig = {
   summary: "Ручное подключение через URL сервиса и секретный ключ.",
-  steps: ["Создайте ключ или webhook в сервисе.", "Вставьте URL и токен.", "Сохраните настройки и проверьте связь."],
+  steps: [
+    "Создайте ключ или webhook в сервисе.",
+    "Вставьте URL и токен.",
+    "Сохраните настройки и проверьте связь.",
+  ],
   fields: [
     {
       key: "endpointUrl",
@@ -308,7 +313,8 @@ const genericSetupConfig: ProviderSetupConfig = {
 
 const providerSetupConfigs: Partial<Record<IntegrationProvider, ProviderSetupConfig>> = {
   AMOCRM: {
-    summary: "amoCRM подключается через OAuth: аккаунт, ID/secret интеграции и короткоживущий authorization code.",
+    summary:
+      "amoCRM подключается через OAuth: аккаунт, ID/secret интеграции и короткоживущий authorization code.",
     steps: [
       "Создайте или откройте интеграцию в amoCRM.",
       "Скопируйте Client ID, Client secret и Redirect URI.",
@@ -379,7 +385,8 @@ const providerSetupConfigs: Partial<Record<IntegrationProvider, ProviderSetupCon
     ],
   },
   RETAILCRM: {
-    summary: "RetailCRM использует API key и URL аккаунта. Для нескольких магазинов нужен site code.",
+    summary:
+      "RetailCRM использует API key и URL аккаунта. Для нескольких магазинов нужен site code.",
     steps: [
       "Создайте API key в RetailCRM.",
       "Разрешите нужные методы для лидов и заказов.",
@@ -404,37 +411,22 @@ const providerSetupConfigs: Partial<Record<IntegrationProvider, ProviderSetupCon
     ],
   },
   TELEGRAM: {
-    summary: "Telegram bot получает входящие через webhook. Нужны bot token и optional secret token.",
-    steps: [
-      "Создайте bot через BotFather.",
-      "Вставьте bot token.",
-      "Укажите webhook URL и secret token в Telegram setWebhook.",
-    ],
-    docsUrl: "https://core.telegram.org/bots/api#setwebhook",
+    summary: "Вставьте токен бота. Всё остальное LeadVirt.ai настроит автоматически.",
+    steps: ["Создайте bot через BotFather.", "Вставьте bot token и нажмите «Подключить»."],
+    docsUrl: "https://t.me/BotFather",
     fields: [
-      { key: "botUsername", label: "Bot username", placeholder: "@leadvirt_bot" },
       {
         key: "apiToken",
         label: "Bot token",
         placeholder: "123456:ABC...",
         kind: "password",
-      },
-      {
-        key: "webhookSecret",
-        label: "Webhook secret token",
-        placeholder: "A-Z, a-z, 0-9, _ или -",
-        kind: "password",
-      },
-      {
-        key: "allowedUpdates",
-        label: "Allowed updates",
-        placeholder: "message, callback_query",
-        defaultValue: "message",
+        wide: true,
       },
     ],
   },
   WHATSAPP_BUSINESS: {
-    summary: "WhatsApp Cloud API требует Meta app, WABA, phone number ID, access token и webhook verify token.",
+    summary:
+      "WhatsApp Cloud API требует Meta app, WABA, phone number ID, access token и webhook verify token.",
     steps: [
       "Подготовьте Meta app и WhatsApp Business Account.",
       "Добавьте или выберите From phone number.",
@@ -451,7 +443,8 @@ const providerSetupConfigs: Partial<Record<IntegrationProvider, ProviderSetupCon
     ],
   },
   INSTAGRAM: {
-    summary: "Instagram Messaging требует Meta app, Facebook Page и Professional Instagram account.",
+    summary:
+      "Instagram Messaging требует Meta app, Facebook Page и Professional Instagram account.",
     steps: [
       "Свяжите Facebook Page с Professional Instagram account.",
       "Настройте webhook fields для Instagram Messaging.",
@@ -467,7 +460,8 @@ const providerSetupConfigs: Partial<Record<IntegrationProvider, ProviderSetupCon
     ],
   },
   VK: {
-    summary: "VK подключается через Callback API сообщества, confirmation code, secret key и community token.",
+    summary:
+      "VK подключается через Callback API сообщества, confirmation code, secret key и community token.",
     steps: [
       "Создайте token сообщества с правами сообщений.",
       "Укажите LeadVirt callback URL в настройках сообщества.",
@@ -1021,6 +1015,111 @@ function SettingsSwitch({
   );
 }
 
+function TelegramConnectModal({
+  account,
+  open,
+  saving,
+  onOpenChange,
+  onConnect,
+}: {
+  account?: IntegrationAccount | null;
+  open: boolean;
+  saving: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConnect: (botToken: string) => void;
+}) {
+  const [botToken, setBotToken] = useState("");
+  const settings = asRecord(account?.settings);
+  const botUsername = stringSetting(settings, "botUsername");
+  const connected = account?.status === "CONNECTED";
+
+  useEffect(() => {
+    if (!open) setBotToken("");
+  }, [open]);
+
+  return (
+    <Modal
+      open={open}
+      onOpenChange={onOpenChange}
+      title={
+        connected
+          ? botUsername
+            ? `Telegram @${botUsername}`
+            : "Telegram подключён"
+          : "Подключить Telegram"
+      }
+      description="LeadVirt.ai сам настроит webhook, защиту и получение сообщений."
+      className="max-w-lg"
+      footer={
+        <>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+            Отмена
+          </Button>
+          <Button
+            onClick={() => onConnect(botToken.trim())}
+            disabled={saving || (!connected && !botToken.trim())}
+            data-testid="telegram-connect-submit"
+          >
+            <Zap className="h-4 w-4" />
+            {saving ? "Подключаем..." : connected ? "Проверить и подключить" : "Подключить бота"}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-5">
+        <div className="flex items-center justify-between gap-3 border-b border-white/5 pb-4">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-zinc-200">
+              {connected ? "Бот подключён" : "Бот из BotFather"}
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">
+              {connected
+                ? botUsername
+                  ? `@${botUsername} управляется LeadVirt.ai`
+                  : "Текущий бот управляется LeadVirt.ai"
+                : "Создайте бота и вставьте полученный токен"}
+            </p>
+          </div>
+          <Button asChild variant="outline" size="sm" className="shrink-0">
+            <a href="https://t.me/BotFather" target="_blank" rel="noreferrer">
+              BotFather
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          </Button>
+        </div>
+
+        <Field label={connected ? "Новый bot token (только для замены бота)" : "Bot token"}>
+          <DarkInput
+            type="password"
+            value={botToken}
+            onChange={(event) => setBotToken(event.target.value)}
+            placeholder={
+              connected ? "Оставьте пустым, чтобы использовать текущего бота" : "123456789:AA..."
+            }
+            autoComplete="off"
+            data-testid="telegram-bot-token"
+          />
+        </Field>
+
+        <div className="space-y-3 border-t border-white/5 pt-4">
+          {[
+            "Webhook настраивается автоматически",
+            "Секрет создаётся и хранится безопасно",
+            "Входящие сообщения и ответы готовы сразу",
+          ].map((label) => (
+            <div key={label} className="flex items-center gap-2.5 text-sm text-zinc-300">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400">
+                <Check className="h-3.5 w-3.5" />
+              </span>
+              <span>{label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 function IntegrationSettingsModal({
   integration,
   account,
@@ -1030,6 +1129,7 @@ function IntegrationSettingsModal({
   onOpenChange,
   onSave,
   onSendSample,
+  onConnectTelegram,
 }: {
   integration: Integration | null;
   account?: IntegrationAccount | null;
@@ -1039,6 +1139,7 @@ function IntegrationSettingsModal({
   onOpenChange: (open: boolean) => void;
   onSave: (form: IntegrationSettingsForm) => void;
   onSendSample: () => void;
+  onConnectTelegram: (botToken: string) => void;
 }) {
   const [form, setForm] = useState<IntegrationSettingsForm>(() =>
     integration ? formFromSettings(integration, account) : formFromSettings(INTEGRATIONS[0]),
@@ -1057,6 +1158,17 @@ function IntegrationSettingsModal({
   }, [account, integration, open]);
 
   if (!integration) return null;
+  if (integration.provider === "TELEGRAM") {
+    return (
+      <TelegramConnectModal
+        account={account}
+        open={open}
+        saving={saving}
+        onOpenChange={onOpenChange}
+        onConnect={onConnectTelegram}
+      />
+    );
+  }
   const isWebhookApi = integration.provider === "WEBHOOK_API";
   const setupConfig = setupConfigForProvider(integration.provider);
   const canSaveSettings = isSelfServeIntegration(integration);
@@ -1195,7 +1307,9 @@ function IntegrationSettingsModal({
         </>
       ) : (
         <div className="mt-4 rounded-2xl border border-white/5 bg-zinc-950/40 p-4">
-          <p className="mb-3 text-sm font-semibold text-zinc-200">Что понадобится для подключения</p>
+          <p className="mb-3 text-sm font-semibold text-zinc-200">
+            Что понадобится для подключения
+          </p>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {setupConfig.fields.map((field) => (
               <div
@@ -1310,7 +1424,6 @@ function IntegrationSettingsModal({
           </div>
         </div>
       )}
-
     </Modal>
   );
 }
@@ -1672,6 +1785,23 @@ export function IntegrationsPage() {
     }
   }
 
+  async function connectTelegramBot(botToken: string) {
+    setPendingId("telegram");
+    try {
+      const account = await connectIntegration("TELEGRAM", botToken ? { botToken } : {});
+      updateFromAccount(account);
+      setChannels(await listChannels());
+      setSettingsIntegrationId(null);
+      const settings = asRecord(account.settings);
+      const username = stringSetting(settings, "botUsername");
+      toast.success(username ? `Telegram @${username} подключён` : "Telegram подключён");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось подключить Telegram");
+    } finally {
+      setPendingId(null);
+    }
+  }
+
   async function disconnect(id: string) {
     const integration = INTEGRATIONS.find((item) => item.id === id);
     if (!integration) return;
@@ -1905,6 +2035,7 @@ export function IntegrationsPage() {
           }}
           onSave={(form) => void saveSettings(form)}
           onSendSample={() => void sendSample("webhook")}
+          onConnectTelegram={(botToken) => void connectTelegramBot(botToken)}
         />
       </div>
     </ProductLayout>

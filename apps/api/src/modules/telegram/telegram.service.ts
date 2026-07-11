@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { Inject, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import { AI_PROVIDER_TOKEN, type AiMessage, type AiProvider } from "@leadvirt/ai";
-import { TelegramAdapter, type NormalizedInboundMessage, type SendMessageResult } from "@leadvirt/integrations";
+import { decryptIntegrationCredentials, TelegramAdapter, type NormalizedInboundMessage, type SendMessageResult } from "@leadvirt/integrations";
 import type { Prisma } from "@leadvirt/db";
 import type { AiReplyJobData } from "@leadvirt/types";
 import { PrismaService } from "../database/prisma.service.js";
@@ -44,6 +44,22 @@ function asRecord(value: unknown): Record<string, unknown> {
 function optionalString(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed && trimmed.length > 0 ? trimmed : undefined;
+}
+
+function channelCredentials(encryptedCredentials?: string | null) {
+  if (!encryptedCredentials) return undefined;
+  try {
+    return decryptIntegrationCredentials(encryptedCredentials);
+  } catch {
+    return undefined;
+  }
+}
+
+function isLeadVirtSample(value: unknown) {
+  const update = asRecord(value);
+  const message = isRecord(update.message) ? update.message : isRecord(update.edited_message) ? update.edited_message : {};
+  const sender = asRecord(message.from);
+  return sender.username === "leadvirt_sample";
 }
 
 function payloadHash(payload: Prisma.InputJsonValue) {
@@ -433,15 +449,18 @@ export class TelegramService {
       })
     ]);
 
+    const credentials = channelCredentials(channel.encryptedCredentials);
     const outbound = await adapter.sendMessage({
       tenantId: channel.tenantId,
       channelAccountId: channel.externalId ?? channel.id,
       conversationId: conversation.id,
       externalConversationId: inbound.externalConversationId,
       text: aiReply.reply,
+      ...(credentials ? { credentials } : {}),
       metadata: {
         triggerMessageId: inbound.externalMessageId,
-        intent: aiReply.intent
+        intent: aiReply.intent,
+        sample: isLeadVirtSample(inbound.raw)
       }
     });
 
