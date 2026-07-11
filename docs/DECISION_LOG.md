@@ -10,7 +10,7 @@ Consequences:
 
 - `EMAIL_OTP_PROVIDER=smtp` uses `smtp.beget.com` with the full mailbox address and a server-only password.
 - SMTP delivery uses TLS certificate validation, bounded connection/socket timeouts, and closes each transport after the OTP is accepted.
-- Production email OTP was enabled only after authenticated SMTP verification and a controlled provider-accepted OTP request succeeded; inbox receipt and one-time code consumption remain the final smoke check.
+- Production email OTP was enabled only after authenticated SMTP verification and a controlled provider-accepted OTP request succeeded; manual inbox delivery and OTP sign-in were subsequently verified on `leadvirt.com`.
 
 ## 2026-07-10: Add Passwordless Email OTP Through UniSender
 

@@ -4,7 +4,6 @@ Last updated: 2026-07-11
 
 ## Next
 
-- [ ] Confirm the Beget SMTP test message reached `noreply@leadvirt.com`, then verify one-time code consumption and `authMode=email` on `leadvirt.com`.
 - [ ] Localize the remaining operational pages: Inbox, conversation, pipeline, automation, analytics, AI audit, integrations, settings/billing, and widget configuration.
 - [ ] Move API-generated labels and tenant locale preferences into the localization contract so language follows signed-in users across browsers.
 - [ ] Delete the former `.ru` apex and `www` records in Beget, then verify public DNS no longer resolves them after the 300-second TTL.
@@ -12,6 +11,7 @@ Last updated: 2026-07-11
 
 ## Done
 
+- [x] Manually verified production Beget inbox delivery and completed an email OTP sign-in on `leadvirt.com`.
 - [x] Stored the Beget mailbox password server-side, verified authenticated SMTP over TLS, enabled production email OTP, and received HTTP `200` from a controlled OTP request to `noreply@leadvirt.com`; public health is `200` and email OTP config reports enabled.
 - [x] Added authenticated SMTP as an isolated OTP provider with implicit TLS, strict timeouts, HTML/text messages, transport cleanup, fail-closed configuration, staging readiness checks, and a provider contract; Beget SMTP can be used while UniSender blocks domains younger than 30 days.
 - [x] Implemented and reviewed passwordless email OTP authentication alongside Telegram with an isolated challenge service, HMAC-hashed 10-minute codes, five-attempt caps, atomic consumption, persistent 60-second resend locks, trusted-proxy IP throttling, separate OTP/reset providers, explicit production enablement, localized UI, a UniSender POST adapter, and a dedicated `LeadVirt authentication` list. Verified DB schema, API/web typecheck, lint, and production builds, OTP API `8/8`, provider contract `13/13`, auth browser flow `6/6`, UI/localization smoke `8/8`, and the full API browser run `54/55` with its unrelated navigation timeout passing `5/5` on isolated rerun.
