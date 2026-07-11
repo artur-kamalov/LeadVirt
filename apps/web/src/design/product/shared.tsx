@@ -111,7 +111,7 @@ export function Card({
   return (
     <div
       className={cn(
-        "rounded-3xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm",
+        "rounded-3xl bg-zinc-900/70 border border-white/5",
         hover && "transition-colors hover:border-white/10 hover:bg-zinc-900/80",
         className
       )}
@@ -192,7 +192,6 @@ export function StatCard({
       transition={{ duration: 0.5, delay: index * 0.06, ease: "easeOut" }}
     >
       <Card hover className="p-5 relative overflow-hidden group">
-        <div className="absolute -right-8 -top-8 w-28 h-28 bg-current opacity-[0.04] blur-2xl rounded-full group-hover:opacity-[0.08] transition-opacity" />
         <div className="flex items-center justify-between mb-4">
           <div className={cn("w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center", accent)}>
             <Icon className="w-5 h-5" />

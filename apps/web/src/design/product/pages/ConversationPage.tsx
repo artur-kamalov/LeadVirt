@@ -1135,7 +1135,7 @@ export function ConversationPage() {
             {pendingLeadAction === "crm" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
             В CRM
           </Button>
-          <button disabled={Boolean(pendingLeadAction)} onClick={() => void handleLeadAction("appointment")} className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-zinc-900/90 backdrop-blur px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-white/10 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
+          <button disabled={Boolean(pendingLeadAction)} onClick={() => void handleLeadAction("appointment")} className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-white/10 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
             {pendingLeadAction === "appointment" ? <Loader2 className="w-4 h-4 animate-spin text-zinc-400" /> : <CalendarPlus className="w-4 h-4 text-zinc-400" />}
             Записать
           </button>

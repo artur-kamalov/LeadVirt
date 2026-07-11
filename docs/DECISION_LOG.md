@@ -1,5 +1,17 @@
 # Decision Log
 
+## 2026-07-11: Keep Product Scrolling Compositor-Safe
+
+Decision: LeadVirt product surfaces use opaque or semi-opaque backgrounds without persistent `backdrop-filter` layers, oversized fixed CSS blurs, or hover blur glows.
+
+Context: Those effects forced continuous repainting and compositing beneath fixed navigation, sticky headers, cards, and modal overlays, producing delayed wheel and trackpad scrolling across the workspace.
+
+Consequences:
+
+- Product layout, cards, dialogs, dropdowns, onboarding, and operational pages retain their existing structure, borders, and color hierarchy with cheaper background fills.
+- Browser coverage rejects blur utility layers in the product shell and measures wheel-to-scroll response on both the page and a mobile modal.
+- Marketing visuals remain independent from this product-workspace performance rule.
+
 ## 2026-07-11: Use Beget SMTP For Initial Email OTP Delivery
 
 Decision: LeadVirt uses authenticated Beget SMTP for production email OTP until `leadvirt.com` becomes eligible for UniSender sender verification. UniSender remains supported behind the same provider boundary.

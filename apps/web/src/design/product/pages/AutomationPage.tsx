@@ -917,7 +917,7 @@ function BlockNode({
         onClick={onClick}
         className={cn(
           "relative cursor-pointer rounded-2xl border p-4 transition-all duration-300 group",
-          "bg-zinc-900/60 backdrop-blur-sm",
+          "bg-zinc-900/70",
           selected
             ? "border-emerald-500/50 shadow-[0_0_24px_rgba(16,185,129,0.18)]"
             : "border-white/5 hover:border-white/12"
@@ -1456,7 +1456,7 @@ export function AutomationPage() {
                 exit={{ opacity: 0, x: -8 }}
                 transition={{ duration: 0.2, ease: "easeOut" }}
               >
-                <Card className="rounded-2xl border border-white/5 bg-zinc-900/50 backdrop-blur p-5">
+                <Card className="rounded-2xl border border-white/5 bg-zinc-900/70 p-5">
                   {/* Panel header */}
                   <div className="flex items-center gap-3 mb-5 pb-4 border-b border-white/5">
                     <div

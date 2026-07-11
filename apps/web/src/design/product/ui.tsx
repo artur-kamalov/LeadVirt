@@ -79,7 +79,7 @@ export function Dropdown({
           sideOffset={8}
           className={cn(
             themeClass,
-            "z-[100] min-w-[220px] origin-[var(--radix-dropdown-menu-content-transform-origin)] rounded-2xl border border-white/10 bg-zinc-900 p-1.5 shadow-2xl shadow-black/50 backdrop-blur-xl",
+            "z-[100] min-w-[220px] origin-[var(--radix-dropdown-menu-content-transform-origin)] rounded-2xl border border-white/10 bg-zinc-900 p-1.5 shadow-2xl shadow-black/50",
             "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95",
             className
           )}
@@ -177,7 +177,7 @@ export function Select({
           sideOffset={8}
           className={cn(
             themeClass,
-            "z-[110] max-h-[300px] min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 p-1.5 shadow-2xl shadow-black/50 backdrop-blur-xl",
+            "z-[110] max-h-[300px] min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 p-1.5 shadow-2xl shadow-black/50",
             "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95"
           )}
         >
@@ -231,18 +231,16 @@ export function Modal({
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-[90] bg-black/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-[90] bg-black/70 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
           className={cn(
             themeClass,
-            "fixed left-1/2 top-1/2 z-[91] max-h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-3xl border border-white/10 bg-zinc-900 p-6 text-zinc-50 shadow-2xl shadow-black/60",
+            "fixed left-1/2 top-1/2 z-[91] max-h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] min-w-0 max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-x-hidden overflow-y-auto rounded-3xl border border-white/10 bg-zinc-900 p-6 text-zinc-50 shadow-2xl shadow-black/60",
             "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95",
             className
           )}
         >
-          {/* glow */}
-          <div className="pointer-events-none absolute -top-20 -right-16 w-56 h-56 bg-emerald-500/10 blur-[80px] rounded-full" />
-          <div className="relative">
+          <div className="relative min-w-0">
             {/* Always render an accessible title + description (Radix requirement).
                 Falls back to sr-only when no visible title/description is provided. */}
             {title ? (
@@ -347,7 +345,6 @@ export function EmptyState({
       className={cn("flex flex-col items-center justify-center text-center py-16 px-6", className)}
     >
       <div className="relative mb-5">
-        <div className="absolute inset-0 bg-emerald-500/10 blur-2xl rounded-full" />
         <div className="relative w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center text-zinc-500">
           <Icon className="w-7 h-7" />
         </div>

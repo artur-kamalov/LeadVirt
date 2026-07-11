@@ -480,7 +480,7 @@ export function ProductLayout({
 
   return (
     <TooltipProvider>
-    <div className={cn("min-h-screen bg-zinc-950 text-zinc-50 font-sans selection:bg-emerald-500/30 selection:text-emerald-200", theme === "light" && "theme-light")}>
+    <div className={cn("min-h-screen bg-zinc-950 text-zinc-50 font-sans selection:bg-emerald-500/30 selection:text-emerald-200", theme === "light" && "theme-light")} data-testid="product-shell">
       <Toaster
         theme={theme}
         position="bottom-right"
@@ -496,12 +496,10 @@ export function ProductLayout({
       {/* ambient bg */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.015)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:4rem_4rem]" />
-        <div className="absolute top-[-10%] right-[5%] w-[40rem] h-[40rem] bg-emerald-500/5 blur-[150px] rounded-full" />
-        <div className="absolute bottom-[-10%] left-[10%] w-[40rem] h-[40rem] bg-indigo-500/5 blur-[150px] rounded-full" />
       </div>
 
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex fixed inset-y-0 left-0 w-64 overflow-hidden border-r border-white/5 bg-zinc-950/70 backdrop-blur-xl z-40">
+      <aside className="hidden lg:flex fixed inset-y-0 left-0 w-64 overflow-hidden border-r border-white/5 bg-zinc-950 z-40">
         {sidebar}
       </aside>
 
@@ -512,7 +510,7 @@ export function ProductLayout({
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setMobileOpen(false)}
-              className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+              className="lg:hidden fixed inset-0 bg-black/70 z-50"
             />
             <motion.aside
               initial={{ x: -300 }} animate={{ x: 0 }} exit={{ x: -300 }}
@@ -531,7 +529,7 @@ export function ProductLayout({
       {/* Main */}
       <div className="lg:pl-64 relative z-10">
         {/* Topbar */}
-        <header className="sticky top-0 z-30 h-16 lg:h-20 border-b border-white/5 bg-zinc-950/60 backdrop-blur-xl">
+        <header className="sticky top-0 z-30 h-16 lg:h-20 border-b border-white/5 bg-zinc-950/95">
           <div className="h-full px-4 lg:px-8 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 min-w-0">
               <button aria-label={t("product.menu.open")} className="lg:hidden text-zinc-400" onClick={() => setMobileOpen(true)}>
@@ -647,7 +645,7 @@ export function ProductLayout({
       </div>
 
       {/* Mobile bottom nav */}
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-white/5 bg-zinc-950/90 backdrop-blur-xl">
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-white/5 bg-zinc-950">
         <div className="grid grid-cols-5 h-16">
           {mobileNav.map((item) => {
             const Icon = item.icon;

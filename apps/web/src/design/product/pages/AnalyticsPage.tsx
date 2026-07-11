@@ -439,7 +439,6 @@ export function AnalyticsPage() {
                 transition={{ duration: 0.45, delay: i * 0.06, ease: "easeOut" }}
               >
                 <Card hover className="p-4 relative overflow-hidden group" data-testid={`analytics-kpi-${i}`}>
-                  <div className="absolute -right-6 -top-6 w-24 h-24 bg-current opacity-[0.04] blur-2xl rounded-full group-hover:opacity-[0.07] transition-opacity" />
                   <div className="flex items-center justify-between mb-3">
                     <div
                       className={cn(

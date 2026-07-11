@@ -909,7 +909,7 @@ function PilotReadinessPanel({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: 0.12, ease: "easeOut" }}
-      className="rounded-3xl border border-white/5 bg-zinc-900/45 p-5 backdrop-blur-sm"
+      className="rounded-3xl border border-white/5 bg-zinc-900/65 p-5"
     >
       <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
@@ -1356,7 +1356,7 @@ function IntegrationCard({
       >
         <div
           className={cn(
-            "relative rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm p-5 flex flex-col gap-4 h-full",
+            "relative rounded-2xl bg-zinc-900/70 border border-white/5 p-5 flex flex-col gap-4 h-full",
             "transition-all duration-300",
             "hover:border-white/10 hover:bg-zinc-900/80",
             connectedVisible && "hover:shadow-[0_0_24px_-6px] hover:shadow-emerald-500/20",
@@ -1364,13 +1364,6 @@ function IntegrationCard({
           data-testid={`integration-card-${integration.id}`}
         >
           {/* Glow blob */}
-          <div
-            className={cn(
-              "absolute -right-6 -top-6 w-24 h-24 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500",
-              integration.accentBg,
-            )}
-          />
-
           {/* Header row */}
           <div className="flex items-start justify-between gap-3 relative">
             <div

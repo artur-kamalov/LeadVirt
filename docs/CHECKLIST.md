@@ -11,6 +11,7 @@ Last updated: 2026-07-11
 
 ## Done
 
+- [x] Removed product-wide scroll latency sources: persistent backdrop filters, fixed oversized blur layers, and hover blur glows across the shell, modals, integrations, dashboard, inbox, pipeline, automation, analytics, conversations, and onboarding. Preserved layout and contrast with compositor-safe opaque surfaces; retained immediate native scrolling and zero modal overflow. Verified web typecheck, lint, production build, integrations Playwright `2/2`, UI smoke `8/8`, desktop/mobile screenshots, zero product blur layers, and measured page/modal wheel-to-scroll latency below `150ms`.
 - [x] Manually verified production Beget inbox delivery and completed an email OTP sign-in on `leadvirt.com`.
 - [x] Stored the Beget mailbox password server-side, verified authenticated SMTP over TLS, enabled production email OTP, and received HTTP `200` from a controlled OTP request to `noreply@leadvirt.com`; public health is `200` and email OTP config reports enabled.
 - [x] Added authenticated SMTP as an isolated OTP provider with implicit TLS, strict timeouts, HTML/text messages, transport cleanup, fail-closed configuration, staging readiness checks, and a provider contract; Beget SMTP can be used while UniSender blocks domains younger than 30 days.

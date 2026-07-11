@@ -104,7 +104,7 @@ const LeadCard = React.forwardRef<HTMLDivElement, {
       className="group cursor-pointer select-none"
       onClick={() => go("conversation", { id: conversationId })}
     >
-      <div className="rounded-2xl bg-zinc-900/60 border border-white/[0.06] backdrop-blur-sm p-4 hover:border-white/[0.12] hover:bg-zinc-900/80 transition-all duration-200">
+      <div className="rounded-2xl bg-zinc-900/70 border border-white/[0.06] p-4 hover:border-white/[0.12] hover:bg-zinc-900/80 transition-all duration-200">
         {/* Header row */}
         <div className="flex items-start justify-between gap-2 mb-3">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -366,7 +366,7 @@ function StatChip({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        "flex items-center gap-3 rounded-2xl px-4 py-3 border border-white/[0.06] bg-zinc-900/50 backdrop-blur-sm"
+        "flex items-center gap-3 rounded-2xl px-4 py-3 border border-white/[0.06] bg-zinc-900/70"
       )}
     >
       <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center shrink-0", bg)}>

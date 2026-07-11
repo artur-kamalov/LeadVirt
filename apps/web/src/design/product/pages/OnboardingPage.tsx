@@ -123,14 +123,9 @@ function companyInfoFromData(data: Record<string, unknown>): CompanyInfo {
 /* Sub-components                                                       */
 /* ------------------------------------------------------------------ */
 
-function GlowOrbs() {
+function BackgroundGrid() {
   return (
     <>
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full bg-emerald-500/10 blur-[120px]" />
-        <div className="absolute top-1/2 -right-60 w-[500px] h-[500px] rounded-full bg-indigo-500/10 blur-[120px]" />
-        <div className="absolute -bottom-40 left-1/3 w-[400px] h-[400px] rounded-full bg-teal-500/8 blur-[100px]" />
-      </div>
       {/* subtle grid */}
       <div
         className="pointer-events-none fixed inset-0"
@@ -752,10 +747,10 @@ export function OnboardingPage() {
 
   return (
     <div className="relative min-h-screen bg-zinc-950 text-zinc-50 flex flex-col overflow-x-hidden">
-      <GlowOrbs />
+      <BackgroundGrid />
 
       {/* ---- Top bar ---- */}
-      <header className="relative z-10 flex items-center justify-between px-4 sm:px-8 py-4 border-b border-white/5 backdrop-blur-sm bg-zinc-950/70">
+      <header className="relative z-10 flex items-center justify-between px-4 sm:px-8 py-4 border-b border-white/5 bg-zinc-950/95">
         <Logo onClick={() => go("landing")} />
         <ProgressBar step={step} />
         <div className="flex items-center gap-2">
@@ -817,7 +812,7 @@ export function OnboardingPage() {
       </main>
 
       {/* ---- Mobile sticky bottom bar ---- */}
-      <div className="sm:hidden fixed bottom-0 inset-x-0 z-20 border-t border-white/5 bg-zinc-950/90 backdrop-blur-xl px-4 py-3 safe-area-inset-bottom">
+      <div className="sm:hidden fixed bottom-0 inset-x-0 z-20 border-t border-white/5 bg-zinc-950 px-4 py-3 safe-area-inset-bottom">
         {isLastStep ? (
           <Button size="lg" onClick={() => void handleLaunch()} disabled={saving} className="w-full gap-2 shadow-xl shadow-emerald-500/20">
             {t("onboarding.launch")}

@@ -230,6 +230,33 @@ test("integrations page opens setup settings without marking disconnected cards 
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(`${webBase}/app/integrations`, { waitUntil: "networkidle" });
 
+  const productShell = page.getByTestId("product-shell");
+  await expect(productShell).toBeVisible();
+  await expect(productShell.locator('[class*="backdrop-blur"]')).toHaveCount(0);
+  await expect(productShell.locator('[class*="blur-"]')).toHaveCount(0);
+
+  const pageWheelLatency = page.evaluate(
+    () =>
+      new Promise<{ latency: number; scrollTop: number }>((resolve) => {
+        let wheelAt = 0;
+        window.addEventListener("wheel", () => (wheelAt = performance.now()), {
+          once: true,
+          passive: true,
+        });
+        window.addEventListener(
+          "scroll",
+          () => resolve({ latency: performance.now() - wheelAt, scrollTop: window.scrollY }),
+          { once: true, passive: true },
+        );
+      }),
+  );
+  await page.mouse.move(1200, 800);
+  await page.mouse.wheel(0, 600);
+  const pageWheelResult = await pageWheelLatency;
+  expect(pageWheelResult.scrollTop).toBeGreaterThan(0);
+  expect(pageWheelResult.latency).toBeLessThan(150);
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: "auto" }));
+
   await expect(page.getByTestId("pilot-readiness-panel")).toContainText("3/3");
   await expect(page.getByTestId("pilot-readiness-telegram")).toContainText("demo-telegram-webhook");
   await expect(page.getByTestId("pilot-readiness-webhook")).toContainText("demo-generic-webhook");
@@ -256,9 +283,47 @@ test("integrations page opens setup settings without marking disconnected cards 
     .click();
   const instagramDialog = page.getByRole("dialog", { name: /Instagram: настройки/ });
   await expect(instagramDialog).toBeVisible();
+  await expect
+    .poll(() =>
+      instagramDialog.evaluate((element) => element.scrollWidth - element.clientWidth),
+    )
+    .toBe(0);
+  await expect
+    .poll(() => page.evaluate(() => getComputedStyle(document.documentElement).scrollBehavior))
+    .toBe("auto");
   await instagramDialog.screenshot({
     path: "artifacts/playwright/integrations-provider-setup-instagram.png",
   });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect
+    .poll(() =>
+      instagramDialog.evaluate((element) => element.scrollWidth - element.clientWidth),
+    )
+    .toBe(0);
+  await instagramDialog.screenshot({
+    path: "artifacts/playwright/integrations-provider-setup-instagram-mobile.png",
+  });
+  const modalWheelLatency = instagramDialog.evaluate(
+    (element) =>
+      new Promise<{ latency: number; scrollTop: number }>((resolve) => {
+        let wheelAt = 0;
+        element.addEventListener("wheel", () => (wheelAt = performance.now()), {
+          once: true,
+          passive: true,
+        });
+        element.addEventListener(
+          "scroll",
+          () => resolve({ latency: performance.now() - wheelAt, scrollTop: element.scrollTop }),
+          { once: true, passive: true },
+        );
+      }),
+  );
+  await page.mouse.move(195, 700);
+  await page.mouse.wheel(0, 400);
+  const modalWheelResult = await modalWheelLatency;
+  expect(modalWheelResult.scrollTop).toBeGreaterThan(0);
+  expect(modalWheelResult.latency).toBeLessThan(150);
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await expect(instagramDialog.getByText("Instagram Business Account ID")).toBeVisible();
   await expect(instagramDialog.getByText("Professional Instagram account").first()).toBeVisible();
   await instagramDialog.getByRole("button", { name: "Закрыть" }).click();

@@ -311,9 +311,6 @@ export function DashboardPage() {
   return (
     <ProductLayout title={t("dashboard.title")}>
       {/* ── Glow orbs (decorative) ── */}
-      <div className="pointer-events-none fixed top-20 right-0 w-96 h-96 bg-emerald-500/5 blur-[130px] rounded-full" />
-      <div className="pointer-events-none fixed bottom-32 left-1/4 w-72 h-72 bg-indigo-500/5 blur-[120px] rounded-full" />
-
       <div className="space-y-8">
 
         {/* ── 1. Greeting row ── */}

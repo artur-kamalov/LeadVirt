@@ -441,7 +441,7 @@ export function InboxPage({ initialSearch = "" }: { initialSearch?: string }) {
           <div className="flex flex-col min-h-0 overflow-hidden">
 
             {/* Filter bar */}
-            <div className="shrink-0 px-4 lg:px-6 pt-5 pb-3 space-y-3 border-b border-white/5 bg-zinc-950/40 backdrop-blur-sm">
+            <div className="shrink-0 px-4 lg:px-6 pt-5 pb-3 space-y-3 border-b border-white/5 bg-zinc-950/95">
 
               {/* Search */}
               <div className="flex items-center gap-2 rounded-xl bg-white/5 border border-white/5 px-3 h-9 focus-within:border-emerald-500/30 focus-within:bg-emerald-500/5 transition-all">
