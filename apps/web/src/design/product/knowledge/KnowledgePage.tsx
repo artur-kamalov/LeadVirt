@@ -104,7 +104,10 @@ export function KnowledgePage() {
 
   return (
     <ProductLayout title="Knowledge">
-      <div className="mx-auto w-full max-w-[1500px] space-y-5" data-testid="knowledge-page">
+      <div
+        className="mx-auto w-full min-w-0 max-w-[1500px] overflow-x-clip space-y-5"
+        data-testid="knowledge-page"
+      >
         <header className="flex flex-col gap-4 border-b border-white/10 pb-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-0">
             <h1 className="text-2xl font-semibold text-zinc-50">{t("knowledge.page.title")}</h1>
@@ -167,10 +170,10 @@ export function KnowledgePage() {
 
         <nav
           aria-label={t("knowledge.page.tabsLabel")}
-          className="overflow-x-auto border-b border-white/10 scrollbar-none"
+          className="max-w-full min-w-0 overflow-x-auto overscroll-x-contain border-b border-white/10 scrollbar-none"
           role="tablist"
         >
-          <div className="flex min-w-max gap-1">
+          <div className="flex w-max min-w-full gap-1">
             {knowledgeViews.map((item) => {
               const Icon = item.icon;
               const active = item.id === view;

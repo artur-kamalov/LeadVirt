@@ -1,5 +1,17 @@
 # Decision Log
 
+## 2026-07-16: Contain Horizontal Tabs At Their Scroll Boundary
+
+Decision: Horizontally scrollable tab rows own their overflow inside a width-constrained viewport. The viewport may scroll on the x-axis, but its page wrapper clips propagated x-overflow and the shared `scrollbar-none` class has explicit Firefox and WebKit behavior.
+
+Context: Linux Chromium measured the `390px` Knowledge mobile page at `394px` while Windows Chromium remained at `390px`. The only intentional oversized descendant was the Knowledge tab row, whose `min-w-max` content depended on an undefined scrollbar utility and lacked explicit inline containment.
+
+Consequences:
+
+- Knowledge tabs remain horizontally scrollable without widening the document or exposing a platform-specific scrollbar.
+- The tab viewport is explicitly `min-w-0`/`max-w-full`; its row spans at least the viewport and grows only inside that scroll boundary.
+- Mobile acceptance keeps the strict document-width assertion rather than tolerating platform-specific overflow.
+
 ## 2026-07-16: Pin Browser QA To The Workspace Toolchain
 
 Decision: Browser QA uses a lockfile-pinned root `@playwright/test` dependency and `pnpm exec playwright`. CI explicitly installs Chromium and its Linux dependencies from that same version before acceptance.

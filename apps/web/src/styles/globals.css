@@ -444,6 +444,17 @@ select {
   background: transparent;
 }
 
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 .theme-light {
   scrollbar-color: rgba(16, 185, 129, 0.5) transparent;
 }
