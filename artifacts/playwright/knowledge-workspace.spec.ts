@@ -1350,7 +1350,7 @@ test("Knowledge workspace has no page overflow on mobile", async ({ page }) => {
   });
 });
 
-test("demo sidebar does not expose Knowledge", async ({ page }) => {
+test("demo sidebar exposes read-only Knowledge", async ({ page }) => {
   test.setTimeout(60_000);
   await page
     .context()
@@ -1361,7 +1361,9 @@ test("demo sidebar does not expose Knowledge", async ({ page }) => {
   await expect(demoNavigation.getByRole("link", { name: "Settings" })).toBeVisible({
     timeout: 15_000,
   });
-  await expect(demoNavigation.getByText("Knowledge", { exact: true })).toHaveCount(0);
+  const knowledgeLink = demoNavigation.getByRole("link", { name: "Knowledge", exact: true });
+  await expect(knowledgeLink).toBeVisible();
+  await expect(knowledgeLink).toHaveAttribute("href", "/demo/knowledge");
 });
 
 test("forbidden Knowledge request renders the route permission state", async ({ page }) => {
