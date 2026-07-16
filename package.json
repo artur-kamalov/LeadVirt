@@ -58,7 +58,7 @@
     "qa:ai:queue-routing": "corepack pnpm --filter @leadvirt/api exec tsx ../../artifacts/scripts/ai-queue-routing-smoke.ts",
     "qa:ai:public-loop": "corepack pnpm --filter @leadvirt/worker exec tsx ../../artifacts/scripts/ai-public-loop-smoke.ts",
     "qa:ai:acceptance": "corepack pnpm --filter @leadvirt/worker exec tsx ../../artifacts/scripts/ai-clean-telegram-acceptance.ts",
-    "qa:ai:quality": "corepack pnpm --filter @leadvirt/worker exec tsx ../../artifacts/scripts/ai-quality-gate.ts",
+    "qa:ai:quality": "corepack pnpm run qa:ai:reply-reliability && corepack pnpm run qa:ai:structured-reply",
     "qa:ai:budget": "corepack pnpm --filter @leadvirt/worker exec tsx ../../artifacts/scripts/ai-budget-guard-smoke.ts",
     "qa:ai:isolation": "corepack pnpm --filter @leadvirt/api exec tsx ../../artifacts/scripts/ai-tenant-isolation-smoke.ts",
     "qa:ai:qdrant-isolation": "corepack pnpm --filter @leadvirt/api exec tsx ../../artifacts/scripts/ai-qdrant-isolation-smoke.ts",

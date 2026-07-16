@@ -1,5 +1,17 @@
 # Decision Log
 
+## 2026-07-16: Bind The Required AI Gate To Structured Runtime Contracts
+
+Decision: The required `qa:ai:quality` deployment gate composes the AI reply reliability and Structured V2 reply suites. The legacy golden-set harness is removed from the deploy path until it uses the same structured publication, capability, operational binding, channel activation, and durable outbox contracts as production.
+
+Context: Strict automatic-reply admission correctly rejected the legacy harness because it created an unactivated channel, published only a legacy `workspace` corpus, and fabricated runtime event identity. Allowing a test-only bypass would weaken the production fence, while the required structured reply and reliability suites already exercise the current contract.
+
+Consequences:
+
+- Production automatic-reply admission remains fail closed and unchanged.
+- Reliability and Structured V2 reply coverage run once in the dedicated quality step instead of being duplicated later in the workflow.
+- The legacy niche golden set remains migration input, not release evidence. Restoring retrieval metrics and sanitized golden-set reports requires a production-representative Structured V2 harness and is tracked as incomplete work.
+
 ## 2026-07-15: Activate Password Reset Tokens Only After Delivery
 
 Decision: Production credential recovery uses only a ready SMTP or UniSender provider and a reset origin that exactly matches the deployed frontend origin. A token is staged as unusable, then activated only after provider acceptance and credential-state revalidation under the shared per-user PostgreSQL lock.

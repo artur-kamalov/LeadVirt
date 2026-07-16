@@ -261,8 +261,8 @@ Status: foundation started.
 
 - Add golden sets for the first pilot niches. Initial core golden set is implemented in `artifacts/evals/ai-golden-set.json` and now covers beauty, auto detailing, education/course booking, and clinic handoff cases.
 - Add RAGAS evaluation where it fits retrieval quality. Initial RAGAS-style metrics now include required-term recall and retrieved-chunk precision in eval reports.
-- Add custom business eval for booking correctness, escalation, and policy safety. Initial deterministic gate is implemented as `qa:ai:quality`; optional real-provider judge runs are available through `qa:ai:real-eval`.
-- Add CI quality gate with a small required eval subset. `qa:ai:quality` is part of the `leadvirt.com` deployment workflow and uploads `artifacts/reports/*.json` as `ai-eval-report`.
+- Rebuild the legacy custom business eval for booking correctness, escalation, and policy safety on Structured V2 publication, admission, retrieval, and outbox contracts. The former legacy fixture is retained only as migration input; optional real-provider judge runs remain available through `qa:ai:real-eval`.
+- Keep a required deterministic CI gate. `qa:ai:quality` now composes the current reply-reliability and Structured V2 reply suites; structured golden-set reports will return after the fixture migration is complete.
 - Knowledge v2 Test runs now use structured server-validated grounded generation with exact citations, tenant processor consent, one repair maximum, commit-time evidence revalidation, and PostgreSQL acceptance coverage.
 - Live `STRUCTURED_V2` replies now use that same orchestrator and gate, persist validated trace hashes/citations, default-deny state-changing tools, and revalidate evidence plus processor admission before commit and delivery.
 - PostgreSQL smoke coverage uses the production trace persister and verifies the stored publication/evidence citation plus message, audit, provider-policy, answer, and gate hash identities.

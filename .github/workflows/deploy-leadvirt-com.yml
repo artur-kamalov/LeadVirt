@@ -218,8 +218,6 @@ jobs:
           corepack pnpm run qa:runtime:inbox
           corepack pnpm run qa:runtime:manual-delivery
           corepack pnpm run qa:runtime:relationships
-          corepack pnpm run qa:ai:reply-reliability
-          corepack pnpm run qa:ai:structured-reply
           corepack pnpm run qa:channels:delivery
           corepack pnpm run qa:channels:structured-delivery
           corepack pnpm run qa:webhook:reliability
