@@ -27,6 +27,7 @@ Last updated: 2026-07-16
 
 ## Done
 
+- [x] Pinned Playwright in the workspace, moved every browser QA command off floating `pnpm dlx`, and made the deploy workflow install the matching Chromium binary and Linux dependencies before acceptance. Browser availability and revision now follow the committed lockfile instead of runner cache state. Verified frozen install, release readiness, Web typecheck, Chromium revision `1228`, Inbox `5/5`, and browser security `2/2`.
 - [x] Made the review-decision source-action smoke portable by resolving its object-store fixture path for the current host instead of hardcoding a Windows drive path. Linux CI can now execute `CORRECT_SOURCE`, `RETRY_SOURCE`, and `VERIFY_PERMISSION` through the same ingestion admission contract as local runs. Verified API typecheck and three `42/42` PostgreSQL smoke runs.
 - [x] Made the Knowledge v2 idempotency smoke deterministic across CI schedulers. It now holds a committed preparation claim, verifies the documented retryable `409` for a live duplicate, releases the winner, and verifies stored replay only after completion instead of racing claim and mutation transactions. Verified API typecheck and `12/12` repeated PostgreSQL smoke runs.
 - [x] Aligned the remaining Phase 0 fixtures with current Structured V2 serving contracts without weakening production admission. Removed the unsupported legacy graph gate and duplicate grounded-suite invocation; feedback now stores a real response hash, diagnostic search uses the tenant HMAC binding, rollback history includes scoped capability evidence, and manual migration/ingestion snapshots transition through an exact authorization manifest before `READY`. Verified feedback `28/28`, diagnostic search, grounded evaluation `65/65`, legacy migration, and ingestion `99/99`.
@@ -751,37 +752,37 @@ corepack pnpm run release:public-ready
 corepack pnpm run qa:release-readiness
 corepack pnpm run db:cleanup:pilot
 corepack pnpm run qa:ui:smoke
-corepack pnpm dlx @playwright/test test artifacts/playwright/landing-performance.spec.ts --reporter=line
-corepack pnpm dlx @playwright/test test artifacts/playwright/landing-scroll.spec.ts --reporter=line
-corepack pnpm dlx @playwright/test test artifacts/playwright/dashboard-api.spec.ts --reporter=line
-corepack pnpm dlx @playwright/test test artifacts/playwright/dashboard-clean-user.spec.ts --reporter=line
-corepack pnpm dlx @playwright/test test artifacts/playwright/auth-flow.spec.ts --reporter=line
-corepack pnpm dlx @playwright/test test artifacts/playwright/onboarding-api.spec.ts --reporter=line
-corepack pnpm dlx @playwright/test test artifacts/playwright/onboarding-knowledge-sources.spec.ts --reporter=line
-corepack pnpm dlx @playwright/test test artifacts/playwright/onboarding-knowledge-ui.spec.ts --reporter=line
-corepack pnpm dlx @playwright/test test artifacts/playwright/analytics-api.spec.ts --reporter=line
-corepack pnpm dlx @playwright/test test artifacts/playwright/integrations-api.spec.ts --reporter=line
-corepack pnpm dlx @playwright/test test artifacts/playwright/automation-api.spec.ts --reporter=line
-corepack pnpm dlx @playwright/test test artifacts/playwright/settings-api.spec.ts --reporter=line
-corepack pnpm dlx @playwright/test test artifacts/playwright/channels-widget-settings.spec.ts --reporter=line
-corepack pnpm dlx @playwright/test test artifacts/playwright/billing-api.spec.ts --reporter=line
-corepack pnpm dlx @playwright/test test artifacts/playwright/widget-api.spec.ts --reporter=line
-corepack pnpm dlx @playwright/test test artifacts/playwright/inbox-empty-state.spec.ts --reporter=line
-corepack pnpm dlx @playwright/test test artifacts/playwright/inbox-actions.spec.ts --reporter=line
-corepack pnpm dlx @playwright/test test artifacts/playwright/social-intake-visibility.spec.ts --reporter=line
-corepack pnpm dlx @playwright/test test artifacts/playwright/webhook-widget-intake-visibility.spec.ts --reporter=line
-corepack pnpm dlx @playwright/test test artifacts/playwright/pilot-real-intake-api.spec.ts --reporter=line
-corepack pnpm dlx @playwright/test test artifacts/playwright/pilot-public-url-preflight.spec.ts --reporter=line
-corepack pnpm dlx @playwright/test test artifacts/playwright/conversation-send.spec.ts --reporter=line
-corepack pnpm dlx @playwright/test test artifacts/playwright/conversation-actions.spec.ts --reporter=line
-corepack pnpm dlx @playwright/test test artifacts/playwright/conversation-status-actions.spec.ts --reporter=line
-corepack pnpm dlx @playwright/test test artifacts/playwright/conversation-ai-draft.spec.ts --reporter=line
-corepack pnpm dlx @playwright/test test artifacts/playwright/conversation-events-timeline.spec.ts --reporter=line
-corepack pnpm dlx @playwright/test test artifacts/playwright/conversation-export.spec.ts --reporter=line
-corepack pnpm dlx @playwright/test test artifacts/playwright/pipeline-actions.spec.ts --reporter=line
-corepack pnpm dlx @playwright/test test artifacts/playwright/pilot-core-controls.spec.ts --reporter=line
-corepack pnpm dlx @playwright/test test artifacts/playwright/public-entry-controls.spec.ts --reporter=line
-corepack pnpm dlx @playwright/test test artifacts/playwright/product-layout-identity.spec.ts --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/landing-performance.spec.ts --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/landing-scroll.spec.ts --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/dashboard-api.spec.ts --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/dashboard-clean-user.spec.ts --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/auth-flow.spec.ts --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/onboarding-api.spec.ts --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/onboarding-knowledge-sources.spec.ts --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/onboarding-knowledge-ui.spec.ts --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/analytics-api.spec.ts --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/integrations-api.spec.ts --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/automation-api.spec.ts --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/settings-api.spec.ts --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/channels-widget-settings.spec.ts --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/billing-api.spec.ts --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/widget-api.spec.ts --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/inbox-empty-state.spec.ts --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/inbox-actions.spec.ts --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/social-intake-visibility.spec.ts --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/webhook-widget-intake-visibility.spec.ts --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/pilot-real-intake-api.spec.ts --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/pilot-public-url-preflight.spec.ts --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/conversation-send.spec.ts --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/conversation-actions.spec.ts --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/conversation-status-actions.spec.ts --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/conversation-ai-draft.spec.ts --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/conversation-events-timeline.spec.ts --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/conversation-export.spec.ts --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/pipeline-actions.spec.ts --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/pilot-core-controls.spec.ts --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/public-entry-controls.spec.ts --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/product-layout-identity.spec.ts --reporter=line
 ```
 
 ## Notes

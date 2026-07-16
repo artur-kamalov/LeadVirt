@@ -338,11 +338,13 @@ try {
     "Expected only API, worker, and migration containers to receive the production secrets env file.",
   );
 
-  assert(
-    deployWorkflow.includes(
-      "corepack pnpm dlx @playwright/test test artifacts/playwright/inbox-live-refresh.spec.ts --reporter=line --workers=1",
-    ),
-    "Expected acceptance to gate deployment on live Inbox refresh.",
+  assertOrdered(
+    deployWorkflow,
+    [
+      "corepack pnpm exec playwright install --with-deps chromium",
+      "corepack pnpm exec playwright test artifacts/playwright/inbox-live-refresh.spec.ts --reporter=line --workers=1",
+    ],
+    "Expected the matching Chromium binary before live Inbox acceptance",
   );
 
   const deployExecutionMarker = 'active_root="$(readlink -f "$current_link" 2>/dev/null || true)"';

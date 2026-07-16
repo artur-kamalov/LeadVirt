@@ -80,5 +80,5 @@ corepack pnpm run qa:knowledge:publication
 corepack pnpm run qa:channel:automatic-replies
 corepack pnpm run qa:ai:structured-reply
 corepack pnpm run qa:channels:structured-delivery
-corepack pnpm dlx @playwright/test test artifacts/playwright/knowledge-workspace.spec.ts --grep "capability controls" --reporter=line
+corepack pnpm exec playwright test artifacts/playwright/knowledge-workspace.spec.ts --grep "capability controls" --reporter=line
 ```

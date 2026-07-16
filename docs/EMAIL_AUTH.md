@@ -82,5 +82,5 @@ corepack pnpm run qa:auth:unisender-contract
 corepack pnpm run qa:auth:email-otp
 corepack pnpm run qa:auth:team-security
 corepack pnpm run qa:auth:staging-ready
-corepack pnpm dlx @playwright/test test artifacts/playwright/auth-flow.spec.ts --reporter=line --workers=1
+corepack pnpm exec playwright test artifacts/playwright/auth-flow.spec.ts --reporter=line --workers=1
 ```

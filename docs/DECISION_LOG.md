@@ -1,5 +1,17 @@
 # Decision Log
 
+## 2026-07-16: Pin Browser QA To The Workspace Toolchain
+
+Decision: Browser QA uses a lockfile-pinned root `@playwright/test` dependency and `pnpm exec playwright`. CI explicitly installs Chromium and its Linux dependencies from that same version before acceptance.
+
+Context: The deploy gate invoked floating `pnpm dlx @playwright/test` commands without installing their matching browser. A runner with no cached revision failed every browser-backed test before application code ran.
+
+Consequences:
+
+- Test runner and Chromium revisions remain aligned across local and CI environments.
+- Acceptance no longer depends on GitHub runner browser cache state or the latest registry version at command time.
+- CI pays an explicit browser-install cost before tests instead of failing late in acceptance.
+
 ## 2026-07-16: Resolve Cross-Platform Smoke Paths On The Host
 
 Decision: Smoke fixtures that require absolute filesystem paths derive them with the host `node:path` implementation instead of embedding a Windows or POSIX root.

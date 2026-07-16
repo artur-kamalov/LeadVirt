@@ -49,22 +49,22 @@ These rules apply to Codex work in this workspace.
   - `corepack pnpm --filter @leadvirt/api build`
   - `corepack pnpm run qa:api`
   - `corepack pnpm run qa:ui:smoke`
-  - `corepack pnpm dlx @playwright/test test artifacts/playwright/dashboard-api.spec.ts --reporter=line`
-  - `corepack pnpm dlx @playwright/test test artifacts/playwright/auth-flow.spec.ts --reporter=line`
-  - `corepack pnpm dlx @playwright/test test artifacts/playwright/onboarding-api.spec.ts --reporter=line`
-  - `corepack pnpm dlx @playwright/test test artifacts/playwright/analytics-api.spec.ts --reporter=line`
-  - `corepack pnpm dlx @playwright/test test artifacts/playwright/integrations-api.spec.ts --reporter=line`
-  - `corepack pnpm dlx @playwright/test test artifacts/playwright/automation-api.spec.ts --reporter=line`
-  - `corepack pnpm dlx @playwright/test test artifacts/playwright/settings-api.spec.ts --reporter=line`
-  - `corepack pnpm dlx @playwright/test test artifacts/playwright/channels-widget-settings.spec.ts --reporter=line`
-  - `corepack pnpm dlx @playwright/test test artifacts/playwright/billing-api.spec.ts --reporter=line`
-  - `corepack pnpm dlx @playwright/test test artifacts/playwright/widget-api.spec.ts --reporter=line`
-  - `corepack pnpm dlx @playwright/test test artifacts/playwright/inbox-empty-state.spec.ts --reporter=line`
-  - `corepack pnpm dlx @playwright/test test artifacts/playwright/inbox-actions.spec.ts --reporter=line`
-  - `corepack pnpm dlx @playwright/test test artifacts/playwright/conversation-actions.spec.ts --reporter=line`
-  - `corepack pnpm dlx @playwright/test test artifacts/playwright/conversation-status-actions.spec.ts --reporter=line`
-  - `corepack pnpm dlx @playwright/test test artifacts/playwright/conversation-ai-draft.spec.ts --reporter=line`
-  - `corepack pnpm dlx @playwright/test test artifacts/playwright/conversation-events-timeline.spec.ts --reporter=line`
-  - `corepack pnpm dlx @playwright/test test artifacts/playwright/conversation-export.spec.ts --reporter=line`
-  - `corepack pnpm dlx @playwright/test test artifacts/playwright/product-layout-identity.spec.ts --reporter=line`
+  - `corepack pnpm exec playwright test artifacts/playwright/dashboard-api.spec.ts --reporter=line`
+  - `corepack pnpm exec playwright test artifacts/playwright/auth-flow.spec.ts --reporter=line`
+  - `corepack pnpm exec playwright test artifacts/playwright/onboarding-api.spec.ts --reporter=line`
+  - `corepack pnpm exec playwright test artifacts/playwright/analytics-api.spec.ts --reporter=line`
+  - `corepack pnpm exec playwright test artifacts/playwright/integrations-api.spec.ts --reporter=line`
+  - `corepack pnpm exec playwright test artifacts/playwright/automation-api.spec.ts --reporter=line`
+  - `corepack pnpm exec playwright test artifacts/playwright/settings-api.spec.ts --reporter=line`
+  - `corepack pnpm exec playwright test artifacts/playwright/channels-widget-settings.spec.ts --reporter=line`
+  - `corepack pnpm exec playwright test artifacts/playwright/billing-api.spec.ts --reporter=line`
+  - `corepack pnpm exec playwright test artifacts/playwright/widget-api.spec.ts --reporter=line`
+  - `corepack pnpm exec playwright test artifacts/playwright/inbox-empty-state.spec.ts --reporter=line`
+  - `corepack pnpm exec playwright test artifacts/playwright/inbox-actions.spec.ts --reporter=line`
+  - `corepack pnpm exec playwright test artifacts/playwright/conversation-actions.spec.ts --reporter=line`
+  - `corepack pnpm exec playwright test artifacts/playwright/conversation-status-actions.spec.ts --reporter=line`
+  - `corepack pnpm exec playwright test artifacts/playwright/conversation-ai-draft.spec.ts --reporter=line`
+  - `corepack pnpm exec playwright test artifacts/playwright/conversation-events-timeline.spec.ts --reporter=line`
+  - `corepack pnpm exec playwright test artifacts/playwright/conversation-export.spec.ts --reporter=line`
+  - `corepack pnpm exec playwright test artifacts/playwright/product-layout-identity.spec.ts --reporter=line`
 - Restart the Next dev server after production builds if continuing UI QA on `localhost:3001`.

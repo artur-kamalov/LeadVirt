@@ -99,6 +99,9 @@ jobs:
           corepack enable
           corepack pnpm install --frozen-lockfile
 
+      - name: Install Playwright Chromium
+        run: corepack pnpm exec playwright install --with-deps chromium
+
       - name: Generate Prisma client
         run: corepack pnpm --filter @leadvirt/db db:generate
 
@@ -308,8 +311,8 @@ jobs:
             sleep 2
           done
           corepack pnpm run qa:auth:email-otp
-          corepack pnpm dlx @playwright/test test artifacts/playwright/onboarding-knowledge-sources.spec.ts --reporter=line --workers=1
-          corepack pnpm dlx @playwright/test test artifacts/playwright/inbox-live-refresh.spec.ts --reporter=line --workers=1
+          corepack pnpm exec playwright test artifacts/playwright/onboarding-knowledge-sources.spec.ts --reporter=line --workers=1
+          corepack pnpm exec playwright test artifacts/playwright/inbox-live-refresh.spec.ts --reporter=line --workers=1
           corepack pnpm run qa:knowledge:v2:api
           corepack pnpm run qa:knowledge:v2:workspace
           corepack pnpm run qa:knowledge:v2:editors
