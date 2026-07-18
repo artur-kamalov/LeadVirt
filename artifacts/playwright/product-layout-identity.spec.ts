@@ -285,12 +285,10 @@ test("mobile product navigation exposes accessible touch targets", async ({ page
     expect(box?.height).toBeGreaterThanOrEqual(44);
   }
 
-  for (const controlName of ["Переключить тему", "Уведомления"]) {
-    const control = page.getByRole("button", { name: controlName });
-    const box = await control.boundingBox();
-    expect(box?.width).toBeGreaterThanOrEqual(44);
-    expect(box?.height).toBeGreaterThanOrEqual(44);
-  }
+  const notifications = page.getByRole("button", { name: "Уведомления" });
+  const notificationsBox = await notifications.boundingBox();
+  expect(notificationsBox?.width).toBeGreaterThanOrEqual(44);
+  expect(notificationsBox?.height).toBeGreaterThanOrEqual(44);
   await page.screenshot({
     animations: "disabled",
     path: testInfo.outputPath("product-navigation-mobile.png"),
@@ -304,11 +302,18 @@ test("mobile product navigation exposes accessible touch targets", async ({ page
 
   await trigger.click();
   const close = page.getByTestId("product-mobile-menu-close");
+  const themeToggle = page
+    .getByTestId("product-mobile-navigation")
+    .getByTestId("product-mobile-theme-toggle");
   await expect(close).toBeVisible();
   await expect(close).toHaveAccessibleName("Закрыть меню");
+  await expect(themeToggle).toBeVisible();
+  await expect(themeToggle).toHaveAccessibleName("Переключить тему");
   const closeBox = await close.boundingBox();
+  const themeBox = await themeToggle.boundingBox();
   expect(closeBox?.width).toBeGreaterThanOrEqual(44);
   expect(closeBox?.height).toBeGreaterThanOrEqual(44);
+  expect(themeBox?.height).toBeGreaterThanOrEqual(44);
 });
 
 test("Inbox exposes truthful reply state and accessible filters", async (

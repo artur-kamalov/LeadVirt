@@ -572,9 +572,7 @@ export function DashboardPage() {
                   {!isDemo ? (
                     <div className="flex items-center gap-2">
                       <span className="w-3 h-0.5 bg-indigo-400 rounded-full" />
-                      <span className="text-xs text-zinc-500">
-                        {t("dashboard.chart.bookings")}
-                      </span>
+                      <span className="text-xs text-zinc-500">{t("dashboard.chart.bookings")}</span>
                     </div>
                   ) : null}
                 </div>
@@ -680,21 +678,40 @@ export function DashboardPage() {
                           ? hrefForRoute("conversation", { id: lead.conversationId }, mode)
                           : hrefForRoute("pipeline", {}, mode)
                       }
-                      className="w-full flex items-center gap-3 rounded-2xl px-3 py-3 hover:bg-white/5 transition-colors text-left group"
+                      className="group flex w-full items-start gap-3 rounded-2xl px-3 py-3 text-left transition-colors hover:bg-white/5 sm:items-center"
                     >
                       <Avatar name={leadName(lead, locale, t)} size={38} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
-                          <span className="text-sm font-medium text-zinc-100 truncate">
+                          <span
+                            className="min-w-0 truncate text-sm font-medium text-zinc-100"
+                            data-testid="dashboard-recent-lead-name"
+                          >
                             {leadName(lead, locale, t)}
                           </span>
-                          <ChannelBadge id={channelIdFromType(lead.channelType)} />
+                          <span className="hidden sm:inline-flex">
+                            <ChannelBadge id={channelIdFromType(lead.channelType)} />
+                          </span>
                         </div>
-                        <span className="text-xs text-zinc-500 truncate block">
-                          {leadService(lead, locale, t)}
-                        </span>
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="inline-flex shrink-0 sm:hidden">
+                            <ChannelBadge id={channelIdFromType(lead.channelType)} />
+                          </span>
+                          <span className="block min-w-0 truncate text-xs text-zinc-500">
+                            {leadService(lead, locale, t)}
+                          </span>
+                        </div>
+                        <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5 sm:hidden">
+                          <StatusPill stage={stageFromStatus(lead.status)} />
+                          <span className="text-xs font-semibold text-emerald-400">
+                            {formatCurrency(lead.valueAmount ?? 0, lead.currency)}
+                          </span>
+                          <span className="text-[10px] text-zinc-600">
+                            {leadTime(lead, locale)}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      <div className="hidden shrink-0 flex-col items-end gap-1.5 sm:flex">
                         <StatusPill stage={stageFromStatus(lead.status)} />
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-semibold text-emerald-400">
@@ -705,7 +722,7 @@ export function DashboardPage() {
                           </span>
                         </div>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-zinc-700 group-hover:text-zinc-400 transition-colors shrink-0 ml-1" />
+                      <ChevronRight className="ml-1 hidden h-4 w-4 shrink-0 text-zinc-700 transition-colors group-hover:text-zinc-400 sm:block" />
                     </Link>
                   </motion.div>
                 ))}
@@ -723,15 +740,6 @@ export function DashboardPage() {
               <SectionTitle
                 title={t("dashboard.activity.title")}
                 sub={t("dashboard.activity.description")}
-                action={
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
-                      <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-                    </span>
-                    <span className="text-xs text-emerald-400 font-medium">Live</span>
-                  </span>
-                }
               />
               <div className="relative">
                 {/* Vertical line */}

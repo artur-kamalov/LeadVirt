@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import type { Channel, IntegrationAccount, IntegrationProvider } from "@leadvirt/types";
 import {
   Send,
@@ -19,6 +20,7 @@ import {
   RefreshCw,
   LogOut,
   ChevronDown,
+  UserPlus,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
@@ -1370,6 +1372,7 @@ function IntegrationCard({
   onSample,
   canManage,
   canTest,
+  demo,
   index,
 }: {
   integration: Integration;
@@ -1385,6 +1388,7 @@ function IntegrationCard({
   onSample: () => void;
   canManage: boolean;
   canTest: boolean;
+  demo: boolean;
   index: number;
 }) {
   const { t } = useI18n();
@@ -1416,7 +1420,7 @@ function IntegrationCard({
       >
         <div
           className={cn(
-            "relative rounded-2xl bg-zinc-900/70 border border-white/5 p-5 flex flex-col gap-4 h-full",
+            "relative flex h-full flex-col gap-3 rounded-2xl border border-white/5 bg-zinc-900/70 p-4 sm:gap-4 sm:p-5",
             "transition-all duration-300",
             "hover:border-white/10 hover:bg-zinc-900/80",
             connectedVisible && "hover:shadow-[0_0_24px_-6px] hover:shadow-emerald-500/20",
@@ -1428,11 +1432,11 @@ function IntegrationCard({
           <div className="flex items-start justify-between gap-3 relative">
             <div
               className={cn(
-                "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0",
+                "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl sm:h-12 sm:w-12 sm:rounded-2xl",
                 integration.accentBg,
               )}
             >
-              <Icon className={cn("w-6 h-6", integration.accentColor)} />
+              <Icon className={cn("h-5 w-5 sm:h-6 sm:w-6", integration.accentColor)} />
             </div>
             <Pill
               className={cn(
@@ -1486,7 +1490,7 @@ function IntegrationCard({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="min-h-8 w-full scroll-mt-20 scroll-mb-24 whitespace-normal rounded-full px-3 py-2 text-xs"
+                  className="min-h-11 w-full scroll-mt-20 scroll-mb-24 whitespace-normal rounded-full px-3 py-2 text-xs"
                   onClick={onConfigure}
                 >
                   {availabilityStatus}
@@ -1501,7 +1505,7 @@ function IntegrationCard({
                 {canManage || canTest ? (
                   <Dropdown
                     trigger={
-                      <Button variant="outline" size="sm" className="h-8 px-3 text-xs rounded-full">
+                      <Button variant="outline" size="sm" className="min-h-11 rounded-full px-3 text-xs">
                         {canManage ? t("integrations.configure") : t("integrations.testConnection")}
                       </Button>
                     }
@@ -1530,11 +1534,23 @@ function IntegrationCard({
                   </Dropdown>
                 ) : null}
               </>
+            ) : demo ? (
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="min-h-11 w-full rounded-full px-4 text-xs"
+              >
+                <Link href="/signup">
+                  <UserPlus aria-hidden="true" className="mr-1.5 h-3.5 w-3.5" />
+                  {t("integrations.demoConnect")}
+                </Link>
+              </Button>
             ) : (
               <Button
                 variant="primary"
                 size="sm"
-                className="h-8 px-4 text-xs rounded-full w-full"
+                className="min-h-11 w-full rounded-full px-4 text-xs"
                 onClick={onToggle}
                 disabled={pending || !canManage}
               >
@@ -2018,7 +2034,7 @@ export function IntegrationsPage() {
 
   return (
     <ProductLayout title={t("integrations.title")}>
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-5 sm:gap-8">
         {accountsLoadStatus === "error" || channelsLoadStatus === "error" ? (
           <ResourceErrorState
             testId="integrations-refresh-error"
@@ -2045,7 +2061,7 @@ export function IntegrationsPage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.4, delay: 0.1 }}
-          className="flex flex-wrap gap-3"
+          className="flex gap-2 overflow-x-auto pb-1 scrollbar-none sm:flex-wrap sm:gap-3"
         >
           {[
             {
@@ -2071,7 +2087,7 @@ export function IntegrationsPage() {
               key={label}
               data-testid={testId}
               className={cn(
-                "flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-medium",
+                "flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium sm:px-4",
                 color,
               )}
             >
@@ -2086,14 +2102,14 @@ export function IntegrationsPage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.4, delay: 0.15 }}
-          className="flex flex-wrap gap-2"
+          className="flex gap-2 overflow-x-auto pb-1 scrollbar-none sm:flex-wrap"
         >
           {AVAILABLE_CATEGORIES.map((category) => (
             <button
               key={category.id}
               onClick={() => setActiveCategory(category.id)}
               className={cn(
-                "rounded-full border px-4 py-1.5 text-xs font-medium transition-all duration-200",
+                "min-h-11 shrink-0 rounded-full border px-4 py-1.5 text-xs font-medium transition-all duration-200",
                 activeCategory === category.id
                   ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
                   : "bg-white/[0.03] border-white/5 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.06]",
@@ -2105,7 +2121,7 @@ export function IntegrationsPage() {
         </motion.div>
 
         {/* Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filtered.map((integration, i) => (
             <IntegrationCard
               key={integration.id}
@@ -2125,6 +2141,7 @@ export function IntegrationsPage() {
               onSample={() => void sendSample(integration.id)}
               canManage={permissions.canManageIntegrations}
               canTest={permissions.canTestIntegrations}
+              demo={demo}
               index={i}
             />
           ))}
@@ -2178,6 +2195,7 @@ export function IntegrationsPage() {
                 onSample={() => undefined}
                 canManage={permissions.canManageIntegrations}
                 canTest={false}
+                demo={demo}
                 index={index}
               />
             ))}

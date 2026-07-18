@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import {
   AlertCircle,
   Bot,
   Building2,
   Check,
+  ChevronDown,
   Circle,
   FlaskConical,
   LockKeyhole,
@@ -117,6 +119,7 @@ export function DashboardReadinessJourney({
 }) {
   const { t } = useI18n();
   const { mode } = useNav();
+  const [mobileStepsExpanded, setMobileStepsExpanded] = useState(false);
 
   if (!snapshot && isLoading) {
     return (
@@ -176,9 +179,10 @@ export function DashboardReadinessJourney({
     ? t(actionKeys[model.primaryStepId])
     : t("dashboard.readiness.action.ready");
   const primaryHref =
-    mode === "demo"
-      ? model.primaryHref.replace(/^\/app(?=\/|$)/, "/demo")
-      : model.primaryHref;
+    mode === "demo" ? model.primaryHref.replace(/^\/app(?=\/|$)/, "/demo") : model.primaryHref;
+  const mobileStepId =
+    model.steps.find((step) => step.state === "current")?.id ??
+    model.steps[model.steps.length - 1]?.id;
 
   return (
     <Card
@@ -299,79 +303,105 @@ export function DashboardReadinessJourney({
           ) : null}
         </div>
 
-        <ol
-          className="min-w-0 divide-y divide-white/[0.06]"
-          aria-label={t("dashboard.readiness.title.incomplete")}
-        >
-          {model.steps.map((step, index) => {
-            const Icon = stepIcons[step.id];
-            const detail = detailMessage(step.detail);
-            const needsCheck = step.evidence === "needs_check";
-            const statusLabel =
-              step.state === "completed"
-                ? t("dashboard.readiness.status.completed")
-                : step.state === "current" && needsCheck
-                  ? t("dashboard.readiness.status.needsCheck")
-                  : step.state === "current"
-                    ? t("dashboard.readiness.status.current")
-                    : t("dashboard.readiness.status.blocked");
-            const StateIcon =
-              step.state === "completed"
-                ? Check
-                : step.state === "current" && needsCheck
-                  ? AlertCircle
-                  : step.state === "current"
-                    ? Circle
-                    : LockKeyhole;
+        <div className="min-w-0">
+          <ol
+            id="dashboard-readiness-steps"
+            className="min-w-0 divide-y divide-white/[0.06]"
+            aria-label={t(
+              model.isReady
+                ? "dashboard.readiness.title.ready"
+                : "dashboard.readiness.title.incomplete",
+            )}
+          >
+            {model.steps.map((step, index) => {
+              const Icon = stepIcons[step.id];
+              const detail = detailMessage(step.detail);
+              const needsCheck = step.evidence === "needs_check";
+              const statusLabel =
+                step.state === "completed"
+                  ? t("dashboard.readiness.status.completed")
+                  : step.state === "current" && needsCheck
+                    ? t("dashboard.readiness.status.needsCheck")
+                    : step.state === "current"
+                      ? t("dashboard.readiness.status.current")
+                      : t("dashboard.readiness.status.blocked");
+              const StateIcon =
+                step.state === "completed"
+                  ? Check
+                  : step.state === "current" && needsCheck
+                    ? AlertCircle
+                    : step.state === "current"
+                      ? Circle
+                      : LockKeyhole;
 
-            return (
-              <li
-                key={step.id}
-                data-testid={`dashboard-readiness-step-${step.id}`}
-                data-state={step.state}
-                data-evidence={step.evidence}
-                aria-current={step.state === "current" ? "step" : undefined}
-                className={cn(
-                  "grid min-w-0 grid-cols-[2.25rem_minmax(0,1fr)] gap-x-3 px-4 py-3.5 sm:grid-cols-[2.25rem_minmax(0,1fr)_auto] sm:items-center sm:px-5",
-                  step.state === "current" && "bg-emerald-400/[0.055]",
-                )}
-              >
-                <div
+              return (
+                <li
+                  key={step.id}
+                  data-testid={`dashboard-readiness-step-${step.id}`}
+                  data-state={step.state}
+                  data-evidence={step.evidence}
+                  aria-current={step.state === "current" ? "step" : undefined}
                   className={cn(
-                    "row-span-2 flex h-9 w-9 items-center justify-center rounded-md border text-zinc-500",
-                    step.state === "completed" &&
-                      "border-emerald-400/20 bg-emerald-400/10 text-emerald-300",
-                    step.state === "current" &&
-                      "border-emerald-400/30 bg-emerald-400/10 text-emerald-200",
+                    "grid min-w-0 grid-cols-[2.25rem_minmax(0,1fr)] gap-x-3 px-4 py-3.5 sm:grid-cols-[2.25rem_minmax(0,1fr)_auto] sm:items-center sm:px-5",
+                    !mobileStepsExpanded && step.id !== mobileStepId && "hidden lg:grid",
+                    step.state === "current" && "bg-emerald-400/[0.055]",
                   )}
                 >
-                  <Icon className="h-4 w-4" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-zinc-200">
-                    <span className="mr-1.5 text-zinc-600">{index + 1}.</span>
-                    {t(stepTitleKeys[step.id])}
-                  </p>
-                  <p className="mt-0.5 text-xs leading-5 text-zinc-500">
-                    {t(detail.key, detail.values)}
-                  </p>
-                </div>
-                <div
-                  className={cn(
-                    "col-start-2 mt-1 inline-flex w-fit items-center gap-1.5 text-xs font-medium sm:col-start-3 sm:row-start-1 sm:mt-0 sm:whitespace-nowrap",
-                    step.state === "completed" && "text-emerald-400",
-                    step.state === "current" && !needsCheck && "text-emerald-300",
-                    needsCheck && "text-amber-300",
-                    step.state === "blocked" && !needsCheck && "text-zinc-600",
-                  )}
-                >
-                  <StateIcon className="h-3.5 w-3.5" />
-                  {statusLabel}
-                </div>
-              </li>
-            );
-          })}
-        </ol>
+                  <div
+                    className={cn(
+                      "row-span-2 flex h-9 w-9 items-center justify-center rounded-md border text-zinc-500",
+                      step.state === "completed" &&
+                        "border-emerald-400/20 bg-emerald-400/10 text-emerald-300",
+                      step.state === "current" &&
+                        "border-emerald-400/30 bg-emerald-400/10 text-emerald-200",
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-zinc-200">
+                      <span className="mr-1.5 text-zinc-600">{index + 1}.</span>
+                      {t(stepTitleKeys[step.id])}
+                    </p>
+                    <p className="mt-0.5 text-xs leading-5 text-zinc-500">
+                      {t(detail.key, detail.values)}
+                    </p>
+                  </div>
+                  <div
+                    className={cn(
+                      "col-start-2 mt-1 inline-flex w-fit items-center gap-1.5 text-xs font-medium sm:col-start-3 sm:row-start-1 sm:mt-0 sm:whitespace-nowrap",
+                      step.state === "completed" && "text-emerald-400",
+                      step.state === "current" && !needsCheck && "text-emerald-300",
+                      needsCheck && "text-amber-300",
+                      step.state === "blocked" && !needsCheck && "text-zinc-600",
+                    )}
+                  >
+                    <StateIcon className="h-3.5 w-3.5" />
+                    {statusLabel}
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+          <button
+            type="button"
+            className="flex min-h-11 w-full items-center justify-center gap-2 border-t border-white/[0.06] px-4 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-white/[0.03] hover:text-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-400 lg:hidden"
+            aria-expanded={mobileStepsExpanded}
+            aria-controls="dashboard-readiness-steps"
+            data-testid="dashboard-readiness-steps-toggle"
+            onClick={() => setMobileStepsExpanded((expanded) => !expanded)}
+          >
+            {t(
+              mobileStepsExpanded
+                ? "dashboard.readiness.steps.hide"
+                : "dashboard.readiness.steps.show",
+            )}
+            <ChevronDown
+              className={cn("h-4 w-4 transition-transform", mobileStepsExpanded && "rotate-180")}
+              aria-hidden="true"
+            />
+          </button>
+        </div>
       </div>
     </Card>
   );

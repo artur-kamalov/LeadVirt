@@ -263,7 +263,8 @@ const ru = {
   "product.menu.open": "Открыть меню",
   "product.menu.close": "Закрыть меню",
   "product.menu.navigation": "Навигация",
-  "product.demo.readOnly": "Demo read-only",
+  "product.demo.short": "Демо",
+  "product.demo.readOnly": "Демо, только просмотр",
   "product.search.form": "Поиск лидов и чатов",
   "product.search.input": "Глобальный поиск",
   "product.search.placeholder": "Поиск лидов, чатов...",
@@ -336,7 +337,7 @@ const ru = {
   "dashboard.recent.emptyDetail":
     "Новые обращения появятся здесь после подключения канала или входящего webhook.",
   "dashboard.activity.title": "Активность",
-  "dashboard.activity.description": "События в реальном времени",
+  "dashboard.activity.description": "Последние события рабочего пространства",
   "dashboard.activity.empty": "Событий пока нет",
   "dashboard.activity.emptyDetail":
     "Продуктовые события появятся после лидов, задач, записей или подключений.",
@@ -375,9 +376,9 @@ const ru = {
   "onboarding.business.local": "Локальный бизнес",
   "onboarding.channels.title": "Откуда приходят клиенты?",
   "onboarding.channels.description":
-    "Выберите каналы. Доступные можно подключить самостоятельно, остальные сохранятся как запрос или план.",
+    "Выберите каналы. Доступные можно подключить после настройки. Варианты «С помощью команды» и «Планируется» сохранятся только как предпочтения; запрос автоматически не отправляется.",
   "onboarding.availability.available": "Доступно",
-  "onboarding.availability.request": "По запросу",
+  "onboarding.availability.request": "С помощью команды",
   "onboarding.availability.planned": "Планируется",
   "onboarding.scenario.title": "Выберите цель настройки",
   "onboarding.scenario.description":
@@ -425,8 +426,8 @@ const ru = {
   "onboarding.crm.amoDescription": "Популярная CRM для продаж в России",
   "onboarding.crm.bitrixDescription": "Корпоративный портал с воронкой продаж",
   "onboarding.crm.retailDescription": "Специализированная CRM для e-commerce",
-  "onboarding.crm.none": "Без CRM (дашборд)",
-  "onboarding.crm.noneDescription": "Все лиды будут в AI Администраторе",
+  "onboarding.crm.none": "Входящие LeadVirt",
+  "onboarding.crm.noneDescription": "Все обращения остаются во Входящих LeadVirt",
   "onboarding.summary.business": "Бизнес",
   "onboarding.summary.channels": "Каналы",
   "onboarding.summary.notSelected": "Не выбраны",
@@ -683,6 +684,7 @@ const en: Record<BaseTranslationKey, string> = {
   "product.menu.open": "Open menu",
   "product.menu.close": "Close menu",
   "product.menu.navigation": "Navigation",
+  "product.demo.short": "Demo",
   "product.demo.readOnly": "Demo read-only",
   "product.search.form": "Search leads and chats",
   "product.search.input": "Global search",
@@ -755,7 +757,7 @@ const en: Record<BaseTranslationKey, string> = {
   "dashboard.recent.emptyDetail":
     "New inquiries will appear after you connect a channel or receive a webhook.",
   "dashboard.activity.title": "Activity",
-  "dashboard.activity.description": "Real-time events",
+  "dashboard.activity.description": "Recent workspace events",
   "dashboard.activity.empty": "No events yet",
   "dashboard.activity.emptyDetail":
     "Product events will appear after new leads, tasks, bookings, or connections.",
@@ -794,9 +796,9 @@ const en: Record<BaseTranslationKey, string> = {
   "onboarding.business.local": "Local business",
   "onboarding.channels.title": "Where do customers contact you?",
   "onboarding.channels.description":
-    "Choose channels. Available options can be connected now; the rest are saved as a request or plan.",
+    "Choose channels. Available options can be connected after setup. Managed and planned options are saved only as preferences; no request is sent automatically.",
   "onboarding.availability.available": "Available",
-  "onboarding.availability.request": "By request",
+  "onboarding.availability.request": "Managed setup",
   "onboarding.availability.planned": "Planned",
   "onboarding.scenario.title": "Choose a setup goal",
   "onboarding.scenario.description":
@@ -844,8 +846,8 @@ const en: Record<BaseTranslationKey, string> = {
   "onboarding.crm.amoDescription": "Popular sales CRM in Russia",
   "onboarding.crm.bitrixDescription": "Corporate portal with a sales pipeline",
   "onboarding.crm.retailDescription": "Specialized CRM for e-commerce",
-  "onboarding.crm.none": "No CRM (dashboard)",
-  "onboarding.crm.noneDescription": "All leads will stay in AI Administrator",
+  "onboarding.crm.none": "LeadVirt Inbox",
+  "onboarding.crm.noneDescription": "All customer conversations stay in LeadVirt Inbox",
   "onboarding.summary.business": "Business",
   "onboarding.summary.channels": "Channels",
   "onboarding.summary.notSelected": "Not selected",

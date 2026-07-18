@@ -45,6 +45,7 @@ import { ApiClientError } from "@/lib/api/client";
 import type { AcquisitionPlanId } from "@/lib/acquisition";
 import { useI18n } from "@/i18n/I18nProvider";
 import type { TranslationKey } from "@/i18n/messages";
+import { localizeDemoSeedText } from "@/i18n/demo-seed-messages";
 
 /* ------------------------------------------------------------------ */
 /* Types & constants                                                    */
@@ -183,7 +184,7 @@ function AvailabilityBadge({ availability }: { availability: SelectionAvailabili
   return (
     <span
       className={cn(
-        "inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold",
+        "inline-flex max-w-full whitespace-normal rounded-full border px-2 py-0.5 text-left text-[10px] font-semibold leading-tight",
         availability === "available"
           ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-300"
           : availability === "request"
@@ -232,6 +233,23 @@ function companyInfoFromData(data: Record<string, unknown>): CompanyInfo {
     faq: typeof record.faq === "string" ? record.faq : "",
     policies: typeof record.policies === "string" ? record.policies : "",
     escalationRules: typeof record.escalationRules === "string" ? record.escalationRules : "",
+  };
+}
+
+function localizeCompanyInfo(
+  company: CompanyInfo,
+  locale: Parameters<typeof localizeDemoSeedText>[1],
+): CompanyInfo {
+  return {
+    name: localizeDemoSeedText(company.name, locale),
+    description: localizeDemoSeedText(company.description, locale),
+    hours: localizeDemoSeedText(company.hours, locale),
+    avgCheck: localizeDemoSeedText(company.avgCheck, locale),
+    servicesCatalog: localizeDemoSeedText(company.servicesCatalog, locale),
+    availability: localizeDemoSeedText(company.availability, locale),
+    faq: localizeDemoSeedText(company.faq, locale),
+    policies: localizeDemoSeedText(company.policies, locale),
+    escalationRules: localizeDemoSeedText(company.escalationRules, locale),
   };
 }
 
@@ -848,7 +866,7 @@ export function OnboardingPage({
 }: {
   selectedPlan?: AcquisitionPlanId | null;
 }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const { go, mode } = useNav();
   const router = useRouter();
 
@@ -861,6 +879,7 @@ export function OnboardingPage({
   const [loadRevision, setLoadRevision] = useState(0);
   const hasLocalChangesRef = useRef(false);
   const businessProfileEtagRef = useRef<string | null>(null);
+  const localeRef = useRef(locale);
 
   // Step state
   const [businessType, setBusinessType] = useState<string | null>(null);
@@ -880,6 +899,12 @@ export function OnboardingPage({
   const [crm, setCrm] = useState<string | null>(null);
 
   useEffect(() => {
+    localeRef.current = locale;
+    if (mode !== "demo" || loadStatus !== "success" || hasLocalChangesRef.current) return;
+    setCompanyInfo((current) => localizeCompanyInfo(current, locale));
+  }, [loadStatus, locale, mode]);
+
+  useEffect(() => {
     let active = true;
     setLoadStatus("loading");
 
@@ -892,7 +917,12 @@ export function OnboardingPage({
           setBusinessType(stringFromData(data, "businessType"));
           setSelectedChannels(channelsFromData(data));
           setScenario(stringFromData(data, "scenario"));
-          setCompanyInfo(companyInfoFromData(data));
+          const loadedCompanyInfo = companyInfoFromData(data);
+          setCompanyInfo(
+            mode === "demo"
+              ? localizeCompanyInfo(loadedCompanyInfo, localeRef.current)
+              : loadedCompanyInfo,
+          );
           setCrm(stringFromData(data, "crm"));
           setStep(stepIndexFromId(state.currentStep));
         }
@@ -907,7 +937,7 @@ export function OnboardingPage({
     return () => {
       active = false;
     };
-  }, [loadRevision]);
+  }, [loadRevision, mode]);
 
   const navigate = (nextStep: number) => {
     setDir(nextStep > step ? 1 : -1);
@@ -1093,19 +1123,21 @@ export function OnboardingPage({
       <BackgroundGrid />
 
       {/* ---- Top bar ---- */}
-      <header className="relative z-10 flex items-center justify-between px-4 sm:px-8 py-4 border-b border-white/5 bg-zinc-950/95">
+      <header className="relative z-10 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-2 border-b border-white/5 bg-zinc-950/95 px-4 py-3 sm:flex sm:justify-between sm:px-8 sm:py-4">
         <Logo onClick={() => go("landing")} disabled={saving} />
-        {loadStatus === "success" ? (
-          <ProgressBar step={step} />
-        ) : loadStatus === "loading" ? (
-          <Skeleton className="h-8 w-40 sm:w-64" />
-        ) : (
-          <span className="max-w-[14rem] truncate text-xs text-red-300 sm:text-sm">
-            {t("resource.loadFailed.title")}
-          </span>
-        )}
-        <div className="flex items-center gap-2">
-          <LanguageSwitcher compact />
+        <div className="order-3 col-span-2 flex min-w-0 justify-center sm:order-none sm:col-span-1 sm:block">
+          {loadStatus === "success" ? (
+            <ProgressBar step={step} />
+          ) : loadStatus === "loading" ? (
+            <Skeleton className="h-8 w-40 sm:w-64" />
+          ) : (
+            <span className="max-w-full truncate text-xs text-red-300 sm:max-w-[14rem] sm:text-sm">
+              {t("resource.loadFailed.title")}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-1 sm:gap-2">
+          <LanguageSwitcher compact className="h-11" />
           <button
             type="button"
             onClick={() => go("dashboard")}

@@ -237,6 +237,8 @@ test("desktop presents the first unresolved step as the primary next action", as
     "data-state",
     "blocked",
   );
+  await expect(page.getByTestId("dashboard-readiness-step-inbound")).toBeVisible();
+  await expect(page.getByTestId("dashboard-readiness-steps-toggle")).toBeHidden();
   await expect(page.getByTestId("dashboard-readiness-step-knowledge")).toContainText("3");
 
   const primary = page.getByTestId("dashboard-readiness-primary");
@@ -274,31 +276,34 @@ test("an empty Knowledge overview is treated as missing evidence, not a dashboar
   await expect(page.getByText(/Application error:/)).toHaveCount(0);
 });
 
-test("a readiness load failure replaces the skeleton and retry recovers", async ({ page }) => {
+test("a channel readiness outage becomes evidence that needs a check", async ({ page }) => {
   const readiness = await mockReadiness(page, {
     knowledge: "ready",
     channelsFailingInitially: true,
   });
   await page.goto(`${webBase}/app`, { waitUntil: "networkidle" });
 
-  const error = page.getByTestId("dashboard-readiness-load-error");
-  await expect(error).toBeVisible();
-  await expect(error).toContainText("Launch readiness could not be checked");
+  const journey = page.getByTestId("dashboard-readiness");
+  const replies = page.getByTestId("dashboard-readiness-step-replies");
+  await expect(journey).toBeVisible();
+  await expect(replies).toHaveAttribute("data-evidence", "needs_check");
   await expect(page.getByTestId("dashboard-readiness-loading")).toHaveCount(0);
-  await expect(page.getByTestId("dashboard-readiness")).toHaveCount(0);
+  await expect(page.getByTestId("dashboard-readiness-load-error")).toHaveCount(0);
 
   readiness.setChannelsFailing(false);
-  await page.getByTestId("dashboard-readiness-retry").click();
+  await page.getByTestId("dashboard-readiness-refresh").click();
 
-  await expect(page.getByTestId("dashboard-readiness")).toBeVisible();
+  await expect(journey).toBeVisible();
   await expect(page.getByTestId("dashboard-readiness-step-profile")).toHaveAttribute(
     "data-state",
     "completed",
   );
-  await expect(error).toHaveCount(0);
+  await expect(replies).toHaveAttribute("data-evidence", "incomplete");
 });
 
-test("a refresh failure retains the last verified readiness evidence", async ({ page }) => {
+test("a refresh exposes unavailable channel evidence without hiding verified steps", async ({
+  page,
+}) => {
   const readiness = await mockReadiness(page, {
     knowledge: "ready",
     repliesActive: true,
@@ -314,18 +319,24 @@ test("a refresh failure retains the last verified readiness evidence", async ({ 
   readiness.setChannelsFailing(true);
   await page.getByTestId("dashboard-readiness-refresh").click();
 
-  await expect(page.getByTestId("dashboard-readiness-refresh-error")).toBeVisible();
-  await expect(journey).toHaveAttribute("data-ready", "true");
+  await expect(page.getByTestId("dashboard-readiness-refresh-error")).toHaveCount(0);
+  await expect(journey).toHaveAttribute("data-ready", "false");
   await expect(profile).toHaveAttribute("data-state", "completed");
+  await expect(page.getByTestId("dashboard-readiness-step-replies")).toHaveAttribute(
+    "data-evidence",
+    "needs_check",
+  );
   await expect(page.getByTestId("dashboard-readiness-load-error")).toHaveCount(0);
 
   readiness.setChannelsFailing(false);
-  await page.getByTestId("dashboard-readiness-refresh-retry").click();
+  await page.getByTestId("dashboard-readiness-refresh").click();
   await expect(page.getByTestId("dashboard-readiness-refresh-error")).toHaveCount(0);
   await expect(journey).toHaveAttribute("data-ready", "true");
 });
 
-test("a connected CRM does not complete customer channel or inbound readiness", async ({ page }) => {
+test("a connected CRM does not complete customer channel or inbound readiness", async ({
+  page,
+}) => {
   await mockReadiness(page, {
     knowledge: "ready",
     channelConnected: false,
@@ -384,7 +395,22 @@ test("legacy notes do not replace structured services and schedule", async ({ pa
   await expect(page.getByTestId("dashboard-readiness")).toHaveAttribute("data-ready", "false");
 });
 
-test("mobile shows a complete launch journey without horizontal overflow", async ({ page }) => {
+test("mobile shows the current unresolved step before the completed journey", async ({ page }) => {
+  await mockReadiness(page, { knowledge: "review" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${webBase}/app`, { waitUntil: "networkidle" });
+
+  await expect(page.getByTestId("dashboard-readiness-step-knowledge")).toBeVisible();
+  await expect(page.getByTestId("dashboard-readiness-step-profile")).toBeHidden();
+  await expect(page.getByTestId("dashboard-readiness-step-channel")).toBeHidden();
+  await expect(page.getByTestId("dashboard-readiness-steps-toggle")).toHaveAccessibleName(
+    "Show all steps",
+  );
+});
+
+test("mobile prioritizes the relevant launch step and can disclose the complete journey", async ({
+  page,
+}) => {
   await mockReadiness(page, {
     knowledge: "ready",
     repliesActive: true,
@@ -396,6 +422,17 @@ test("mobile shows a complete launch journey without horizontal overflow", async
   const journey = page.getByTestId("dashboard-readiness");
   await expect(journey).toHaveAttribute("data-ready", "true");
   await expect(journey.locator('[data-state="completed"]')).toHaveCount(7);
+  await expect(journey.locator('[data-state="completed"]:visible')).toHaveCount(1);
+  await expect(page.getByTestId("dashboard-readiness-step-inbound")).toBeVisible();
+  await expect(page.getByTestId("dashboard-readiness-step-profile")).toBeHidden();
+
+  const stepsToggle = page.getByTestId("dashboard-readiness-steps-toggle");
+  await expect(stepsToggle).toHaveAccessibleName("Show all steps");
+  await expect(stepsToggle).toHaveAttribute("aria-expanded", "false");
+  await stepsToggle.click();
+  await expect(stepsToggle).toHaveAccessibleName("Show less");
+  await expect(stepsToggle).toHaveAttribute("aria-expanded", "true");
+  await expect(journey.locator('[data-state="completed"]:visible')).toHaveCount(7);
   await expect(page.getByTestId("dashboard-readiness-primary")).toBeVisible();
   await expect(page.getByTestId("dashboard-readiness-primary")).toHaveAttribute(
     "href",

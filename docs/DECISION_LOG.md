@@ -3869,3 +3869,16 @@ Consequences:
 - Successful email and Telegram auth leave no identity/session payload in localStorage; logout still removes legacy values.
 - Email-OTP configuration now has loading, enabled, disabled, and retryable error states.
 - A transient config failure keeps Email selected, presents retry, and never claims that the server disabled the method.
+
+## 2026-07-18: Keep Demo Evidence And Setup Promises Internally Consistent
+
+Decision: The read-only demo represents one complete supported Telegram and website-widget workspace. Inbox filters come from loaded conversations, and assisted or planned onboarding choices are saved only as preferences unless a separate request API succeeds.
+
+Context: The demo advertised unsupported channel and CRM states, its readiness journey could not verify the sample knowledge or inbound delivery, and onboarding copy implied that selecting a future channel sent an operator request when it only persisted a choice.
+
+Consequences:
+
+- Demo knowledge, automatic replies, connected channels, and successful inbound evidence agree on one published sample state.
+- Mobile and desktop Inbox filters cannot imply channels or lead states absent from the loaded workspace.
+- Assisted setup remains visible without claiming that LeadVirt has received a request.
+- Demo-only connection actions lead to account creation instead of looking like enabled controls that silently do nothing.

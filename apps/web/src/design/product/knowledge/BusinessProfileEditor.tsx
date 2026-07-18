@@ -11,6 +11,7 @@ import {
   AlertCircle,
   Building2,
   CheckCircle2,
+  ChevronDown,
   Clock3,
   Plus,
   RefreshCw,
@@ -933,10 +934,13 @@ export function BusinessProfileEditor({
                 return (
                   <div
                     key={entry.day}
-                    className="grid min-w-0 gap-3 py-3 sm:grid-cols-[minmax(10rem,1fr)_minmax(0,12rem)_minmax(0,12rem)] sm:items-start"
+                    className="grid min-w-0 grid-cols-2 gap-x-3 gap-y-2 py-3 sm:grid-cols-[minmax(10rem,1fr)_minmax(0,12rem)_minmax(0,12rem)] sm:items-start sm:gap-3"
                     data-testid={`business-profile-day-${entry.day}`}
                   >
-                    <label className="flex min-h-10 min-w-0 items-center gap-3 text-sm text-zinc-300">
+                    <label
+                      className="col-span-2 flex min-h-10 min-w-0 items-center gap-3 text-sm text-zinc-300 sm:col-span-1"
+                      data-testid={`business-profile-day-${entry.day}-label`}
+                    >
                       <input
                         type="checkbox"
                         checked={entry.enabled}
@@ -1010,6 +1014,8 @@ export function BusinessProfileEditor({
           <FormSection
             title={t("businessProfile.details.title")}
             description={t("businessProfile.details.description")}
+            collapsibleOnMobile
+            testId="business-profile-additional-details"
           >
             <div className="grid min-w-0 gap-4 md:grid-cols-2">
               <TextAreaField
@@ -1129,15 +1135,58 @@ function FormSection({
   title,
   description,
   action,
+  collapsibleOnMobile = false,
+  testId,
   children,
 }: {
   title: string;
   description: string;
   action?: React.ReactNode;
+  collapsibleOnMobile?: boolean;
+  testId?: string;
   children: React.ReactNode;
 }) {
+  const detailsRef = React.useRef<HTMLDetailsElement>(null);
+
+  React.useEffect(() => {
+    if (!collapsibleOnMobile) return;
+    const desktop = window.matchMedia("(min-width: 1024px)");
+    const syncDisclosure = () => {
+      if (detailsRef.current) detailsRef.current.open = desktop.matches;
+    };
+    syncDisclosure();
+    desktop.addEventListener("change", syncDisclosure);
+    return () => desktop.removeEventListener("change", syncDisclosure);
+  }, [collapsibleOnMobile]);
+
+  if (collapsibleOnMobile) {
+    return (
+      <details ref={detailsRef} className="group min-w-0 px-4 py-6 sm:px-5" data-testid={testId}>
+        <summary
+          className="flex min-h-11 cursor-pointer list-none items-start justify-between gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 [&::-webkit-details-marker]:hidden"
+          data-testid={testId ? `${testId}-summary` : undefined}
+        >
+          <span className="min-w-0">
+            <span role="heading" aria-level={3} className="block text-sm font-semibold text-zinc-200">
+              {title}
+            </span>
+            <span className="mt-1 block max-w-3xl text-sm text-zinc-600">{description}</span>
+          </span>
+          <ChevronDown
+            className="mt-0.5 h-5 w-5 shrink-0 text-zinc-500 transition-transform group-open:rotate-180"
+            aria-hidden="true"
+          />
+        </summary>
+        <div className="mt-5">
+          {action ? <div className="mb-4 flex justify-end">{action}</div> : null}
+          {children}
+        </div>
+      </details>
+    );
+  }
+
   return (
-    <section className="min-w-0 px-4 py-6 sm:px-5">
+    <section className="min-w-0 px-4 py-6 sm:px-5" data-testid={testId}>
       <div className="mb-5 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h3 className="text-sm font-semibold text-zinc-200">{title}</h3>

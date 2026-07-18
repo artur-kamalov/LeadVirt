@@ -25,6 +25,7 @@ import {
   Sparkles,
   UserCircle,
   CreditCard,
+  UserPlus,
   LogOut,
   ChevronDown,
   RefreshCw,
@@ -503,7 +504,23 @@ export function ProductLayout({
           )}
         </div>
 
-        <LanguageSwitcher className="mt-3 w-full justify-center lg:hidden" />
+        <div className="mt-3 grid grid-cols-2 gap-2 lg:hidden">
+          <LanguageSwitcher className="w-full justify-center" />
+          <button
+            type="button"
+            onClick={toggle}
+            aria-label={t("product.theme.toggle")}
+            className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/5 bg-white/5 px-3 text-sm text-zinc-300 transition-colors hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+            data-testid="product-mobile-theme-toggle"
+          >
+            {theme === "dark" ? (
+              <Sun className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <Moon className="h-4 w-4" aria-hidden="true" />
+            )}
+            <span>{theme === "dark" ? t("product.theme.light") : t("product.theme.dark")}</span>
+          </button>
+        </div>
 
         <Dropdown
           align="start"
@@ -648,11 +665,15 @@ export function ProductLayout({
                 <h1 className="text-lg lg:text-2xl font-bold tracking-tight truncate">
                   {localizedTitle}
                 </h1>
-                {demo && (
-                  <span className="hidden sm:inline-flex shrink-0 items-center rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-300">
-                    {t("product.demo.readOnly")}
+                {demo ? (
+                  <span
+                    className="inline-flex shrink-0 items-center rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-1 text-[10px] font-semibold uppercase text-emerald-300 sm:px-2.5 sm:text-[11px]"
+                    data-testid="product-demo-badge"
+                  >
+                    <span className="sm:hidden">{t("product.demo.short")}</span>
+                    <span className="hidden sm:inline">{t("product.demo.readOnly")}</span>
                   </span>
-                )}
+                ) : null}
               </div>
 
               <div className="flex items-center gap-2 lg:gap-3">
@@ -680,7 +701,7 @@ export function ProductLayout({
                   <button
                     onClick={toggle}
                     aria-label={t("product.theme.toggle")}
-                    className="flex h-11 w-11 items-center justify-center rounded-full border border-white/5 bg-white/5 text-zinc-400 transition-colors hover:text-emerald-400"
+                    className="hidden h-11 w-11 items-center justify-center rounded-full border border-white/5 bg-white/5 text-zinc-400 transition-colors hover:text-emerald-400 sm:flex"
                   >
                     <AnimatePresence mode="wait" initial={false}>
                       {theme === "dark" ? (
@@ -708,80 +729,99 @@ export function ProductLayout({
                   </button>
                 </Tip>
 
-                <Dropdown
-                  className="w-[340px] p-0 overflow-hidden"
-                  trigger={
-                    <button
-                      aria-label={t("product.notifications.label")}
-                      className="relative flex h-11 w-11 items-center justify-center rounded-full border border-white/5 bg-white/5 text-zinc-400 transition-colors hover:text-zinc-100"
+                {demo ? (
+                  <Tip content={t("product.account.create")}>
+                    <Button
+                      asChild
+                      size="sm"
+                      className="h-11 w-11 shrink-0 px-0 xl:w-auto xl:px-4"
                     >
-                      <Bell className="w-5 h-5" />
-                    </button>
-                  }
-                >
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-white/8">
-                    <span className="text-sm font-semibold text-zinc-100">
-                      {t("product.notifications.label")}
-                    </span>
-                  </div>
-                  <div className="max-h-80 overflow-y-auto p-1.5">
-                    {productNotifications.status === "loading" &&
-                    productNotifications.notifications.length === 0 ? (
-                      <div
-                        className="rounded-xl px-3 py-4 text-sm text-zinc-400"
-                        data-testid="product-notifications-loading"
+                      <Link
+                        href="/signup"
+                        aria-label={t("product.account.create")}
+                        data-testid="product-demo-create-account"
                       >
-                        {t("resource.loading")}
-                      </div>
-                    ) : null}
-                    {productNotifications.status === "error" ? (
-                      <ResourceErrorState
-                        testId="product-notifications-error"
-                        onRetry={productNotifications.reload}
-                      />
-                    ) : null}
-                    {productNotifications.status === "success" &&
-                    productNotifications.notifications.length === 0 ? (
-                      <div className="rounded-xl px-3 py-4 text-sm text-zinc-400">
-                        <p className="font-medium text-zinc-300">
-                          {t("product.notifications.none")}
-                        </p>
-                        <p className="mt-1 text-xs text-zinc-500">
-                          {t("product.notifications.noneDetail")}
-                        </p>
-                      </div>
-                    ) : null}
-                    {productNotifications.notifications.map((n) => {
-                      const NIcon = n.icon;
-                      return (
-                        <Link
-                          key={n.id}
-                          href={hrefForRoute("inbox", {}, mode)}
-                          className="flex w-full gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-white/5 transition-colors"
-                        >
-                          <div
-                            className={cn(
-                              "w-8 h-8 shrink-0 rounded-lg bg-white/5 flex items-center justify-center",
-                              n.color,
-                            )}
-                          >
-                            <NIcon className="w-4 h-4" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm text-zinc-200 leading-snug">{n.text}</p>
-                            <p className="text-[11px] text-zinc-500 mt-0.5">{n.time}</p>
-                          </div>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                  <Link
-                    href={hrefForRoute("inbox", {}, mode)}
-                    className="block w-full text-center text-sm font-medium text-emerald-400 hover:bg-white/5 py-3 border-t border-white/8 transition-colors"
+                        <UserPlus className="h-4 w-4" />
+                        <span className="hidden xl:inline">{t("product.account.create")}</span>
+                      </Link>
+                    </Button>
+                  </Tip>
+                ) : (
+                  <Dropdown
+                    className="w-[340px] p-0 overflow-hidden"
+                    trigger={
+                      <button
+                        aria-label={t("product.notifications.label")}
+                        className="relative flex h-11 w-11 items-center justify-center rounded-full border border-white/5 bg-white/5 text-zinc-400 transition-colors hover:text-zinc-100"
+                      >
+                        <Bell className="w-5 h-5" />
+                      </button>
+                    }
                   >
-                    {t("product.notifications.openAll")}
-                  </Link>
-                </Dropdown>
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-white/8">
+                      <span className="text-sm font-semibold text-zinc-100">
+                        {t("product.notifications.label")}
+                      </span>
+                    </div>
+                    <div className="max-h-80 overflow-y-auto p-1.5">
+                      {productNotifications.status === "loading" &&
+                      productNotifications.notifications.length === 0 ? (
+                        <div
+                          className="rounded-xl px-3 py-4 text-sm text-zinc-400"
+                          data-testid="product-notifications-loading"
+                        >
+                          {t("resource.loading")}
+                        </div>
+                      ) : null}
+                      {productNotifications.status === "error" ? (
+                        <ResourceErrorState
+                          testId="product-notifications-error"
+                          onRetry={productNotifications.reload}
+                        />
+                      ) : null}
+                      {productNotifications.status === "success" &&
+                      productNotifications.notifications.length === 0 ? (
+                        <div className="rounded-xl px-3 py-4 text-sm text-zinc-400">
+                          <p className="font-medium text-zinc-300">
+                            {t("product.notifications.none")}
+                          </p>
+                          <p className="mt-1 text-xs text-zinc-500">
+                            {t("product.notifications.noneDetail")}
+                          </p>
+                        </div>
+                      ) : null}
+                      {productNotifications.notifications.map((n) => {
+                        const NIcon = n.icon;
+                        return (
+                          <Link
+                            key={n.id}
+                            href={hrefForRoute("inbox", {}, mode)}
+                            className="flex w-full gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-white/5 transition-colors"
+                          >
+                            <div
+                              className={cn(
+                                "w-8 h-8 shrink-0 rounded-lg bg-white/5 flex items-center justify-center",
+                                n.color,
+                              )}
+                            >
+                              <NIcon className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm text-zinc-200 leading-snug">{n.text}</p>
+                              <p className="text-[11px] text-zinc-500 mt-0.5">{n.time}</p>
+                            </div>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                    <Link
+                      href={hrefForRoute("inbox", {}, mode)}
+                      className="block w-full text-center text-sm font-medium text-emerald-400 hover:bg-white/5 py-3 border-t border-white/8 transition-colors"
+                    >
+                      {t("product.notifications.openAll")}
+                    </Link>
+                  </Dropdown>
+                )}
                 {route !== "inbox" ? (
                   <Button size="sm" className="hidden sm:inline-flex" asChild>
                     <Link

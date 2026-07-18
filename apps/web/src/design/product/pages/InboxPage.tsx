@@ -8,6 +8,7 @@ import {
   MessageSquare,
   Filter,
   X,
+  ChevronRight,
 } from "lucide-react";
 import { ProductLayout } from "../ProductLayout";
 import { Card, Avatar, ChannelBadge, StatusPill, TempPill, channels, stages } from "../shared";
@@ -30,6 +31,72 @@ const LIVE_REFRESH_INTERVAL_MS = 4_000;
 ───────────────────────────────────────────── */
 function needsReply(lead: Lead): boolean {
   return lead.unread > 0;
+}
+
+function HorizontalFilterGroup({
+  label,
+  scrollLabel,
+  testId,
+  children,
+}: {
+  label: string;
+  scrollLabel: string;
+  testId: string;
+  children: React.ReactNode;
+}) {
+  const viewportRef = React.useRef<HTMLDivElement>(null);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const updateOverflow = React.useCallback(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    setCanScrollRight(
+      viewport.scrollLeft + viewport.clientWidth < viewport.scrollWidth - 2,
+    );
+  }, []);
+
+  React.useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    updateOverflow();
+    const observer = new ResizeObserver(updateOverflow);
+    observer.observe(viewport);
+    window.addEventListener("resize", updateOverflow);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateOverflow);
+    };
+  }, [children, updateOverflow]);
+
+  return (
+    <div className="relative min-w-0">
+      <div
+        ref={viewportRef}
+        role="group"
+        aria-label={label}
+        onScroll={updateOverflow}
+        className="flex items-center gap-1.5 overflow-x-auto pb-0.5 pr-10 scrollbar-none"
+      >
+        {children}
+      </div>
+      {canScrollRight ? (
+        <button
+          type="button"
+          aria-label={scrollLabel}
+          data-testid={`${testId}-scroll`}
+          onClick={() => {
+            const viewport = viewportRef.current;
+            if (!viewport) return;
+            viewport.scrollBy({ left: Math.max(120, viewport.clientWidth * 0.7) });
+          }}
+          className="absolute inset-y-0 right-0 flex w-11 items-center justify-end border-l border-white/5 bg-zinc-950 pr-1 text-zinc-400 transition-colors hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+        >
+          <ChevronRight aria-hidden="true" className="h-4 w-4" />
+        </button>
+      ) : null}
+    </div>
+  );
 }
 
 function useInboxLeads(locale: Locale) {
@@ -399,8 +466,29 @@ export function InboxPage({ initialSearch = "" }: { initialSearch?: string }) {
 
   const needsReplyCount = filtered.filter(needsReply).length;
 
-  const channelIds = Object.keys(channels) as ChannelId[];
-  const stageIds = Object.keys(stages) as StageId[];
+  const channelIds = useMemo(
+    () =>
+      (Object.keys(channels) as ChannelId[]).filter((id) =>
+        inboxLeads.some((lead) => lead.channel === id),
+      ),
+    [inboxLeads],
+  );
+  const stageIds = useMemo(
+    () =>
+      (Object.keys(stages) as StageId[]).filter((id) =>
+        inboxLeads.some((lead) => lead.stage === id),
+      ),
+    [inboxLeads],
+  );
+
+  React.useEffect(() => {
+    if (channelFilter !== "all" && !channelIds.includes(channelFilter)) {
+      setChannelFilter("all");
+    }
+    if (stageFilter !== "all" && !stageIds.includes(stageFilter)) {
+      setStageFilter("all");
+    }
+  }, [channelFilter, channelIds, stageFilter, stageIds]);
 
   return (
     <ProductLayout title={t("ops.inbox.title")}>
@@ -434,10 +522,10 @@ export function InboxPage({ initialSearch = "" }: { initialSearch?: string }) {
               </div>
 
               {/* Channel chips */}
-              <div
-                role="group"
-                aria-label={t("ops.inbox.channelFilters")}
-                className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none"
+              <HorizontalFilterGroup
+                label={t("ops.inbox.channelFilters")}
+                scrollLabel={t("ops.inbox.scrollFilters")}
+                testId="inbox-channel-filters"
               >
                 <ChannelChip
                   id="all"
@@ -452,13 +540,13 @@ export function InboxPage({ initialSearch = "" }: { initialSearch?: string }) {
                     onClick={() => setChannelFilter(id)}
                   />
                 ))}
-              </div>
+              </HorizontalFilterGroup>
 
               {/* Stage chips */}
-              <div
-                role="group"
-                aria-label={t("ops.inbox.statusFilters")}
-                className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none"
+              <HorizontalFilterGroup
+                label={t("ops.inbox.statusFilters")}
+                scrollLabel={t("ops.inbox.scrollFilters")}
+                testId="inbox-status-filters"
               >
                 <StageChip
                   id="all"
@@ -473,7 +561,7 @@ export function InboxPage({ initialSearch = "" }: { initialSearch?: string }) {
                     onClick={() => setStageFilter(id)}
                   />
                 ))}
-              </div>
+              </HorizontalFilterGroup>
 
               {/* Summary */}
               <div className="flex items-center gap-2" role="status" aria-live="polite">

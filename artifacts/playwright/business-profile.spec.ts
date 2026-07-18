@@ -564,3 +564,53 @@ test("read-only profile stays visible and the populated mobile layout does not o
     animations: "disabled",
   });
 });
+
+test("mobile profile keeps schedule times together and discloses additional details on demand", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  await authenticate(page);
+  await installMocks(page);
+  await page.setViewportSize({ width: 320, height: 800 });
+  await openBusinessProfile(page);
+
+  const additionalDetails = page.getByTestId("business-profile-additional-details");
+  const additionalDetailsSummary = page.getByTestId("business-profile-additional-details-summary");
+  await expect(additionalDetails).not.toHaveAttribute("open", "");
+  await expect(page.getByTestId("business-profile-faq")).not.toBeVisible();
+
+  const summaryBox = await additionalDetailsSummary.boundingBox();
+  expect(summaryBox?.height).toBeGreaterThanOrEqual(44);
+  await additionalDetailsSummary.click();
+  await expect(additionalDetails).toHaveAttribute("open", "");
+  await expect(page.getByTestId("business-profile-faq")).toBeVisible();
+
+  const dayLabel = page.getByTestId("business-profile-day-MON-label");
+  const opensAt = page.getByTestId("business-profile-day-MON-opens");
+  const closesAt = page.getByTestId("business-profile-day-MON-closes");
+  await dayLabel.scrollIntoViewIfNeeded();
+  const [labelBox, opensBox, closesBox] = await Promise.all([
+    dayLabel.boundingBox(),
+    opensAt.boundingBox(),
+    closesAt.boundingBox(),
+  ]);
+  expect(labelBox).not.toBeNull();
+  expect(opensBox).not.toBeNull();
+  expect(closesBox).not.toBeNull();
+  expect(labelBox!.y + labelBox!.height).toBeLessThanOrEqual(opensBox!.y + 1);
+  expect(Math.abs(opensBox!.y - closesBox!.y)).toBeLessThanOrEqual(1);
+  expect(opensBox!.x).toBeLessThan(closesBox!.x);
+  expect(closesBox!.x + closesBox!.width).toBeLessThanOrEqual(320);
+});
+
+test("demo business profile uses a concise mobile product title", async ({ context, page }) => {
+  await context.addCookies([
+    { name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" },
+  ]);
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.goto(`${webBase}/demo/knowledge?view=business`, { waitUntil: "domcontentloaded" });
+
+  await expect(page.getByTestId("business-profile-editor")).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator("header h1").first()).toHaveText("Knowledge");
+  await expect(page.locator("header h1").first()).not.toHaveText("Business knowledge");
+});

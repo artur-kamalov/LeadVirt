@@ -154,10 +154,19 @@ test("dashboard recent lead row is a real conversation link", async ({ page }) =
     });
   });
 
-  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.setViewportSize({ width: 320, height: 800 });
   await page.goto(`${webBase}/app`, { waitUntil: "networkidle" });
 
-  await page.getByRole("link", { name: /Pilot Core Recent Lead/ }).click();
+  const recentLead = page.getByRole("link", { name: /Pilot Core Recent Lead/ });
+  const recentLeadName = page.getByTestId("dashboard-recent-lead-name");
+  await expect(recentLeadName).toHaveText("Pilot Core Recent Lead");
+  expect(
+    await recentLeadName.evaluate((element) => element.scrollWidth <= element.clientWidth),
+  ).toBe(true);
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+
+  await recentLead.click();
   await expect(page).toHaveURL(/\/app\/inbox\/pilot-core-conversation$/, { timeout: 15_000 });
 });
 

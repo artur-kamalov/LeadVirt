@@ -205,6 +205,7 @@ const en = {
   "integrations.disconnect": "Disconnect",
   "integrations.connecting": "Connecting...",
   "integrations.connect": "Connect",
+  "integrations.demoConnect": "Create account to connect",
   "integrations.disconnectTitle": "Disconnect integration?",
   "integrations.disconnectDescription":
     "{name} will be disconnected. You can reconnect it at any time.",
@@ -375,6 +376,7 @@ const ru = locale({
   "integrations.disconnect": "Отключить",
   "integrations.connecting": "Подключаем...",
   "integrations.connect": "Подключить",
+  "integrations.demoConnect": "Создать аккаунт для подключения",
   "integrations.disconnectTitle": "Отключить интеграцию?",
   "integrations.disconnectDescription":
     "{name} будет отключён. Вы сможете подключить его снова в любое время.",
@@ -621,6 +623,7 @@ const es = locale({
   "integrations.disconnect": "Desconectar",
   "integrations.connecting": "Conectando...",
   "integrations.connect": "Conectar",
+  "integrations.demoConnect": "Crear cuenta para conectar",
   "integrations.disconnectTitle": "¿Desconectar la integración?",
   "integrations.disconnectDescription":
     "La conexión con {name} se interrumpirá. Puedes restablecerla en cualquier momento.",
@@ -868,6 +871,7 @@ const fr = locale({
   "integrations.disconnect": "Déconnecter",
   "integrations.connecting": "Connexion...",
   "integrations.connect": "Connecter",
+  "integrations.demoConnect": "Créer un compte pour connecter",
   "integrations.disconnectTitle": "Déconnecter l'intégration ?",
   "integrations.disconnectDescription":
     "La connexion à {name} sera interrompue. Vous pourrez la rétablir à tout moment.",
@@ -1114,6 +1118,7 @@ const de = locale({
   "integrations.disconnect": "Trennen",
   "integrations.connecting": "Verbindung...",
   "integrations.connect": "Verbinden",
+  "integrations.demoConnect": "Konto zum Verbinden erstellen",
   "integrations.disconnectTitle": "Integration trennen?",
   "integrations.disconnectDescription":
     "{name} wird getrennt. Sie können die Integration jederzeit erneut verbinden.",
@@ -1354,6 +1359,7 @@ const pt = locale({
   "integrations.disconnect": "Desconectar",
   "integrations.connecting": "Conectando...",
   "integrations.connect": "Conectar",
+  "integrations.demoConnect": "Criar conta para conectar",
   "integrations.disconnectTitle": "Desconectar integração?",
   "integrations.disconnectDescription":
     "{name} será desconectada. Você poderá reconectá-la a qualquer momento.",

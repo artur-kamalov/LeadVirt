@@ -122,17 +122,22 @@ test("mobile onboarding announces progress, intent availability, and saving stat
     });
   });
 
-  await page.setViewportSize({ width: 390, height: 844 });
+  await page.setViewportSize({ width: 320, height: 800 });
   await page.goto(`${webBase}/onboarding`, { waitUntil: "domcontentloaded" });
 
   const progress = page.getByRole("progressbar", { name: "Step 2 of 6" });
   await expect(progress).toHaveAttribute("aria-valuenow", "2");
+  await expect(page.getByTestId("language-switcher")).toBeVisible();
   const skip = page.getByRole("button", { name: "Skip" });
   const skipBox = await skip.boundingBox();
+  expect(skipBox).not.toBeNull();
+  expect(skipBox!.x).toBeGreaterThanOrEqual(0);
+  expect(skipBox!.x + skipBox!.width).toBeLessThanOrEqual(320);
   expect(skipBox?.width).toBeGreaterThanOrEqual(44);
   expect(skipBox?.height).toBeGreaterThanOrEqual(44);
 
-  const requestedChannel = page.getByRole("button", { name: /WhatsApp.*By request/i });
+  await expect(page.getByText(/saved only as preferences; no request is sent automatically/i)).toBeVisible();
+  const requestedChannel = page.getByRole("button", { name: /WhatsApp.*Managed setup/i });
   await expect(requestedChannel).toHaveAttribute("aria-pressed", "false");
   await expect(page.getByRole("button", { name: /Telegram.*Available/i })).toBeVisible();
   await requestedChannel.click();

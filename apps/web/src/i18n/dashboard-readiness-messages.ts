@@ -6,6 +6,8 @@ const en = {
   "dashboard.readiness.description.ready":
     "Knowledge, channels, and automatic replies have passed the launch checks.",
   "dashboard.readiness.progress": "{completed} of {total} complete",
+  "dashboard.readiness.steps.show": "Show all steps",
+  "dashboard.readiness.steps.hide": "Show less",
   "dashboard.readiness.status.completed": "Complete",
   "dashboard.readiness.status.current": "Next step",
   "dashboard.readiness.status.blocked": "After the previous step",
@@ -75,6 +77,8 @@ export const dashboardReadinessMessages = {
     "dashboard.readiness.description.ready":
       "Знания, каналы и автоматические ответы прошли проверку запуска.",
     "dashboard.readiness.progress": "Готово: {completed} из {total}",
+    "dashboard.readiness.steps.show": "Показать все шаги",
+    "dashboard.readiness.steps.hide": "Свернуть список",
     "dashboard.readiness.status.completed": "Готово",
     "dashboard.readiness.status.current": "Следующий шаг",
     "dashboard.readiness.status.blocked": "После предыдущего шага",
@@ -136,6 +140,8 @@ export const dashboardReadinessMessages = {
     "dashboard.readiness.description.ready":
       "El conocimiento, los canales y las respuestas automáticas pasaron las comprobaciones.",
     "dashboard.readiness.progress": "{completed} de {total} completados",
+    "dashboard.readiness.steps.show": "Mostrar todos los pasos",
+    "dashboard.readiness.steps.hide": "Mostrar menos",
     "dashboard.readiness.status.completed": "Completado",
     "dashboard.readiness.status.current": "Siguiente paso",
     "dashboard.readiness.status.blocked": "Después del paso anterior",
@@ -200,6 +206,8 @@ export const dashboardReadinessMessages = {
     "dashboard.readiness.description.ready":
       "Les connaissances, les canaux et les réponses automatiques ont été vérifiés.",
     "dashboard.readiness.progress": "{completed} sur {total} terminées",
+    "dashboard.readiness.steps.show": "Afficher toutes les étapes",
+    "dashboard.readiness.steps.hide": "Afficher moins",
     "dashboard.readiness.status.completed": "Terminé",
     "dashboard.readiness.status.current": "Étape suivante",
     "dashboard.readiness.status.blocked": "Après l’étape précédente",
@@ -263,6 +271,8 @@ export const dashboardReadinessMessages = {
     "dashboard.readiness.description.ready":
       "Wissen, Kanäle und automatische Antworten haben die Prüfungen bestanden.",
     "dashboard.readiness.progress": "{completed} von {total} abgeschlossen",
+    "dashboard.readiness.steps.show": "Alle Schritte anzeigen",
+    "dashboard.readiness.steps.hide": "Weniger anzeigen",
     "dashboard.readiness.status.completed": "Abgeschlossen",
     "dashboard.readiness.status.current": "Nächster Schritt",
     "dashboard.readiness.status.blocked": "Nach dem vorherigen Schritt",
@@ -327,6 +337,8 @@ export const dashboardReadinessMessages = {
     "dashboard.readiness.description.ready":
       "Conhecimento, canais e respostas automáticas passaram nas verificações.",
     "dashboard.readiness.progress": "{completed} de {total} concluídas",
+    "dashboard.readiness.steps.show": "Mostrar todas as etapas",
+    "dashboard.readiness.steps.hide": "Mostrar menos",
     "dashboard.readiness.status.completed": "Concluído",
     "dashboard.readiness.status.current": "Próxima etapa",
     "dashboard.readiness.status.blocked": "Após a etapa anterior",

@@ -234,6 +234,7 @@ export const fr: Record<BaseTranslationKey, string> = {
   "product.menu.open": "Ouvrir le menu",
   "product.menu.close": "Fermer le menu",
   "product.menu.navigation": "Navigation",
+  "product.demo.short": "Démo",
   "product.demo.readOnly": "Démo en lecture seule",
   "product.search.form": "Rechercher des prospects et des discussions",
   "product.search.input": "Recherche globale",
@@ -308,7 +309,7 @@ export const fr: Record<BaseTranslationKey, string> = {
   "dashboard.recent.emptyDetail":
     "De nouvelles demandes apparaîtront après avoir connecté un canal ou reçu un webhook.",
   "dashboard.activity.title": "Activité",
-  "dashboard.activity.description": "Événements en temps réel",
+  "dashboard.activity.description": "Événements récents de l’espace de travail",
   "dashboard.activity.empty": "Aucun événement pour l'instant",
   "dashboard.activity.emptyDetail":
     "Les événements produits apparaîtront après les nouveaux prospects, tâches, réservations ou connexions.",
@@ -348,9 +349,9 @@ export const fr: Record<BaseTranslationKey, string> = {
   "onboarding.business.local": "Entreprise locale",
   "onboarding.channels.title": "Où les clients vous contactent-ils ?",
   "onboarding.channels.description":
-    "Choisissez les canaux. Les options disponibles peuvent être connectées maintenant ; les autres sont enregistrées comme demande ou projet.",
+    "Choisissez les canaux. Les options disponibles pourront être connectées après la configuration. Les options accompagnées et prévues sont uniquement enregistrées comme préférences ; aucune demande n’est envoyée automatiquement.",
   "onboarding.availability.available": "Disponible",
-  "onboarding.availability.request": "Sur demande",
+  "onboarding.availability.request": "Configuration accompagnée",
   "onboarding.availability.planned": "Prévu",
   "onboarding.scenario.title": "Choisissez un objectif de configuration",
   "onboarding.scenario.description":
@@ -398,8 +399,8 @@ export const fr: Record<BaseTranslationKey, string> = {
   "onboarding.crm.amoDescription": "CRM de vente populaire en Russie",
   "onboarding.crm.bitrixDescription": "Portail d'entreprise avec pipeline de ventes",
   "onboarding.crm.retailDescription": "CRM spécialisé pour le commerce électronique",
-  "onboarding.crm.none": "Pas de CRM (tableau de bord)",
-  "onboarding.crm.noneDescription": "Tous les prospects resteront dans l'administrateur IA",
+  "onboarding.crm.none": "Boîte de réception LeadVirt",
+  "onboarding.crm.noneDescription": "Toutes les conversations restent dans la boîte LeadVirt",
   "onboarding.summary.business": "Professionnel",
   "onboarding.summary.channels": "Canaux",
   "onboarding.summary.notSelected": "Non sélectionné",

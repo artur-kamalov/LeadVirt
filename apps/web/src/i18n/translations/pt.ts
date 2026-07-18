@@ -231,6 +231,7 @@ export const pt: Record<BaseTranslationKey, string> = {
   "product.menu.open": "Abrir menu",
   "product.menu.close": "Fechar menu",
   "product.menu.navigation": "Navegação",
+  "product.demo.short": "Demo",
   "product.demo.readOnly": "Demonstração somente leitura",
   "product.search.form": "Pesquisar leads e bate-papos",
   "product.search.input": "Pesquisa global",
@@ -304,7 +305,7 @@ export const pt: Record<BaseTranslationKey, string> = {
   "dashboard.recent.emptyDetail":
     "Novas consultas aparecerão depois que você conectar um canal ou receber um webhook.",
   "dashboard.activity.title": "Atividade",
-  "dashboard.activity.description": "Eventos em tempo real",
+  "dashboard.activity.description": "Eventos recentes do espaço de trabalho",
   "dashboard.activity.empty": "Nenhum evento ainda",
   "dashboard.activity.emptyDetail":
     "Os eventos do produto aparecerão após novos leads, tarefas, reservas ou conexões.",
@@ -344,9 +345,9 @@ export const pt: Record<BaseTranslationKey, string> = {
   "onboarding.business.local": "Empresa local",
   "onboarding.channels.title": "Onde os clientes entram em contato com você?",
   "onboarding.channels.description":
-    "Escolha os canais. As opções disponíveis podem ser conectadas agora; as demais ficam salvas como solicitação ou plano.",
+    "Escolha os canais. As opções disponíveis podem ser conectadas após a configuração. As opções assistidas e planejadas são salvas apenas como preferências; nenhuma solicitação é enviada automaticamente.",
   "onboarding.availability.available": "Disponível",
-  "onboarding.availability.request": "Sob solicitação",
+  "onboarding.availability.request": "Configuração assistida",
   "onboarding.availability.planned": "Planejado",
   "onboarding.scenario.title": "Escolha um objetivo de configuração",
   "onboarding.scenario.description":
@@ -394,8 +395,8 @@ export const pt: Record<BaseTranslationKey, string> = {
   "onboarding.crm.amoDescription": "CRM de vendas popular na Rússia",
   "onboarding.crm.bitrixDescription": "Portal corporativo com pipeline de vendas",
   "onboarding.crm.retailDescription": "CRM especializado para e-commerce",
-  "onboarding.crm.none": "Sem CRM (dashboard)",
-  "onboarding.crm.noneDescription": "Todos os leads permanecerão no Administrador de IA",
+  "onboarding.crm.none": "Caixa de entrada da LeadVirt",
+  "onboarding.crm.noneDescription": "Todas as conversas ficam na caixa de entrada da LeadVirt",
   "onboarding.summary.business": "Negócios",
   "onboarding.summary.channels": "Canais",
   "onboarding.summary.notSelected": "Não selecionado",

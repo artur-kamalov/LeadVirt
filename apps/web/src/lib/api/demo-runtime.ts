@@ -25,6 +25,7 @@ import type {
   LegacyApiKeyCleanupSummary,
   Lead,
   LeadEvent,
+  KnowledgeV2OverviewView,
   Message,
   PaginatedEnvelope,
   PricingPlan,
@@ -216,6 +217,118 @@ function pricingPlans(): PricingPlan[] {
 
 const plans = pricingPlans();
 
+function demoKnowledgeOverview(): KnowledgeV2OverviewView {
+  const evaluatedAt = iso(15);
+  const itemCounts = {
+    documentRevisions: 1,
+    factVersions: 8,
+    guidanceRuleVersions: 4,
+    sourcePermissionSnapshots: 1,
+  };
+  const capability = {
+    capabilityId: "demo-capability-qualification",
+    capabilityType: "LEAD_QUALIFICATION" as const,
+    name: "Lead qualification",
+    enabled: true,
+    allowedAutonomy: "COLLECT_INFORMATION" as const,
+    generation: 1,
+    etag: '"demo-capability-1"',
+    status: "READY" as const,
+    weight: 1,
+    requirements: [
+      {
+        id: "demo-evaluation-case",
+        kind: "EVALUATION_CASE" as const,
+        label: "Customer answer test",
+        status: "SATISFIED" as const,
+        severity: "BLOCKER" as const,
+        riskLevel: "LOW" as const,
+        explanation: "The sample answer passed its knowledge check.",
+        evidence: [],
+        evaluatedAt,
+      },
+    ],
+    blockerCount: 0,
+    warningCount: 0,
+  };
+  const activePublicationId = "demo-publication-v2";
+
+  return {
+    readiness: {
+      targetKey: "default",
+      candidateId: "demo-candidate-v2",
+      candidateVersion: 2,
+      candidateManifestHash: "demo-manifest-v2",
+      activePublicationId,
+      activePublicationSequence: 2,
+      status: "READY",
+      serving: {
+        status: "READY",
+        activePublicationId,
+        activePublicationSequence: 2,
+        activeEtag: '"demo-publication-v2"',
+        itemCounts,
+        blockers: [],
+        capabilitySetHash: "demo-capability-set-v2",
+        requirementEvaluationSetHash: "demo-requirements-v2",
+        capabilities: [capability],
+      },
+      draft: {
+        status: "UP_TO_DATE",
+        candidateId: "demo-candidate-v2",
+        candidateVersion: 2,
+        candidateManifestHash: "demo-manifest-v2",
+        validationId: "demo-validation-v2",
+        evaluationTestCaseSetHash: "demo-tests-v2",
+        itemCounts,
+        blockers: [],
+        warnings: [],
+        latestJob: null,
+        capabilitySetHash: "demo-capability-set-v2",
+        requirementEvaluationSetHash: "demo-requirements-v2",
+        capabilities: [capability],
+      },
+      capabilities: [capability],
+      blockerCount: 0,
+      warningCount: 0,
+      needsReviewCount: 0,
+      evaluatedAt,
+    },
+    activePublication: {
+      id: activePublicationId,
+      targetKey: "default",
+      sequence: 2,
+      status: "ACTIVE",
+      isActive: true,
+      validationId: "demo-validation-v2",
+      itemCounts,
+      validationStatus: "PASSED",
+      capabilitySetHash: "demo-capability-set-v2",
+      requirementEvaluationSetHash: "demo-requirements-v2",
+      allowedActions: ["VIEW"],
+      createdAt: iso(190),
+      activatedAt: iso(180),
+    },
+    latestDraftPublication: null,
+    counts: {
+      sources: 1,
+      facts: 8,
+      guidanceRules: 4,
+      reviewItems: 0,
+      failedJobs: 0,
+    },
+    recentJobs: [],
+    permissions: {
+      canViewRestricted: true,
+      canEdit: false,
+      canManageSettings: false,
+      canVerifyHighRisk: false,
+      canPublish: false,
+      canRollback: false,
+    },
+  };
+}
+
 function baseChannels(): Channel[] {
   return [
     {
@@ -245,8 +358,11 @@ function baseChannels(): Channel[] {
         },
       },
       lastHealthAt: iso(12),
-      automaticRepliesEnabled: false,
+      automaticRepliesEnabled: true,
       automaticRepliesGeneration: 1,
+      automaticRepliesPublicationId: "demo-publication-v2",
+      automaticRepliesPublicationEtag: 1,
+      automaticRepliesActivatedAt: iso(180),
     },
     {
       id: "demo-channel-telegram",
@@ -257,8 +373,11 @@ function baseChannels(): Channel[] {
       publicKey: "demo-telegram",
       settings: { botUsername: "studio_leto_bot" },
       lastHealthAt: iso(5),
-      automaticRepliesEnabled: false,
+      automaticRepliesEnabled: true,
       automaticRepliesGeneration: 1,
+      automaticRepliesPublicationId: "demo-publication-v2",
+      automaticRepliesPublicationEtag: 1,
+      automaticRepliesActivatedAt: iso(180),
     },
   ];
 }
@@ -622,11 +741,11 @@ function buildInitialState(): DemoState {
       businessProfileEtag: '"demo-business-profile-1"',
       businessProfileUpdatedAt: iso(3600),
       currentStep: "launch",
-      completedSteps: ["business", "channels", "scenario", "company", "launch"],
+      completedSteps: ["business", "channels", "scenario", "company", "crm", "launch"],
       data: {
         businessType: "beauty",
         selectedChannels: ["website", "telegram"],
-        scenario: "qualification",
+        scenario: "consult",
         crm: "none",
         companyInfo: {
           services: [
@@ -808,7 +927,7 @@ function integration(
         ? [
             {
               id: `${provider}-sync`,
-              action: "sync.completed",
+              action: provider === "TELEGRAM" ? "sample_inbound" : "sync.completed",
               status: "SUCCESS",
               message: "Sync completed",
               createdAt: iso(21),
@@ -1685,6 +1804,12 @@ export function demoApiRequest<T>(path: string, init: RequestInit = {}): T {
 
   if (method === "GET" && pathname === "/business-profile") {
     return envelope(clone(demoBusinessProfileView(s))) as T;
+  }
+  if (method === "GET" && pathname === "/knowledge/v2/overview") {
+    return envelope(clone(demoKnowledgeOverview())) as T;
+  }
+  if (method === "GET" && pathname === "/knowledge/v2/readiness") {
+    return envelope(clone(demoKnowledgeOverview().readiness)) as T;
   }
   if (method === "PATCH" && pathname === "/business-profile") {
     const profilePatch = isRecord(body.profile) ? body.profile : {};

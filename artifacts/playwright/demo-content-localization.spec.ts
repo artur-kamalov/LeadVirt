@@ -5,6 +5,7 @@ import type {
   ApiEnvelope,
   BusinessProfileView,
   DashboardSummary,
+  KnowledgeV2OverviewView,
 } from "@leadvirt/types";
 import { localizeDemoSeedText } from "../../apps/web/src/i18n/demo-seed-messages";
 import { supportedLocales, type Locale } from "../../apps/web/src/i18n/config";
@@ -222,6 +223,22 @@ test("demo business hours and analytics match the available evidence", () => {
   expect(analytics.aiInsightCodes).toEqual([]);
 });
 
+test("demo Knowledge resolves the active publication advertised by readiness", () => {
+  const overview = demoApiRequest<ApiEnvelope<KnowledgeV2OverviewView>>(
+    "/knowledge/v2/overview",
+  ).data;
+
+  expect(overview.activePublication).toMatchObject({
+    id: overview.readiness.activePublicationId,
+    sequence: overview.readiness.activePublicationSequence,
+    status: "ACTIVE",
+    isActive: true,
+  });
+  expect(overview.readiness.serving.activePublicationId).toBe(
+    overview.activePublication?.id,
+  );
+});
+
 test("managed integration confirmation addresses the requester in all locales", () => {
   const requesterTerms: Record<Locale, string> = {
     en: "contact you",
@@ -259,6 +276,32 @@ test("interactive demo only claims supported pilot outcomes", async ({ page }) =
   );
   await expect(page.getByText("Instagram", { exact: true })).toHaveCount(0);
   await expect(page.getByText("VK", { exact: true })).toHaveCount(0);
+  await expect(page.getByTestId("dashboard-readiness-progress").getByRole("progressbar")).toHaveAttribute(
+    "aria-valuenow",
+    "7",
+  );
+  await expect(page.getByTestId("dashboard-readiness-primary")).toHaveAttribute(
+    "href",
+    "/demo/inbox",
+  );
+
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.goto(`${webBase}/demo/inbox`, { waitUntil: "domcontentloaded" });
+  const channelFilters = page.getByRole("group", {
+    name: messages.en["ops.inbox.channelFilters"],
+  });
+  const statusFilters = page.getByRole("group", {
+    name: messages.en["ops.inbox.statusFilters"],
+  });
+  for (const unsupportedChannel of ["Instagram", "WhatsApp", "VK", "Email", "Call"]) {
+    await expect(channelFilters.getByText(unsupportedChannel, { exact: true })).toHaveCount(0);
+  }
+  for (const unsupportedStage of [messages.en["stage.booked"], messages.en["stage.crm"]]) {
+    await expect(statusFilters.getByText(unsupportedStage, { exact: true })).toHaveCount(0);
+  }
+  await expect(page.getByTestId("inbox-status-filters-scroll")).toBeVisible();
+
+  await page.setViewportSize({ width: 1440, height: 1000 });
 
   await page.goto(`${webBase}/demo/analytics`, { waitUntil: "domcontentloaded" });
   await expect(
@@ -296,6 +339,16 @@ test("interactive demo only claims supported pilot outcomes", async ({ page }) =
   await expect(page.getByTestId("integration-card-instagram")).not.toContainText(
     messages.en["integrations.connected"],
   );
+  await expect(
+    page
+      .getByTestId("integration-card-webhook")
+      .getByRole("link", { name: messages.en["integrations.demoConnect"] }),
+  ).toHaveAttribute("href", "/signup");
+
+  await page.goto(`${webBase}/demo/onboarding`, { waitUntil: "domcontentloaded" });
+  await expect(page.getByText("Summer Studio", { exact: true })).toBeVisible();
+  await expect(page.getByText(messages.en["onboarding.scenario.consult"], { exact: true })).toBeVisible();
+  await expect(page.getByText(messages.en["onboarding.crm.none"], { exact: true })).toBeVisible();
 
   await page.goto(`${webBase}/widget/demo`, { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: widgetMessage("ru", "widget.chat.open") }).click();
