@@ -142,7 +142,9 @@ test("mobile onboarding announces progress, intent availability, and saving stat
   await expect(page.getByRole("button", { name: "Saving...", exact: true })).toBeVisible();
   await expect(page.getByRole("status")).toContainText("Saving...");
   releaseFirstPatch?.();
-  await expect(page.getByRole("heading", { name: "Choose an AI workflow" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Choose a setup goal" })).toBeVisible();
+  await expect(page.getByText(/does not activate an automation/i)).toBeVisible();
+  await expect(page.getByText(/books customers automatically/i)).toHaveCount(0);
 });
 
 test("company onboarding fields expose associated required labels", async ({ context, page }) => {
@@ -305,7 +307,7 @@ test("onboarding does not expose a blank form when saved state cannot load", asy
   recover = true;
   await error.getByRole("button").click();
   await expect(error).toBeHidden();
-  await expect(page.getByRole("heading", { name: "Choose an AI workflow" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Choose a setup goal" })).toBeVisible();
   expect(getRequests).toBeGreaterThanOrEqual(2);
 });
 

@@ -217,7 +217,11 @@ test("Inbox, Conversation, and Pipeline render all six operational locales", asy
     await expect(page.getByTestId("inbox-needs-reply")).toHaveText(
       messages[locale]["ops.inbox.awaitingReply"],
     );
-    await expect(page.getByRole("button", { name: messages[locale]["ops.common.toCrm"], exact: true })).toBeVisible();
+    await expect(
+      page
+        .getByTestId("inbox-lead-summary")
+        .getByRole("button", { name: messages[locale]["ops.inbox.openConversation"], exact: true }),
+    ).toBeVisible();
     await expect(page.getByText(expectedRelativeTime(locale), { exact: true }).first()).toBeVisible();
     await expect(page.getByText(messages[locale]["ops.common.service"], { exact: true })).toBeVisible();
     await expect(page.getByText(unidentifiedRequest[locale], { exact: true })).toBeVisible();
@@ -229,7 +233,9 @@ test("Inbox, Conversation, and Pipeline render all six operational locales", asy
   for (const locale of supportedLocales) {
     await selectLocale(page, locale);
     await expect(page.getByText(messages[locale]["ops.conversation.title"], { exact: true }).first()).toBeVisible();
-    await expect(page.getByRole("button", { name: messages[locale]["ops.conversation.sendToCrm"] }).first()).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: messages[locale]["ops.common.qualified"] }).first(),
+    ).toBeVisible();
     await expect(page.getByText(expectedRelativeTime(locale), { exact: true }).first()).toBeVisible();
     await expect(page.getByText(unidentifiedRequest[locale], { exact: true })).toBeVisible();
     await expect(page.getByText(websiteWidgetSource[locale], { exact: true })).toBeVisible();
@@ -245,16 +251,11 @@ test("Inbox, Conversation, and Pipeline render all six operational locales", asy
   }
 });
 
-test("localized operational controls keep their API actions wired", async ({ page }) => {
-  let crmCalled = false;
+test("localized supported operational controls keep their API actions wired", async ({ page }) => {
   let handoffCalled = false;
   let qualifiedStatus = "";
 
   await page.context().addCookies([{ name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" }]);
-  await page.route(`**/api/leads/${leadId}/actions/send-to-crm`, async (route) => {
-    crmCalled = true;
-    await route.fulfill({ json: { data: lead("SENT_TO_CRM") } });
-  });
   await page.route(`**/api/conversations/${conversationId}/handoff`, async (route) => {
     handoffCalled = true;
     await route.fulfill({ json: { data: { ...conversation(), status: "WAITING_FOR_HUMAN", handoffRequested: true } } });
@@ -266,8 +267,11 @@ test("localized operational controls keep their API actions wired", async ({ pag
 
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(`${webBase}/app/inbox`, { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: messages.en["ops.common.toCrm"], exact: true }).click();
-  await expect.poll(() => crmCalled).toBe(true);
+  await expect(
+    page
+      .getByTestId("inbox-lead-summary")
+      .getByRole("button", { name: messages.en["ops.inbox.openConversation"], exact: true }),
+  ).toBeVisible();
 
   await page.goto(`${webBase}/app/inbox/${conversationId}`, { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: messages.en["ops.conversation.menuLabel"] }).click();

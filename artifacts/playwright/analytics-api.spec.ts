@@ -113,7 +113,8 @@ test("analytics page renders API overview data", async ({ page }) => {
   await expect.poll(() => requested).toBe(true);
   await expect.poll(() => requestedPeriods).toContain("30d");
   await expect(page.getByText("Playwright сценарий").first()).toBeVisible();
-  await expect(page.getByText("Playwright insight from analytics API")).toBeVisible();
+  await expect(page.getByText("Playwright insight from analytics API")).toHaveCount(0);
+  await expect(page.getByTestId("analytics-recommendations-empty")).toBeVisible();
   await expect(page.getByText(/987.*тыс.*₽/)).toBeVisible();
 
   await page.getByRole("button", { name: "7 дней" }).click();
@@ -130,11 +131,11 @@ test("analytics page renders API overview data", async ({ page }) => {
   const csv = readFileSync(downloadPath!, "utf8");
   expect(csv).toContain("7 дней");
   expect(csv).toContain("Playwright сценарий");
-  expect(csv).toContain("Playwright insight from analytics API");
+  expect(csv).not.toContain("Playwright insight from analytics API");
   expect(csv).toMatch(/987.*тыс.*₽/);
 });
 
-test("analytics API returns stable insight codes instead of localized prose", async ({ page }) => {
+test("analytics API does not invent recommendations without measured evidence", async ({ page }) => {
   const response = await page.request.get(`${apiBase}/analytics/overview?period=30d`);
   expect(response.ok()).toBeTruthy();
   const payload = (await response.json()) as {
@@ -142,14 +143,7 @@ test("analytics API returns stable insight codes instead of localized prose", as
   };
 
   expect(payload.data.aiInsights).toBeUndefined();
-  expect(Array.isArray(payload.data.aiInsightCodes)).toBeTruthy();
-  const allowed = new Set([
-    "CHANNEL_VALUE",
-    "HIGH_RISK_HANDOFF",
-    "EARLY_BOOKING_TIME",
-    "PRICE_FOLLOWUP",
-  ]);
-  expect(payload.data.aiInsightCodes!.every((code) => allowed.has(code))).toBeTruthy();
+  expect(payload.data.aiInsightCodes).toEqual([]);
 });
 
 test("analytics blocks export on load failure and retries without fake KPIs", async ({ page }) => {
@@ -176,7 +170,8 @@ test("analytics blocks export on load failure and retries without fake KPIs", as
   recover = true;
   await error.getByRole("button").click();
   await expect(error).toBeHidden();
-  await expect(page.getByText("Playwright insight from analytics API")).toBeVisible();
+  await expect(page.getByText("Playwright insight from analytics API")).toHaveCount(0);
+  await expect(page.getByTestId("analytics-recommendations-empty")).toBeVisible();
   expect(requests).toBeGreaterThanOrEqual(2);
 });
 
@@ -213,12 +208,13 @@ test("analytics keeps the last successful period truthful when a new period fail
   });
 
   await page.goto(`${webBase}/app/analytics`);
-  await expect(page.getByText("Playwright insight from analytics API")).toBeVisible();
+  await expect(page.getByText("Playwright insight from analytics API")).toHaveCount(0);
+  await expect(page.getByTestId("analytics-recommendations-empty")).toBeVisible();
   await selectLocale(page, "en");
 
   await page.getByRole("button", { name: "7 days" }).click();
   await expect(page.getByTestId("analytics-refresh-error")).toBeVisible();
-  await expect(page.getByText("Playwright insight from analytics API")).toBeVisible();
+  await expect(page.getByText("Playwright insight from analytics API")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "30 days" })).toHaveAttribute(
     "aria-pressed",
     "true",
@@ -239,7 +235,8 @@ test("analytics keeps the last successful period truthful when a new period fail
   recoverSevenDays = true;
   await page.getByTestId("analytics-refresh-error").getByRole("button").click();
   await expect(page.getByTestId("analytics-refresh-error")).toBeHidden();
-  await expect(page.getByText("Recovered seven-day insight")).toBeVisible();
+  await expect(page.getByText("Recovered seven-day insight")).toHaveCount(0);
+  await expect(page.getByTestId("analytics-recommendations-empty")).toBeVisible();
   await expect(page.getByRole("button", { name: "7 days" })).toHaveAttribute(
     "aria-pressed",
     "true",

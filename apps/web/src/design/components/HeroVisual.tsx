@@ -8,27 +8,27 @@ export const HeroVisual = () => {
   const { t } = useI18n();
 
   return (
-    <div className="relative w-full aspect-square md:aspect-video max-w-4xl mx-auto mt-16 lg:mt-0 flex items-center justify-center">
+    <div className="relative mx-auto flex aspect-[8/1] w-full max-w-4xl items-center justify-center sm:aspect-video">
       {/* Background abstract elements */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-zinc-900/35 to-transparent border border-zinc-800/50 rounded-3xl overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden rounded-2xl border border-zinc-800/50 bg-gradient-to-b from-transparent via-zinc-900/35 to-transparent sm:rounded-3xl">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
       </div>
 
       {/* Center AI Node */}
       <div
-        className="leadvirt-hero-node-pulse absolute z-20 w-24 h-24 rounded-2xl bg-zinc-900 border border-emerald-500/30 flex items-center justify-center rotate-45"
+        className="leadvirt-hero-node-pulse absolute z-20 flex h-12 w-12 rotate-45 items-center justify-center rounded-xl border border-emerald-500/30 bg-zinc-900 sm:h-24 sm:w-24 sm:rounded-2xl"
       >
         <div className="rotate-[-45deg] relative">
-          <Sparkles className="w-8 h-8 text-emerald-400" />
+          <Sparkles className="h-6 w-6 text-emerald-400 sm:h-8 sm:w-8" />
           <div
-            className="absolute -inset-4 border border-dashed border-emerald-500/20 rounded-full"
+            className="absolute -inset-3 rounded-full border border-dashed border-emerald-500/20 sm:-inset-4"
             style={{ animation: "leadvirt-hero-spin 10s linear infinite" }}
           />
         </div>
       </div>
 
       {/* Incoming Messages (Left) */}
-      <div className="absolute left-[10%] top-[20%] space-y-4 z-10">
+      <div className="absolute left-[3%] top-[14%] z-10 space-y-2 sm:left-[10%] sm:top-[20%] sm:space-y-4">
         {[
           { text: t("hero.message.booking"), delay: 0 },
           { text: t("hero.message.price"), delay: 1.5 },
@@ -36,7 +36,7 @@ export const HeroVisual = () => {
         ].map((msg, i) => (
           <div
             key={i}
-            className="leadvirt-hero-message-card flex items-center gap-3 bg-zinc-800/90 border border-zinc-700 p-3 rounded-2xl rounded-tl-sm text-sm text-zinc-300 w-48 shadow-xl"
+            className={`leadvirt-hero-message-card ${i === 0 ? "flex" : "sr-only sm:not-sr-only sm:flex"} w-24 items-center gap-2 rounded-xl rounded-tl-sm border border-zinc-700 bg-zinc-800/90 p-2 text-xs text-zinc-300 shadow-xl sm:w-48 sm:gap-3 sm:rounded-2xl sm:p-3 sm:text-sm`}
             style={{ animationDelay: `${msg.delay}s` }}
           >
             <MessageSquare className="w-4 h-4 text-zinc-400 shrink-0" />
@@ -46,7 +46,7 @@ export const HeroVisual = () => {
       </div>
 
       {/* Outgoing CRM / Tasks (Right) */}
-      <div className="absolute right-[10%] bottom-[20%] space-y-4 z-10">
+      <div className="absolute bottom-[14%] right-[3%] z-10 space-y-2 sm:bottom-[20%] sm:right-[10%] sm:space-y-4">
         {[
           { icon: Calendar, text: t("hero.task.booking"), color: "text-blue-400", bg: "bg-blue-400/10", border: "border-blue-400/20", delay: 0.5 },
           { icon: Database, text: t("hero.task.crm"), color: "text-purple-400", bg: "bg-purple-400/10", border: "border-purple-400/20", delay: 2 },
@@ -54,7 +54,7 @@ export const HeroVisual = () => {
         ].map((task, i) => (
           <div
             key={i}
-            className={`leadvirt-hero-task-card flex items-center gap-3 ${task.bg} border ${task.border} p-3 rounded-xl text-sm text-zinc-200 w-52 shadow-xl`}
+            className={`leadvirt-hero-task-card ${i === 0 ? "flex" : "sr-only sm:not-sr-only sm:flex"} w-24 items-center gap-2 rounded-xl border ${task.border} ${task.bg} p-2 text-xs text-zinc-200 shadow-xl sm:w-52 sm:gap-3 sm:p-3 sm:text-sm`}
             style={{ animationDelay: `${task.delay}s` }}
           >
             <task.icon className={`w-4 h-4 ${task.color} shrink-0`} />

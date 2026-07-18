@@ -126,10 +126,10 @@ const en = {
   "ops.conversation.demo1": "Hello! I would like coloring and a haircut. Is Friday after 5 PM available?",
   "ops.conversation.demo2": "Hello! Friday at 6 PM is available with Alina. To estimate the price: is your hair shoulder-length or longer?",
   "ops.conversation.demo3": "Shoulder-length. I want a warm blonde without heavy bleaching.",
-  "ops.conversation.demo4": "The estimate is RUB 14,000-16,000 and about three hours. Shall I book Friday at 6 PM?",
-  "ops.conversation.demo5": "Yes, please book it. Phone: +7 999 123-45-67.",
-  "ops.conversation.demo6": "Done: Friday at 6 PM is booked, the lead is created, and the manager has the service, budget, and phone details.",
-  "ops.conversation.demoFollowup": "Thank you! I will clarify the details, suggest the nearest time, and save the lead for the manager.",
+  "ops.conversation.demo4": "The estimate is RUB 14,000-16,000 and about three hours. Shall I pass Friday at 6 PM to the manager as your preferred time?",
+  "ops.conversation.demo5": "Yes, please pass it on. Phone: +7 999 123-45-67.",
+  "ops.conversation.demo6": "Done: the lead is qualified and the manager has the service, preferred time, budget, and phone. They will confirm the request in this chat.",
+  "ops.conversation.demoFollowup": "Thank you! I will clarify the details and pass the request to the manager for confirmation.",
   "ops.pipeline.title": "Pipeline / CRM",
   "ops.pipeline.heading": "Sales pipeline",
   "ops.pipeline.count": "{count} leads",
@@ -140,8 +140,8 @@ const en = {
   "ops.pipeline.list": "List",
   "ops.pipeline.total": "Total leads",
   "ops.pipeline.value": "Pipeline value",
-  "ops.pipeline.conversion": "Conversion",
-  "ops.pipeline.average": "Average value",
+  "ops.pipeline.conversion": "Qualification rate",
+  "ops.pipeline.average": "Avg. qualified lead value",
   "ops.pipeline.distribution": "Distribution by stage",
   "ops.pipeline.noLeads": "No leads",
   "ops.pipeline.lead": "Lead",
@@ -171,8 +171,15 @@ const ruTranslated: Record<OperationalTranslationKey, string> = {
 
 const ru: Record<OperationalTranslationKey, string> = {
   ...ruTranslated,
+  "ops.pipeline.conversion": "Доля квалифицированных",
+  "ops.pipeline.average": "Средняя сумма квалифицированного лида",
   "ops.conversation.demo4":
-    "Тогда ориентир 14 000-16 000 ₽ и около 3 часов. Забронировать пятницу 18:00?",
+    "Ориентир 14 000-16 000 ₽ и около 3 часов. Передать менеджеру пятницу 18:00 как удобное время?",
+  "ops.conversation.demo5": "Да, передайте. Телефон +7 999 123-45-67.",
+  "ops.conversation.demo6":
+    "Готово: лид квалифицирован, у менеджера есть услуга, удобное время, бюджет и телефон. Он подтвердит заявку в этом чате.",
+  "ops.conversation.demoFollowup":
+    "Спасибо! Я уточню детали и передам заявку менеджеру для подтверждения.",
 };
 
 const esTranslated = translateOperational({
@@ -256,10 +263,10 @@ const esTranslated = translateOperational({
   "ops.conversation.demo1": "¡Hola! Quiero coloración y corte. ¿Hay disponibilidad el viernes después de las 17:00?",
   "ops.conversation.demo2": "¡Hola! Alina está disponible el viernes a las 18:00. Para estimar el precio: ¿el cabello llega a los hombros o es más largo?",
   "ops.conversation.demo3": "Hasta los hombros. Quiero un rubio cálido sin decoloración intensa.",
-  "ops.conversation.demo4": "El precio estimado es de 14.000 a 16.000 RUB y unas tres horas. ¿Reservo el viernes a las 18:00?",
-  "ops.conversation.demo5": "Sí, resérvalo. Teléfono: +7 999 123-45-67.",
-  "ops.conversation.demo6": "Listo: viernes a las 18:00 reservado, lead creado y datos enviados al responsable.",
-  "ops.conversation.demoFollowup": "¡Gracias! Aclararé los detalles, propondré el horario más cercano y guardaré el lead para el responsable.",
+  "ops.conversation.demo4": "El precio estimado es de 14.000 a 16.000 RUB y unas tres horas. ¿Paso al responsable el viernes a las 18:00 como horario preferido?",
+  "ops.conversation.demo5": "Sí, páselo. Teléfono: +7 999 123-45-67.",
+  "ops.conversation.demo6": "Listo: el lead está cualificado y el responsable tiene el servicio, horario preferido, presupuesto y teléfono. Confirmará la solicitud en este chat.",
+  "ops.conversation.demoFollowup": "¡Gracias! Aclararé los detalles y pasaré la solicitud al responsable para que la confirme.",
   "ops.pipeline.leadActions": "Acciones del lead: {name}",
   "ops.pipeline.advance": "Mover a la siguiente etapa",
   "ops.pipeline.advanceLead": "Mover lead: {name}",
@@ -273,6 +280,8 @@ const esTranslated = translateOperational({
 });
 const es: Record<OperationalTranslationKey, string> = {
   ...esTranslated,
+  "ops.pipeline.conversion": "Tasa de cualificación",
+  "ops.pipeline.average": "Valor medio del lead cualificado",
   "ops.common.service": "Solicitud del cliente",
   "ops.conversation.transcriptService": "Solicitud del cliente",
   "ops.inbox.awaitingReply": "Requiere respuesta",
@@ -370,10 +379,10 @@ const frTranslated = translateOperational({
   "ops.conversation.demo1": "Bonjour ! Je souhaite une coloration et une coupe. Avez-vous une place vendredi après 17 h ?",
   "ops.conversation.demo2": "Bonjour ! Alina est disponible vendredi à 18 h. Pour estimer le prix : vos cheveux arrivent-ils aux épaules ou sont-ils plus longs ?",
   "ops.conversation.demo3": "Aux épaules. Je souhaite un blond chaud sans forte décoloration.",
-  "ops.conversation.demo4": "Comptez 14 000 à 16 000 RUB et environ trois heures. Je réserve vendredi à 18 h ?",
-  "ops.conversation.demo5": "Oui, merci. Téléphone : +7 999 123-45-67.",
-  "ops.conversation.demo6": "C’est fait : vendredi à 18 h est réservé, le prospect est créé et le responsable a reçu les informations.",
-  "ops.conversation.demoFollowup": "Merci ! Je vais préciser les détails, proposer le prochain créneau et enregistrer le prospect pour le responsable.",
+  "ops.conversation.demo4": "Comptez 14 000 à 16 000 RUB et environ trois heures. Dois-je transmettre vendredi à 18 h au responsable comme horaire souhaité ?",
+  "ops.conversation.demo5": "Oui, transmettez-le. Téléphone : +7 999 123-45-67.",
+  "ops.conversation.demo6": "C’est fait : le prospect est qualifié et le responsable dispose du service, de l’horaire souhaité, du budget et du téléphone. Il confirmera la demande dans ce chat.",
+  "ops.conversation.demoFollowup": "Merci ! Je vais préciser les détails et transmettre la demande au responsable pour confirmation.",
   "ops.pipeline.leadActions": "Actions du prospect : {name}",
   "ops.pipeline.advance": "Passer à l’étape suivante",
   "ops.pipeline.advanceLead": "Déplacer le prospect : {name}",
@@ -387,6 +396,8 @@ const frTranslated = translateOperational({
 });
 const fr: Record<OperationalTranslationKey, string> = {
   ...frTranslated,
+  "ops.pipeline.conversion": "Taux de qualification",
+  "ops.pipeline.average": "Valeur moyenne du prospect qualifié",
   "ops.common.service": "Demande du client",
   "ops.conversation.transcriptService": "Demande du client",
   "ops.inbox.awaitingReply": "Réponse requise",
@@ -484,10 +495,10 @@ const deTranslated = translateOperational({
   "ops.conversation.demo1": "Hallo! Ich möchte Färben und Schneiden. Ist Freitag nach 17 Uhr etwas frei?",
   "ops.conversation.demo2": "Hallo! Alina hat Freitag um 18 Uhr Zeit. Zur Preiseinschätzung: Sind die Haare schulterlang oder länger?",
   "ops.conversation.demo3": "Schulterlang. Ich möchte warmes Blond ohne starke Aufhellung.",
-  "ops.conversation.demo4": "Die Schätzung liegt bei 14.000 bis 16.000 RUB und etwa drei Stunden. Soll ich Freitag um 18 Uhr buchen?",
-  "ops.conversation.demo5": "Ja, bitte buchen. Telefon: +7 999 123-45-67.",
-  "ops.conversation.demo6": "Erledigt: Freitag um 18 Uhr ist gebucht, der Lead wurde erstellt und der Manager hat alle Angaben.",
-  "ops.conversation.demoFollowup": "Danke! Ich kläre die Details, schlage den nächsten Termin vor und speichere den Lead für den Manager.",
+  "ops.conversation.demo4": "Die Schätzung liegt bei 14.000 bis 16.000 RUB und etwa drei Stunden. Soll ich Freitag um 18 Uhr als Wunschzeit an den Manager weitergeben?",
+  "ops.conversation.demo5": "Ja, bitte weitergeben. Telefon: +7 999 123-45-67.",
+  "ops.conversation.demo6": "Erledigt: Der Lead ist qualifiziert und der Manager hat Leistung, Wunschzeit, Budget und Telefonnummer. Die Anfrage wird in diesem Chat bestätigt.",
+  "ops.conversation.demoFollowup": "Danke! Ich kläre die Details und gebe die Anfrage zur Bestätigung an den Manager weiter.",
   "ops.pipeline.leadActions": "Lead-Aktionen: {name}",
   "ops.pipeline.advance": "In die nächste Phase verschieben",
   "ops.pipeline.advanceLead": "Lead verschieben: {name}",
@@ -501,6 +512,8 @@ const deTranslated = translateOperational({
 });
 const de: Record<OperationalTranslationKey, string> = {
   ...deTranslated,
+  "ops.pipeline.conversion": "Qualifizierungsrate",
+  "ops.pipeline.average": "Ø-Wert qualifizierter Leads",
   "ops.common.service": "Kundenanfrage",
   "ops.conversation.transcriptService": "Kundenanfrage",
   "ops.inbox.awaitingReply": "Antwort nötig",
@@ -598,10 +611,10 @@ const ptTranslated = translateOperational({
   "ops.conversation.demo1": "Olá! Quero coloração e corte. Há horário na sexta-feira depois das 17h?",
   "ops.conversation.demo2": "Olá! Alina está disponível na sexta às 18h. Para estimar o preço: o cabelo está na altura dos ombros ou é mais longo?",
   "ops.conversation.demo3": "Na altura dos ombros. Quero um loiro quente sem descoloração intensa.",
-  "ops.conversation.demo4": "A estimativa é de RUB 14.000 a 16.000 e cerca de três horas. Posso agendar sexta às 18h?",
-  "ops.conversation.demo5": "Sim, pode agendar. Telefone: +7 999 123-45-67.",
-  "ops.conversation.demo6": "Pronto: sexta às 18h está agendada, o lead foi criado e o responsável recebeu os dados.",
-  "ops.conversation.demoFollowup": "Obrigado! Vou confirmar os detalhes, sugerir o próximo horário e salvar o lead para o responsável.",
+  "ops.conversation.demo4": "A estimativa é de RUB 14.000 a 16.000 e cerca de três horas. Posso informar ao responsável sexta às 18h como horário preferido?",
+  "ops.conversation.demo5": "Sim, pode encaminhar. Telefone: +7 999 123-45-67.",
+  "ops.conversation.demo6": "Pronto: o lead está qualificado e o responsável tem o serviço, horário preferido, orçamento e telefone. A solicitação será confirmada neste chat.",
+  "ops.conversation.demoFollowup": "Obrigado! Vou confirmar os detalhes e encaminhar a solicitação ao responsável para confirmação.",
   "ops.pipeline.leadActions": "Ações do lead: {name}",
   "ops.pipeline.advance": "Mover para a próxima etapa",
   "ops.pipeline.advanceLead": "Mover lead: {name}",
@@ -615,6 +628,8 @@ const ptTranslated = translateOperational({
 });
 const pt: Record<OperationalTranslationKey, string> = {
   ...ptTranslated,
+  "ops.pipeline.conversion": "Taxa de qualificação",
+  "ops.pipeline.average": "Valor médio do lead qualificado",
   "ops.common.service": "Solicitação do cliente",
   "ops.conversation.transcriptService": "Solicitação do cliente",
   "ops.inbox.awaitingReply": "Precisa de resposta",

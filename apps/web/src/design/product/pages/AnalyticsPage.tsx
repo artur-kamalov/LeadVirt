@@ -173,6 +173,7 @@ function buildAnalyticsCsv({
   formatDate,
   formatNumber,
   t,
+  includeBookings = true,
 }: {
   periodLabel: string;
   kpis: Kpi[];
@@ -185,6 +186,7 @@ function buildAnalyticsCsv({
   formatDate: (value: Date | string | number, options?: Intl.DateTimeFormatOptions) => string;
   formatNumber: (value: number, options?: Intl.NumberFormatOptions) => string;
   t: Translate;
+  includeBookings?: boolean;
 }) {
   const generatedAt = formatDate(new Date(), {
     dateStyle: "medium",
@@ -227,7 +229,9 @@ function buildAnalyticsCsv({
       t("suite.analytics.csvLeadsByDay"),
       point.day,
       formatNumber(point.leads),
-      t("suite.analytics.csvBookings", { count: formatNumber(point.booked) }),
+      includeBookings
+        ? t("suite.analytics.csvBookings", { count: formatNumber(point.booked) })
+        : "",
     ]),
     ...insights.map((insight) => [
       t("suite.analytics.csvRecommendations"),
@@ -245,6 +249,7 @@ function kpisFromOverview(
   t: Translate,
   formatNumber: (value: number, options?: Intl.NumberFormatOptions) => string,
   formatCurrency: (value: number, currency?: string) => string,
+  pilotDemo = false,
 ): Kpi[] {
   const totalLeads = overview.leadsByChannel.reduce((sum, channel) => sum + channel.leads, 0);
   const weightedConversion =
@@ -265,11 +270,14 @@ function kpisFromOverview(
     formatNumber(bookingsOrders),
     formatCurrency(overview.estimatedRevenue),
   ];
-  return kpiStyles.map((item, index) => ({
-    ...item,
-    label: t(item.labelKey),
-    value: values[index] ?? "",
-  }));
+  return kpiStyles
+    .map((item, index) => ({
+      ...item,
+      label: t(item.labelKey),
+      value: values[index] ?? "",
+      index,
+    }))
+    .filter(({ index }) => !pilotDemo || index < 3);
 }
 
 function channelPerformanceFromOverview(overview: AnalyticsOverview): ChannelPerformance[] {
@@ -356,9 +364,7 @@ const aiRecommendationStyles = [
 ];
 
 function aiRecommendationsFromOverview(overview: AnalyticsOverview, locale: Locale, sub = "") {
-  const insights = overview.aiInsightCodes?.length
-    ? overview.aiInsightCodes.map((code) => analyticsInsightLabel(code, locale))
-    : (overview.aiInsights ?? []);
+  const insights = (overview.aiInsightCodes ?? []).map((code) => analyticsInsightLabel(code, locale));
   if (insights.length === 0) return [];
 
   return insights.map((insight, index) => {
@@ -426,7 +432,7 @@ export function AnalyticsPage() {
     );
   }
 
-  const displayKpis = kpisFromOverview(overview, t, formatNumber, formatCompactCurrency);
+  const displayKpis = kpisFromOverview(overview, t, formatNumber, formatCompactCurrency, demo);
   const analyticsChannels = channelPerformanceFromOverview(overview);
   const scenarioData = scenarioConversionFromOverview(overview, locale, demo);
   const responseData = responseSummaryFromOverview(overview, t);
@@ -463,6 +469,7 @@ export function AnalyticsPage() {
       formatDate,
       formatNumber,
       t,
+      includeBookings: !demo,
     });
     const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -525,7 +532,12 @@ export function AnalyticsPage() {
         </motion.div>
 
         {/* ── KPI strip ── */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div
+          className={cn(
+            "grid grid-cols-2 gap-3 sm:grid-cols-3",
+            demo ? "lg:grid-cols-3" : "lg:grid-cols-5",
+          )}
+        >
           {displayKpis.map((kpi, i) => {
             const Icon = kpi.icon;
             return (
@@ -723,7 +735,7 @@ export function AnalyticsPage() {
           >
             <Card className="p-6">
               <SectionTitle
-                title={t("suite.analytics.leadsBookings")}
+                title={demo ? t("suite.analytics.leads") : t("suite.analytics.leadsBookings")}
                 sub={t("suite.analytics.weeklyTrend")}
               />
               {leadsTrend.length > 0 ? (
@@ -768,17 +780,19 @@ export function AnalyticsPage() {
                       dot={{ r: 3, fill: "#34d399", strokeWidth: 0 }}
                       activeDot={{ r: 5 }}
                     />
-                    <Area
-                      key="booked"
-                      type="monotone"
-                      dataKey="booked"
-                      name={t("suite.analytics.bookings")}
-                      stroke="#818cf8"
-                      strokeWidth={2}
-                      fill="url(#gradBooked)"
-                      dot={{ r: 3, fill: "#818cf8", strokeWidth: 0 }}
-                      activeDot={{ r: 5 }}
-                    />
+                    {!demo ? (
+                      <Area
+                        key="booked"
+                        type="monotone"
+                        dataKey="booked"
+                        name={t("suite.analytics.bookings")}
+                        stroke="#818cf8"
+                        strokeWidth={2}
+                        fill="url(#gradBooked)"
+                        dot={{ r: 3, fill: "#818cf8", strokeWidth: 0 }}
+                        activeDot={{ r: 5 }}
+                      />
+                    ) : null}
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (

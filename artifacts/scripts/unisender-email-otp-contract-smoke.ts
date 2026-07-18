@@ -1,4 +1,7 @@
-import { EmailOtpDeliveryService } from "../../apps/api/src/modules/auth/email-otp-delivery.service.js";
+import {
+  EmailDeliveryFailure,
+  EmailOtpDeliveryService,
+} from "../../apps/api/src/modules/auth/email-otp-delivery.service.js";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -143,6 +146,10 @@ async function main() {
     }
     assert(providerError instanceof Error, "UniSender recipient errors must reject delivery.");
     assert(
+      providerError instanceof EmailDeliveryFailure && providerError.outcome === "rejected",
+      "A definite UniSender recipient rejection was not classified as rejected.",
+    );
+    assert(
       providerError.message === "Email delivery is temporarily unavailable.",
       "Provider details must not leak through auth errors.",
     );
@@ -166,6 +173,42 @@ async function main() {
       "UniSender reset provider details must not leak through auth errors.",
     );
 
+    globalThis.fetch = async () => new Response("", { status: 503 });
+    providerError = undefined;
+    try {
+      await service.sendOperationalEmail({
+        email: "ops@leadvirt.test",
+        subject: "LeadVirt.ai integration request: Instagram",
+        text: "Tenant ID: tenant-contract",
+        referenceKey: "integration-request-contract-503",
+        purpose: "integration_connection_request",
+      });
+    } catch (error) {
+      providerError = error;
+    }
+    assert(
+      providerError instanceof EmailDeliveryFailure && providerError.outcome === "unknown",
+      "A UniSender 5xx response was incorrectly treated as a definite rejection.",
+    );
+
+    globalThis.fetch = async () => new Response("", { status: 429 });
+    providerError = undefined;
+    try {
+      await service.sendOperationalEmail({
+        email: "ops@leadvirt.test",
+        subject: "LeadVirt.ai integration request: Instagram",
+        text: "Tenant ID: tenant-contract",
+        referenceKey: "integration-request-contract-429",
+        purpose: "integration_connection_request",
+      });
+    } catch (error) {
+      providerError = error;
+    }
+    assert(
+      providerError instanceof EmailDeliveryFailure && providerError.outcome === "rejected",
+      "A UniSender rate limit was not classified as a definite rejection.",
+    );
+
     process.env.NODE_ENV = "production";
     delete process.env.AUTH_EMAIL_OTP_ENABLED;
     assert(
@@ -183,7 +226,7 @@ async function main() {
         `Production ${unsupportedProvider} reset delivery did not fail closed.`,
       );
     }
-    console.log(JSON.stringify({ ok: true, checks: 26 }));
+    console.log(JSON.stringify({ ok: true, checks: 29 }));
   } finally {
     globalThis.fetch = originalFetch;
     if (originalNodeEnv === undefined) delete process.env.NODE_ENV;

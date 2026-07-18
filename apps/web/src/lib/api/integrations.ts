@@ -1,4 +1,9 @@
-import type { IntegrationAccount, IntegrationSampleDeliveryResult, IntegrationTestResult } from "@leadvirt/types";
+import type {
+  IntegrationAccount,
+  IntegrationConnectionRequest,
+  IntegrationSampleDeliveryResult,
+  IntegrationTestResult,
+} from "@leadvirt/types";
 import { apiData, jsonBody } from "./client";
 
 export function listIntegrations() {
@@ -9,6 +14,12 @@ export function connectIntegration(provider: string, input: { botToken?: string 
   return apiData<IntegrationAccount>(`/integrations/${provider}/connect`, {
     method: "POST",
     ...jsonBody(input)
+  });
+}
+
+export function requestIntegrationConnection(provider: string) {
+  return apiData<IntegrationConnectionRequest>(`/integrations/${provider}/request`, {
+    method: "POST",
   });
 }
 

@@ -352,20 +352,21 @@ export const fr: Record<BaseTranslationKey, string> = {
   "onboarding.availability.available": "Disponible",
   "onboarding.availability.request": "Sur demande",
   "onboarding.availability.planned": "Prévu",
-  "onboarding.scenario.title": "Choisissez un flux de travail IA",
-  "onboarding.scenario.description": "Comment votre assistant IA doit-il fonctionner ?",
+  "onboarding.scenario.title": "Choisissez un objectif de configuration",
+  "onboarding.scenario.description":
+    "Enregistrez un objectif à configurer plus tard. Cette étape n’active aucune automatisation.",
   "onboarding.scenario.booking": "Réservation de services",
   "onboarding.scenario.bookingDescription":
-    "L'IA réserve automatiquement les clients et confirme la date, l'heure et le spécialiste",
+    "Objectif : recueillir la date, l’heure et le spécialiste souhaités pour confirmation par l’équipe",
   "onboarding.scenario.order": "Traitement des commandes",
   "onboarding.scenario.orderDescription":
-    "Accepte les commandes, confirme les détails et les envoie pour traitement",
+    "Objectif : recueillir les détails de la commande et les transmettre à l’équipe pour traitement",
   "onboarding.scenario.consult": "Consultation et qualification",
   "onboarding.scenario.consultDescription":
-    "Répond aux questions, identifie les besoins et qualifie les prospects",
+    "Objectif : répondre à partir des connaissances approuvées, identifier les besoins et qualifier les prospects",
   "onboarding.scenario.support": "Support client",
   "onboarding.scenario.supportDescription":
-    "Gère les demandes courantes et réduit la charge de travail de l'équipe",
+    "Objectif : répondre aux questions courantes avec les connaissances approuvées et transférer si nécessaire",
   "onboarding.company.title": "Informations sur l'entreprise",
   "onboarding.company.description": "L'IA utilise ces informations lorsqu'elle parle aux clients",
   "onboarding.company.name": "Nom de l'entreprise",
@@ -402,7 +403,7 @@ export const fr: Record<BaseTranslationKey, string> = {
   "onboarding.summary.business": "Professionnel",
   "onboarding.summary.channels": "Canaux",
   "onboarding.summary.notSelected": "Non sélectionné",
-  "onboarding.summary.scenario": "Flux de travail IA",
+  "onboarding.summary.scenario": "Objectif de configuration",
   "onboarding.summary.company": "Entreprise",
   "onboarding.ready.title": "Configuration initiale enregistrée",
   "onboarding.ready.description":

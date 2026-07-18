@@ -19,11 +19,8 @@ import { cn } from "../../lib/utils";
 import { Dropdown, DropdownItem, DropdownSeparator, Skeleton, Tip } from "../ui";
 import { toast } from "sonner";
 import {
-  bookLeadAppointment,
-  createLeadTask,
   getLead,
   getPipelineSummary,
-  sendLeadToCrm,
   updateLead,
   type PipelineSummary,
 } from "@/lib/api/leads";
@@ -37,7 +34,7 @@ import { ResourceErrorState } from "../ResourceErrorState";
 /* ─────────────────────────────────────────────
    Summary helpers
 ───────────────────────────────────────────── */
-type LeadAction = "qualified" | "crm" | "task" | "booking" | "closed";
+type LeadAction = "qualified" | "closed";
 
 type LeadMutationToken = {
   leadId: string;
@@ -71,15 +68,19 @@ function fallbackPatchForAction(action: LeadAction): Partial<Lead> {
   switch (action) {
     case "qualified":
       return { stage: "qualified" };
-    case "crm":
-      return { stage: "crm" };
-    case "booking":
-      return { stage: "booked" };
     case "closed":
       return { stage: "closed" };
-    case "task":
-      return {};
   }
+}
+
+function nextManualStage(stage: StageId): StageId | null {
+  if (stage === "new") return "progress";
+  if (stage === "progress") return "qualified";
+  return null;
+}
+
+function canQualifyLead(stage: StageId) {
+  return stage === "new" || stage === "progress";
 }
 
 function formatLeadAmounts(
@@ -117,14 +118,16 @@ const LeadCard = React.forwardRef<
     lead: Lead;
     onAdvance: (id: string) => void;
     onAction: (id: string, action: LeadAction) => void;
-    isLast: boolean;
+    canAdvance: boolean;
     canManage: boolean;
     pending: boolean;
   }
->(function LeadCard({ lead, onAdvance, onAction, isLast, canManage, pending }, ref) {
+>(function LeadCard({ lead, onAdvance, onAction, canAdvance, canManage, pending }, ref) {
   const { go } = useNav();
   const { formatCurrency, t } = useI18n();
   const conversationId = lead.conversationId ?? lead.id;
+  const canQualify = canQualifyLead(lead.stage);
+  const canClose = lead.stage !== "closed";
 
   return (
     <motion.div
@@ -167,24 +170,19 @@ const LeadCard = React.forwardRef<
               <DropdownItem onClick={() => go("conversation", { id: conversationId })}>
                 {t("ops.inbox.openConversation")}
               </DropdownItem>
-              {canManage ? (
+              {canManage && (canQualify || canClose) ? (
                 <>
-                  <DropdownItem onClick={() => onAction(lead.id, "qualified")}>
-                    {t("ops.common.qualified")}
-                  </DropdownItem>
-                  <DropdownItem onClick={() => onAction(lead.id, "crm")}>
-                    {t("ops.conversation.sendToCrm")}
-                  </DropdownItem>
-                  <DropdownItem onClick={() => onAction(lead.id, "task")}>
-                    {t("ops.common.createTask")}
-                  </DropdownItem>
-                  <DropdownItem onClick={() => onAction(lead.id, "booking")}>
-                    {t("ops.common.bookAppointment")}
-                  </DropdownItem>
-                  <DropdownSeparator />
-                  <DropdownItem danger onClick={() => onAction(lead.id, "closed")}>
-                    {t("ops.pipeline.close")}
-                  </DropdownItem>
+                  {canQualify ? (
+                    <DropdownItem onClick={() => onAction(lead.id, "qualified")}>
+                      {t("ops.common.qualified")}
+                    </DropdownItem>
+                  ) : null}
+                  {canQualify && canClose ? <DropdownSeparator /> : null}
+                  {canClose ? (
+                    <DropdownItem danger onClick={() => onAction(lead.id, "closed")}>
+                      {t("ops.pipeline.close")}
+                    </DropdownItem>
+                  ) : null}
                 </>
               ) : null}
             </Dropdown>
@@ -211,7 +209,7 @@ const LeadCard = React.forwardRef<
           </div>
 
           {/* Advance stage button */}
-          {!isLast && canManage && (
+          {canAdvance && canManage && (
             <Tip content={t("ops.pipeline.advance")}>
               <button
                 onClick={(e) => {
@@ -253,7 +251,7 @@ function KanbanColumn({
 }) {
   const { formatCurrency, t } = useI18n();
   const stage = stages[stageId];
-  const isLast = stageId === "closed";
+  const canAdvance = nextManualStage(stageId) !== null;
   const total = formatLeadAmounts(columnLeads, formatCurrency);
 
   return (
@@ -304,7 +302,7 @@ function KanbanColumn({
                 lead={lead}
                 onAdvance={onAdvance}
                 onAction={onAction}
-                isLast={isLast}
+                canAdvance={canAdvance}
                 canManage={canManage}
                 pending={pendingLeadIds.has(lead.id)}
               />
@@ -360,7 +358,7 @@ function ListView({
           <AnimatePresence>
             {leads.map((lead) => {
               const stage = stages[lead.stage];
-              const isLast = lead.stage === "closed";
+              const canAdvance = nextManualStage(lead.stage) !== null;
               return (
                 <motion.tr
                   key={lead.id}
@@ -396,7 +394,7 @@ function ListView({
                     <TempPill t={lead.temp} />
                   </td>
                   <td className="px-4 py-3">
-                    {!isLast && canManage && (
+                    {canAdvance && canManage && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -428,17 +426,20 @@ function StatChip({
   icon: Icon,
   label,
   value,
+  testId,
   accent = "text-emerald-400",
   bg = "bg-emerald-500/10",
 }: {
   icon: React.ElementType;
   label: string;
   value: string;
+  testId?: string;
   accent?: string;
   bg?: string;
 }) {
   return (
     <motion.div
+      data-testid={testId}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
@@ -552,9 +553,8 @@ export function PipelinePage() {
     if (!permissions.canManageLeads) return;
     const lead = leads.find((item) => item.id === id);
     if (!lead) return;
-    const idx = stageOrder.indexOf(lead.stage);
-    if (idx === stageOrder.length - 1) return;
-    const next = stageOrder[idx + 1];
+    const next = nextManualStage(lead.stage);
+    if (!next) return;
 
     if (!apiBacked) {
       replaceLead(id, { stage: next });
@@ -583,11 +583,13 @@ export function PipelinePage() {
     if (!permissions.canManageLeads) return;
     const lead = leads.find((item) => item.id === id);
     if (!lead) return;
+    if (action === "qualified" && !canQualifyLead(lead.stage)) return;
+    if (action === "closed" && lead.stage === "closed") return;
     const localPatch = fallbackPatchForAction(action);
 
     if (!apiBacked) {
       replaceLead(id, localPatch);
-      toast.success(action === "task" ? t("ops.common.taskCreated") : t("ops.pipeline.actionDone"));
+      toast.success(t("ops.pipeline.actionDone"));
       return;
     }
 
@@ -599,33 +601,6 @@ export function PipelinePage() {
         if (!isCurrentLeadMutation(mutationToken)) return;
         replaceWithApiLead(id, updated);
         toast.success(t("ops.pipeline.leadQualified"));
-        return;
-      }
-
-      if (action === "crm") {
-        const updated = await sendLeadToCrm(id);
-        if (!isCurrentLeadMutation(mutationToken)) return;
-        replaceWithApiLead(id, updated);
-        toast.success(t("ops.common.crmSent"));
-        return;
-      }
-
-      if (action === "task") {
-        await createLeadTask(id, t("ops.pipeline.taskTitle"));
-        if (!isCurrentLeadMutation(mutationToken)) return;
-        toast.success(t("ops.common.taskCreated"));
-        return;
-      }
-
-      if (action === "booking") {
-        await bookLeadAppointment(
-          id,
-          lead.service || t("ops.common.bookingFallback"),
-          new Date(Date.now() + 24 * 60 * 60_000).toISOString(),
-        );
-        await reconcileLead(mutationToken);
-        if (!isCurrentLeadMutation(mutationToken)) return;
-        toast.success(t("ops.pipeline.appointmentCreated"));
         return;
       }
 
@@ -649,13 +624,15 @@ export function PipelinePage() {
     () => formatLeadAmounts(leads, formatCurrency),
     [formatCurrency, leads],
   );
-  const bookedLeads = leads.filter(
-    (l) => l.stage === "booked" || l.stage === "crm" || l.stage === "closed",
-  ).length;
-  const convRate = totalLeads > 0 ? Math.round((bookedLeads / totalLeads) * 100) : 0;
-  const avgCheck = useMemo(
-    () => (bookedLeads > 0 ? formatLeadAmounts(leads, formatCurrency, "average") : "—"),
-    [bookedLeads, formatCurrency, leads],
+  const qualifiedLeads = useMemo(
+    () => leads.filter((lead) => lead.stage === "qualified"),
+    [leads],
+  );
+  const qualificationRate =
+    totalLeads > 0 ? Math.round((qualifiedLeads.length / totalLeads) * 100) : 0;
+  const averageQualifiedValue = useMemo(
+    () => formatLeadAmounts(qualifiedLeads, formatCurrency, "average"),
+    [formatCurrency, qualifiedLeads],
   );
 
   /* Group leads by stage */
@@ -770,6 +747,7 @@ export function PipelinePage() {
               icon={Users}
               label={t("ops.pipeline.total")}
               value={formatNumber(totalLeads)}
+              testId="pipeline-stat-total"
               accent="text-sky-400"
               bg="bg-sky-500/10"
             />
@@ -777,24 +755,27 @@ export function PipelinePage() {
               icon={Wallet}
               label={t("ops.pipeline.value")}
               value={totalValue}
+              testId="pipeline-stat-value"
               accent="text-emerald-400"
               bg="bg-emerald-500/10"
             />
             <StatChip
               icon={TrendingUp}
               label={t("ops.pipeline.conversion")}
-              value={formatNumber(convRate / 100, {
+              value={formatNumber(qualificationRate / 100, {
                 style: "percent",
                 maximumFractionDigits: 0,
                 minimumFractionDigits: 0,
               })}
+              testId="pipeline-stat-qualification"
               accent="text-violet-400"
               bg="bg-violet-500/10"
             />
             <StatChip
               icon={BarChart3}
               label={t("ops.pipeline.average")}
-              value={avgCheck}
+              value={averageQualifiedValue}
+              testId="pipeline-stat-qualified-average"
               accent="text-amber-400"
               bg="bg-amber-500/10"
             />

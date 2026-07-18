@@ -1409,9 +1409,19 @@ export class IntegrationsService {
     encryptedCredentials: string | null,
   ) {
     if (isUnavailableProvider(provider)) {
+      const base = asRecord(settings);
       return {
         implementationStatus: "NOT_AVAILABLE",
         selfServe: false,
+        ...(["REQUESTED", "DELIVERY_UNKNOWN"].includes(String(base.requestStatus))
+          ? { requestStatus: base.requestStatus }
+          : {}),
+        ...(["PENDING", "SENT", "FAILED", "UNKNOWN"].includes(
+          String(base.requestDeliveryStatus),
+        )
+          ? { requestDeliveryStatus: base.requestDeliveryStatus }
+          : {}),
+        ...(typeof base.requestedAt === "string" ? { requestedAt: base.requestedAt } : {}),
       };
     }
     const base = asRecord(settings);

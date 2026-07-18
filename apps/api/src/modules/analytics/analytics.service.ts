@@ -145,7 +145,6 @@ export class AnalyticsService {
       };
     });
     const responseTime = responseTimeStats(messages);
-    const analyticsHasSignals = leads.length > 0 || messages.length > 0 || workflows.some((workflow) => workflow.runs.length > 0);
 
     return {
       leadsOverTime,
@@ -162,9 +161,7 @@ export class AnalyticsService {
         .map((channel) => ({ channelType: channel.channelType, score: channel.conversionRate }))
         .sort((left, right) => right.score - left.score)
         .slice(0, 3),
-      aiInsightCodes: analyticsHasSignals
-        ? ["CHANNEL_VALUE", "HIGH_RISK_HANDOFF", "EARLY_BOOKING_TIME", "PRICE_FOLLOWUP"]
-        : [],
+      aiInsightCodes: [],
     };
   }
 }

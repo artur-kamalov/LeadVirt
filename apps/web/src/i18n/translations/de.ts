@@ -350,20 +350,21 @@ export const de: Record<BaseTranslationKey, string> = {
   "onboarding.availability.available": "Verfügbar",
   "onboarding.availability.request": "Auf Anfrage",
   "onboarding.availability.planned": "Geplant",
-  "onboarding.scenario.title": "Wählen Sie einen KI-Workflow",
-  "onboarding.scenario.description": "Wie soll Ihr KI-Assistent funktionieren?",
+  "onboarding.scenario.title": "Wählen Sie ein Einrichtungsziel",
+  "onboarding.scenario.description":
+    "Speichern Sie ein Ziel für die spätere Einrichtung. Dieser Schritt aktiviert keine Automatisierung.",
   "onboarding.scenario.booking": "Servicebuchung",
   "onboarding.scenario.bookingDescription":
-    "KI bucht Kunden automatisch und bestätigt Datum, Uhrzeit und Spezialisten",
+    "Ziel: Wunschdatum, Uhrzeit und Fachkraft zur Bestätigung durch das Team erfassen",
   "onboarding.scenario.order": "Auftragsabwicklung",
   "onboarding.scenario.orderDescription":
-    "Nimmt Bestellungen an, bestätigt Details und sendet sie zur Bearbeitung",
+    "Ziel: Bestelldetails erfassen und zur Bearbeitung an das Team übergeben",
   "onboarding.scenario.consult": "Beratung und Qualifizierung",
   "onboarding.scenario.consultDescription":
-    "Beantwortet Fragen, identifiziert Bedürfnisse und qualifiziert Leads",
+    "Ziel: mit freigegebenem Wissen antworten, Bedürfnisse erkennen und Leads qualifizieren",
   "onboarding.scenario.support": "Kundensupport",
   "onboarding.scenario.supportDescription":
-    "Behandelt häufige Anfragen und reduziert die Arbeitsbelastung des Teams",
+    "Ziel: häufige Fragen mit freigegebenem Wissen beantworten und bei Bedarf übergeben",
   "onboarding.company.title": "Unternehmensinformationen",
   "onboarding.company.description": "AI verwendet diese Informationen, wenn sie mit Kunden spricht",
   "onboarding.company.name": "Firmenname",
@@ -401,7 +402,7 @@ export const de: Record<BaseTranslationKey, string> = {
   "onboarding.summary.business": "Unternehmen",
   "onboarding.summary.channels": "Kanäle",
   "onboarding.summary.notSelected": "Nicht ausgewählt",
-  "onboarding.summary.scenario": "KI-Workflow",
+  "onboarding.summary.scenario": "Einrichtungsziel",
   "onboarding.summary.company": "Unternehmen",
   "onboarding.ready.title": "Ersteinrichtung gespeichert",
   "onboarding.ready.description":

@@ -16,22 +16,22 @@ const planCopy: Record<string, { tagline: TranslationKey; cta: TranslationKey; f
   start: {
     tagline: "pricing.start.tagline",
     cta: "pricing.start.cta",
-    features: ["pricing.feature.ai500", "pricing.feature.channels2", "pricing.feature.users3", "pricing.feature.scenarios3", "pricing.feature.basicAnalytics", "pricing.feature.crm"],
+    features: ["pricing.feature.ai500", "pricing.feature.channels2", "pricing.feature.users3", "pricing.feature.scenarios3", "pricing.feature.basicAnalytics"],
   },
   pro: {
     tagline: "pricing.pro.tagline",
     cta: "pricing.pro.cta",
-    features: ["pricing.feature.ai2500", "pricing.feature.channels5", "pricing.feature.users10", "pricing.feature.scenarios15", "pricing.feature.advancedAnalytics", "pricing.feature.automation", "pricing.feature.prioritySupport"],
+    features: ["pricing.feature.ai2500", "pricing.feature.channels5", "pricing.feature.users10", "pricing.feature.scenarios15", "pricing.feature.basicAnalytics"],
   },
   business: {
     tagline: "pricing.business.tagline",
     cta: "pricing.business.cta",
-    features: ["pricing.feature.ai10000", "pricing.feature.channels10", "pricing.feature.users25", "pricing.feature.scenarios50", "pricing.feature.aiInsights", "pricing.feature.abTests", "pricing.feature.accountManager"],
+    features: ["pricing.feature.ai10000", "pricing.feature.channels10", "pricing.feature.users25", "pricing.feature.scenarios50", "pricing.feature.basicAnalytics"],
   },
   corporate: {
     tagline: "pricing.corporate.tagline",
     cta: "pricing.corporate.cta",
-    features: ["pricing.feature.customLimits", "pricing.feature.sla", "pricing.feature.customIntegrations", "pricing.feature.dedicatedInfra", "pricing.feature.teamTraining", "pricing.feature.personalManager"],
+    features: ["pricing.feature.customLimits"],
   },
 };
 

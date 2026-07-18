@@ -30,14 +30,17 @@ import {
   connectIntegration,
   disconnectIntegration,
   listIntegrations,
+  requestIntegrationConnection,
   sendSampleInbound,
   testIntegrationConnection,
 } from "@/lib/api/integrations";
+import { ApiClientError } from "@/lib/api/client";
 import { listChannels } from "@/lib/api/channels";
 import { Dropdown, DropdownItem, DropdownSeparator, ConfirmDialog, Modal, Skeleton } from "../ui";
 import { useI18n } from "@/i18n/I18nProvider";
 import type { TranslationKey, TranslationValues } from "@/i18n/messages";
 import { useProductPermissions } from "../CurrentUser";
+import { useProductMode } from "../ProductMode";
 import { ResourceErrorState } from "../ResourceErrorState";
 
 /* ============================================================
@@ -560,6 +563,31 @@ function stringSetting(settings: Record<string, unknown>, key: string, fallback 
   return typeof value === "string" ? value : fallback;
 }
 
+function hasSentConnectionRequest(account?: IntegrationAccount | null) {
+  const settings = asRecord(account?.settings);
+  return (
+    settings.requestStatus === "REQUESTED" &&
+    settings.requestDeliveryStatus === "SENT"
+  );
+}
+
+function hasPendingConnectionRequest(account?: IntegrationAccount | null) {
+  const settings = asRecord(account?.settings);
+  return (
+    settings.requestStatus === "REQUESTED" &&
+    (settings.requestDeliveryStatus === "PENDING" ||
+      settings.requestDeliveryStatus === undefined)
+  );
+}
+
+function hasUnknownConnectionRequest(account?: IntegrationAccount | null) {
+  const settings = asRecord(account?.settings);
+  return (
+    settings.requestStatus === "DELIVERY_UNKNOWN" ||
+    settings.requestDeliveryStatus === "UNKNOWN"
+  );
+}
+
 function publicApiOrigin() {
   return (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4001/api")
     .replace(/\/api\/?$/, "")
@@ -772,6 +800,7 @@ function PilotReadinessPanel({
   channels,
   pendingId,
   canTest,
+  demo,
   onSendSample,
   onTestConnection,
 }: {
@@ -779,6 +808,7 @@ function PilotReadinessPanel({
   channels: Channel[] | null | undefined;
   pendingId: string | null;
   canTest: boolean;
+  demo: boolean;
   onSendSample: (integrationId: string) => void;
   onTestConnection: (integrationId: string) => void;
 }) {
@@ -793,11 +823,13 @@ function PilotReadinessPanel({
     formatDate,
     t,
   );
-  const widget = widgetReadiness(
-    channels?.find((channel) => channel.type === "WEBSITE"),
-    formatDate,
-    t,
-  );
+  const websiteChannel = channels?.find((channel) => channel.type === "WEBSITE");
+  const widget = widgetReadiness(websiteChannel, formatDate, t);
+  const widgetHref = demo
+    ? "/widget/demo"
+    : websiteChannel?.publicKey
+      ? `/widget/frame?key=${encodeURIComponent(websiteChannel.publicKey)}`
+      : undefined;
   const readyCount = [telegram.ready, webhook.ready, widget.ready].filter(Boolean).length;
 
   return (
@@ -848,7 +880,7 @@ function PilotReadinessPanel({
           signal={widget.signal}
           testId="pilot-readiness-widget"
           actionLabel={t("integrations.openWidget")}
-          actionHref="/widget/demo"
+          actionHref={widgetHref}
           actionTestId="pilot-readiness-widget-open"
         />
       </div>
@@ -899,6 +931,7 @@ function TelegramConnectModal({
     <Modal
       open={open}
       onOpenChange={onOpenChange}
+      closeLabel={t("integrations.closeDialog")}
       title={
         connected
           ? botUsername
@@ -1013,18 +1046,28 @@ function IntegrationSettingsModal({
   open,
   saving,
   sampleBusy,
+  canRequest,
+  requestSent,
+  requestUnknown,
+  requestContactRequired,
   onOpenChange,
   onSendSample,
   onConnectTelegram,
+  onRequest,
 }: {
   integration: Integration | null;
   account?: IntegrationAccount | null;
   open: boolean;
   saving: boolean;
   sampleBusy: boolean;
+  canRequest: boolean;
+  requestSent: boolean;
+  requestUnknown: boolean;
+  requestContactRequired: boolean;
   onOpenChange: (open: boolean) => void;
   onSendSample: () => void;
   onConnectTelegram: (botToken: string) => Promise<boolean>;
+  onRequest: () => void;
 }) {
   const { t } = useI18n();
 
@@ -1041,6 +1084,7 @@ function IntegrationSettingsModal({
     );
   }
   const isWebhookApi = integration.provider === "WEBHOOK_API";
+  const isConnectionRequest = integration.availability === "request";
   const setupConfig = setupConfigForProvider(integration.provider);
   const unavailableLabel = availabilityLabel(integration, t);
   const inboundEndpoint = account?.inboundEndpoint ?? null;
@@ -1054,11 +1098,14 @@ function IntegrationSettingsModal({
       key={integration.id}
       open={open}
       onOpenChange={onOpenChange}
+      closeLabel={t("integrations.closeDialog")}
       title={t("integrations.settingsTitle", { name: integration.name })}
       description={
         integration.availability === "soon"
           ? t("integrations.notAvailableYet", { name: integration.name })
-          : t(setupConfig.summaryKey)
+          : isConnectionRequest
+            ? t("integrations.request.description", { name: integration.name })
+            : t(setupConfig.summaryKey)
       }
       className="max-w-2xl"
       footer={
@@ -1071,6 +1118,32 @@ function IntegrationSettingsModal({
               </a>
             </Button>
             <Button onClick={() => onOpenChange(false)}>{t("integrations.close")}</Button>
+          </>
+        ) : isConnectionRequest ? (
+          <>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              {t("integrations.close")}
+            </Button>
+            {requestContactRequired ? (
+              <Button asChild>
+                <a href="/app/settings?tab=profile">
+                  <Settings className="h-4 w-4" />
+                  {t("integrations.request.openSettings")}
+                </a>
+              </Button>
+            ) : canRequest && !requestUnknown ? (
+              <Button
+                onClick={onRequest}
+                disabled={saving || requestSent}
+                data-testid="integration-request-submit"
+              >
+                {requestSent
+                  ? t("integrations.request.sent")
+                  : saving
+                    ? t("integrations.request.sending")
+                    : t("integrations.request.submit")}
+              </Button>
+            ) : null}
           </>
         ) : (
           <>
@@ -1094,12 +1167,20 @@ function IntegrationSettingsModal({
             <Pill
               className={cn(
                 "border text-xs",
-                integration.availability === "soon"
-                  ? "border-zinc-700 bg-white/[0.03] text-zinc-400"
-                  : "border-amber-500/20 bg-amber-500/10 text-amber-300",
+                requestSent
+                  ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                  : integration.availability === "soon"
+                    ? "border-zinc-700 bg-white/[0.03] text-zinc-400"
+                    : "border-amber-500/20 bg-amber-500/10 text-amber-300",
               )}
             >
-              {unavailableLabel}
+              {requestUnknown
+                ? t("integrations.request.unknown")
+                : requestSent
+                  ? t("integrations.request.sent")
+                  : saving && isConnectionRequest
+                    ? t("integrations.request.sending")
+                    : unavailableLabel}
             </Pill>
           )}
         </div>
@@ -1155,10 +1236,28 @@ function IntegrationSettingsModal({
       )}
 
       {!isWebhookApi && (
-        <div className="mt-4 rounded-2xl border border-amber-500/15 bg-amber-500/[0.04] p-4 text-sm text-amber-100/90">
+        <div
+          className={cn(
+            "mt-4 rounded-2xl border p-4 text-sm",
+            requestSent
+              ? "border-emerald-500/15 bg-emerald-500/[0.04] text-emerald-100/90"
+              : "border-amber-500/15 bg-amber-500/[0.04] text-amber-100/90",
+          )}
+          data-testid={isConnectionRequest ? "integration-request-status" : undefined}
+        >
           {integration.availability === "soon"
             ? t("integrations.notAvailableYet", { name: integration.name })
-            : t("integrations.notSelfServe")}
+            : requestContactRequired
+              ? t("integrations.request.contactRequired")
+              : requestUnknown
+                ? t("integrations.request.unknownDescription")
+                : requestSent
+                  ? t("integrations.request.confirmation")
+                  : saving && isConnectionRequest
+                    ? t("integrations.request.sending")
+                    : canRequest
+                      ? t("integrations.notSelfServe")
+                      : t("integrations.request.noPermission")}
         </div>
       )}
 
@@ -1262,6 +1361,8 @@ function IntegrationCard({
   account,
   connected,
   pending,
+  requestSent,
+  requestUnknown,
   onToggle,
   onDisconnect,
   onConfigure,
@@ -1275,6 +1376,8 @@ function IntegrationCard({
   account?: IntegrationAccount;
   connected: boolean;
   pending: boolean;
+  requestSent: boolean;
+  requestUnknown: boolean;
   onToggle: () => void;
   onDisconnect: () => void | Promise<void>;
   onConfigure: () => void;
@@ -1288,6 +1391,13 @@ function IntegrationCard({
   const Icon = integration.icon;
   const [confirmOpen, setConfirmOpen] = useState(false);
   const availability = availabilityLabel(integration, t);
+  const availabilityStatus = requestUnknown
+    ? t("integrations.request.unknown")
+    : requestSent
+      ? t("integrations.request.sent")
+      : pending && integration.availability === "request"
+        ? t("integrations.request.sending")
+        : availability;
   const canSelfServe = isSelfServeIntegration(integration);
   const connectedVisible = canSelfServe && connected;
   const telegramUsername =
@@ -1302,7 +1412,7 @@ function IntegrationCard({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: index * 0.05, ease: "easeOut" }}
         whileHover={{ y: -4 }}
-        className="group"
+        className="group scroll-mt-20 scroll-mb-24"
       >
         <div
           className={cn(
@@ -1364,20 +1474,22 @@ function IntegrationCard({
                 <span
                   className={cn(
                     "w-fit rounded-full border px-2.5 py-1 text-[11px] font-medium",
-                    integration.availability === "soon"
+                    requestSent
+                      ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                      : integration.availability === "soon"
                       ? "border-zinc-700 bg-white/[0.03] text-zinc-400"
                       : "border-amber-500/20 bg-amber-500/10 text-amber-300",
                   )}
                 >
-                  {availability}
+                  {availabilityStatus}
                 </span>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="min-h-8 w-full whitespace-normal rounded-full px-3 py-2 text-xs"
+                  className="min-h-8 w-full scroll-mt-20 scroll-mb-24 whitespace-normal rounded-full px-3 py-2 text-xs"
                   onClick={onConfigure}
                 >
-                  {availability}
+                  {availabilityStatus}
                 </Button>
               </div>
             ) : connectedVisible ? (
@@ -1589,6 +1701,7 @@ function ApiCard({
 export function IntegrationsPage() {
   const { formatNumber, t } = useI18n();
   const permissions = useProductPermissions();
+  const { demo } = useProductMode();
   const [activeCategory, setActiveCategory] = useState<"all" | Category>("all");
   const [accounts, setAccounts] = useState<IntegrationAccount[]>([]);
   const [accountsLoaded, setAccountsLoaded] = useState(false);
@@ -1604,6 +1717,18 @@ export function IntegrationsPage() {
   const [channelsReloadRevision, setChannelsReloadRevision] = useState(0);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [connectedMap, setConnectedMap] = useState<Record<string, boolean>>(initialConnectedMap);
+  const [requestedProviders, setRequestedProviders] = useState<Set<IntegrationProvider>>(
+    () => new Set(),
+  );
+  const [pendingRequestProviders, setPendingRequestProviders] = useState<
+    Set<IntegrationProvider>
+  >(() => new Set());
+  const [unknownRequestProviders, setUnknownRequestProviders] = useState<
+    Set<IntegrationProvider>
+  >(() => new Set());
+  const [contactRequiredProviders, setContactRequiredProviders] = useState<
+    Set<IntegrationProvider>
+  >(() => new Set());
   const [settingsIntegrationId, setSettingsIntegrationId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -1617,6 +1742,27 @@ export function IntegrationsPage() {
         setAccountsLoaded(true);
         setAccountsLoadStatus("success");
         setConnectedMap(mergeAccountsIntoConnectedMap(items));
+        setRequestedProviders(
+          new Set(
+            items
+              .filter((account) => hasSentConnectionRequest(account))
+              .map((account) => account.provider),
+          ),
+        );
+        setPendingRequestProviders(
+          new Set(
+            items
+              .filter((account) => hasPendingConnectionRequest(account))
+              .map((account) => account.provider),
+          ),
+        );
+        setUnknownRequestProviders(
+          new Set(
+            items
+              .filter((account) => hasUnknownConnectionRequest(account))
+              .map((account) => account.provider),
+          ),
+        );
       })
       .catch(() => {
         if (cancelled) return;
@@ -1710,6 +1856,64 @@ export function IntegrationsPage() {
       toast.error(
         error instanceof Error ? error.message : t("integrations.toast.disconnectFailed"),
       );
+    } finally {
+      setPendingId(null);
+    }
+  }
+
+  async function requestConnection(id: string) {
+    if (!permissions.canManageIntegrations) return;
+    const integration = INTEGRATIONS.find(
+      (item) => item.id === id && item.availability === "request",
+    );
+    if (!integration) return;
+
+    setPendingId(id);
+    try {
+      const request = await requestIntegrationConnection(integration.provider);
+      setRequestedProviders((current) => new Set(current).add(request.provider));
+      setPendingRequestProviders((current) => {
+        const next = new Set(current);
+        next.delete(request.provider);
+        return next;
+      });
+      setUnknownRequestProviders((current) => {
+        const next = new Set(current);
+        next.delete(request.provider);
+        return next;
+      });
+      setContactRequiredProviders((current) => {
+        const next = new Set(current);
+        next.delete(request.provider);
+        return next;
+      });
+      toast.success(t("integrations.request.confirmation"));
+    } catch (error) {
+      if (
+        error instanceof ApiClientError &&
+        error.code === "INTEGRATION_REQUEST_DELIVERY_UNKNOWN"
+      ) {
+        setRequestedProviders((current) => {
+          const next = new Set(current);
+          next.delete(integration.provider);
+          return next;
+        });
+        setUnknownRequestProviders((current) => new Set(current).add(integration.provider));
+        setPendingRequestProviders((current) => {
+          const next = new Set(current);
+          next.delete(integration.provider);
+          return next;
+        });
+        toast.error(t("integrations.request.unknownDescription"));
+      } else if (
+        error instanceof ApiClientError &&
+        error.code === "INTEGRATION_REQUEST_CONTACT_REQUIRED"
+      ) {
+        setContactRequiredProviders((current) => new Set(current).add(integration.provider));
+        toast.error(t("integrations.request.contactRequired"));
+      } else {
+        toast.error(t("integrations.request.failed"));
+      }
     } finally {
       setPendingId(null);
     }
@@ -1908,7 +2112,12 @@ export function IntegrationsPage() {
               integration={integration}
               account={accounts.find((account) => account.provider === integration.provider)}
               connected={connectedMap[integration.id]}
-              pending={pendingId === integration.id}
+              pending={
+                pendingId === integration.id ||
+                pendingRequestProviders.has(integration.provider)
+              }
+              requestSent={requestedProviders.has(integration.provider)}
+              requestUnknown={unknownRequestProviders.has(integration.provider)}
               onToggle={() => configure(integration.id)}
               onDisconnect={() => disconnect(integration.id)}
               onConfigure={() => void configure(integration.id)}
@@ -1926,6 +2135,7 @@ export function IntegrationsPage() {
           channels={channels}
           pendingId={pendingId}
           canTest={permissions.canTestIntegrations}
+          demo={demo}
           onSendSample={(id) => void sendSample(id)}
           onTestConnection={(id) => void testConnection(id)}
         />
@@ -1955,7 +2165,12 @@ export function IntegrationsPage() {
                 integration={integration}
                 account={accounts.find((account) => account.provider === integration.provider)}
                 connected={false}
-                pending={false}
+                pending={
+                  pendingId === integration.id ||
+                  pendingRequestProviders.has(integration.provider)
+                }
+                requestSent={requestedProviders.has(integration.provider)}
+                requestUnknown={unknownRequestProviders.has(integration.provider)}
                 onToggle={() => undefined}
                 onDisconnect={() => undefined}
                 onConfigure={() => void configure(integration.id)}
@@ -1988,13 +2203,37 @@ export function IntegrationsPage() {
           integration={settingsIntegration}
           account={settingsAccount}
           open={settingsIntegrationId !== null}
-          saving={pendingId === settingsIntegrationId}
+          saving={
+            pendingId === settingsIntegrationId ||
+            (settingsIntegration
+              ? pendingRequestProviders.has(settingsIntegration.provider)
+              : false)
+          }
           sampleBusy={pendingId === "webhook"}
+          canRequest={permissions.canManageIntegrations}
+          requestSent={
+            settingsIntegration
+              ? requestedProviders.has(settingsIntegration.provider)
+              : false
+          }
+          requestUnknown={
+            settingsIntegration
+              ? unknownRequestProviders.has(settingsIntegration.provider)
+              : false
+          }
+          requestContactRequired={
+            settingsIntegration
+              ? contactRequiredProviders.has(settingsIntegration.provider)
+              : false
+          }
           onOpenChange={(open) => {
             if (!open) setSettingsIntegrationId(null);
           }}
           onSendSample={() => void sendSample("webhook")}
           onConnectTelegram={connectTelegramBot}
+          onRequest={() => {
+            if (settingsIntegration) void requestConnection(settingsIntegration.id);
+          }}
         />
       </div>
     </ProductLayout>

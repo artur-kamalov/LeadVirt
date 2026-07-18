@@ -52,6 +52,22 @@ test("public pricing uses the shared RUB catalog without wrapping the corporate 
   await expect(
     page.getByText(/All listed prices and invoices are in Russian rubles \(RUB\)/),
   ).toBeVisible();
+  for (const unavailableFeature of [
+    "CRM lead handoff",
+    "Advanced analytics and reports",
+    "Automation builder",
+    "Priority support",
+    "AI recommendations and insights",
+    "Workflow A/B tests",
+    "Account manager",
+    "SLA and availability guarantees",
+    "Custom integrations",
+    "Dedicated infrastructure",
+    "Team training",
+    "Personal manager 24/7",
+  ]) {
+    await expect(page.getByText(unavailableFeature, { exact: true })).toHaveCount(0);
+  }
 
   const corporatePrice = page.getByTestId("pricing-price-corporate");
   await expect(corporatePrice).toBeVisible();

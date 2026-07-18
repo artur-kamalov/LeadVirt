@@ -6,6 +6,7 @@ const activityLabels: Record<Locale, Record<string, string>> = {
     "ai.reply": "AI prepared a reply",
     "crm.sent": "Lead sent to CRM",
     "lead.created": "Lead created",
+    "lead.updated": "Lead updated",
     "lead.sent_to_crm": "Lead sent to CRM",
     "booking.created": "Booking created",
     "task.created": "Task created",
@@ -21,6 +22,7 @@ const activityLabels: Record<Locale, Record<string, string>> = {
     "ai.reply": "La IA preparó una respuesta",
     "crm.sent": "Lead enviado al CRM",
     "lead.created": "Lead creado",
+    "lead.updated": "Lead actualizado",
     "lead.sent_to_crm": "Lead enviado al CRM",
     "booking.created": "Reserva creada",
     "task.created": "Tarea creada",
@@ -36,6 +38,7 @@ const activityLabels: Record<Locale, Record<string, string>> = {
     "ai.reply": "L'IA a préparé une réponse",
     "crm.sent": "Prospect envoyé au CRM",
     "lead.created": "Prospect créé",
+    "lead.updated": "Prospect mis à jour",
     "lead.sent_to_crm": "Prospect envoyé au CRM",
     "booking.created": "Réservation créée",
     "task.created": "Tâche créée",
@@ -51,6 +54,7 @@ const activityLabels: Record<Locale, Record<string, string>> = {
     "ai.reply": "KI-Antwort vorbereitet",
     "crm.sent": "Lead an CRM gesendet",
     "lead.created": "Lead erstellt",
+    "lead.updated": "Lead aktualisiert",
     "lead.sent_to_crm": "Lead an CRM gesendet",
     "booking.created": "Buchung erstellt",
     "task.created": "Aufgabe erstellt",
@@ -66,6 +70,7 @@ const activityLabels: Record<Locale, Record<string, string>> = {
     "ai.reply": "A IA preparou uma resposta",
     "crm.sent": "Lead enviado ao CRM",
     "lead.created": "Lead criado",
+    "lead.updated": "Lead atualizado",
     "lead.sent_to_crm": "Lead enviado ao CRM",
     "booking.created": "Reserva criada",
     "task.created": "Tarefa criada",
@@ -81,6 +86,7 @@ const activityLabels: Record<Locale, Record<string, string>> = {
     "ai.reply": "AI подготовил ответ",
     "crm.sent": "Лид отправлен в CRM",
     "lead.created": "Лид создан",
+    "lead.updated": "Лид обновлён",
     "lead.sent_to_crm": "Лид отправлен в CRM",
     "booking.created": "Запись создана",
     "task.created": "Задача создана",
@@ -112,7 +118,7 @@ export function dashboardActivityLabel(
 
 const analyticsInsightLabels: Record<Locale, Record<string, string>> = {
   en: {
-    CHANNEL_VALUE: "Website and Instagram generated the highest-value qualified leads this week.",
+    CHANNEL_VALUE: "Website widget and Telegram generated the most qualified leads this week.",
     HIGH_RISK_HANDOFF: "Route medical and legal questions to a manager before the AI answers.",
     EARLY_BOOKING_TIME:
       "Booking workflows convert better when the AI asks for a preferred time earlier.",
@@ -120,7 +126,7 @@ const analyticsInsightLabels: Record<Locale, Record<string, string>> = {
   },
   es: {
     CHANNEL_VALUE:
-      "El sitio web e Instagram generaron los leads cualificados de mayor valor esta semana.",
+      "El widget web y Telegram generaron más leads cualificados esta semana.",
     HIGH_RISK_HANDOFF:
       "Deriva las consultas médicas y legales a un gestor antes de que responda la IA.",
     EARLY_BOOKING_TIME:
@@ -130,7 +136,7 @@ const analyticsInsightLabels: Record<Locale, Record<string, string>> = {
   },
   fr: {
     CHANNEL_VALUE:
-      "Le site et Instagram ont généré les prospects qualifiés les plus précieux cette semaine.",
+      "Le widget du site et Telegram ont généré le plus de prospects qualifiés cette semaine.",
     HIGH_RISK_HANDOFF:
       "Transférez les questions médicales et juridiques à un responsable avant la réponse de l'IA.",
     EARLY_BOOKING_TIME:
@@ -140,7 +146,7 @@ const analyticsInsightLabels: Record<Locale, Record<string, string>> = {
   },
   de: {
     CHANNEL_VALUE:
-      "Website und Instagram lieferten diese Woche die wertvollsten qualifizierten Leads.",
+      "Website-Widget und Telegram lieferten diese Woche die meisten qualifizierten Leads.",
     HIGH_RISK_HANDOFF:
       "Leiten Sie medizinische und rechtliche Fragen vor der KI-Antwort an einen Manager weiter.",
     EARLY_BOOKING_TIME:
@@ -150,7 +156,7 @@ const analyticsInsightLabels: Record<Locale, Record<string, string>> = {
   },
   pt: {
     CHANNEL_VALUE:
-      "O site e o Instagram geraram os leads qualificados de maior valor nesta semana.",
+      "O widget do site e o Telegram geraram mais leads qualificados nesta semana.",
     HIGH_RISK_HANDOFF: "Encaminhe dúvidas médicas e jurídicas a um gestor antes da resposta da IA.",
     EARLY_BOOKING_TIME:
       "Fluxos de reserva convertem melhor quando a IA pergunta o horário preferido mais cedo.",
@@ -158,7 +164,7 @@ const analyticsInsightLabels: Record<Locale, Record<string, string>> = {
       "O acompanhamento recupera leads interessados que saíram após uma pergunta de preço.",
   },
   ru: {
-    CHANNEL_VALUE: "Сайт и Instagram дали самые дорогие квалифицированные лиды на этой неделе.",
+    CHANNEL_VALUE: "Виджет сайта и Telegram дали больше всего квалифицированных лидов за неделю.",
     HIGH_RISK_HANDOFF: "Медицинские и юридические вопросы лучше передавать менеджеру до ответа AI.",
     EARLY_BOOKING_TIME: "Сценарии записи работают лучше, когда AI раньше спрашивает удобное время.",
     PRICE_FOLLOWUP: "Follow-up возвращает тёплых лидов, которые ушли после вопроса о цене.",
@@ -198,31 +204,43 @@ const demoWeekdayLabels: Record<Locale, readonly string[]> = {
 const demoScenarioLabels: Record<Locale, Record<string, string>> = {
   en: {
     "Qualification and booking": "Qualification and booking",
+    "Lead qualification": "Lead qualification",
+    "Manager handoff": "Manager handoff",
     "Send to CRM": "Send to CRM",
     "Follow-up": "Follow-up",
   },
   es: {
     "Qualification and booking": "Calificación y reserva",
+    "Lead qualification": "Calificación de leads",
+    "Manager handoff": "Transferencia a un responsable",
     "Send to CRM": "Enviar al CRM",
     "Follow-up": "Seguimiento",
   },
   fr: {
     "Qualification and booking": "Qualification et réservation",
+    "Lead qualification": "Qualification des prospects",
+    "Manager handoff": "Transfert à un responsable",
     "Send to CRM": "Envoi au CRM",
     "Follow-up": "Relance",
   },
   de: {
     "Qualification and booking": "Qualifizierung und Buchung",
+    "Lead qualification": "Lead-Qualifizierung",
+    "Manager handoff": "Übergabe an einen Manager",
     "Send to CRM": "An CRM senden",
     "Follow-up": "Nachfassen",
   },
   pt: {
     "Qualification and booking": "Qualificação e agendamento",
+    "Lead qualification": "Qualificação de leads",
+    "Manager handoff": "Transferência para um responsável",
     "Send to CRM": "Enviar ao CRM",
     "Follow-up": "Acompanhamento",
   },
   ru: {
     "Qualification and booking": "Квалификация и запись",
+    "Lead qualification": "Квалификация лидов",
+    "Manager handoff": "Передача менеджеру",
     "Send to CRM": "Передача в CRM",
     "Follow-up": "Повторный контакт",
   },

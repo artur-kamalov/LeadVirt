@@ -6,8 +6,6 @@ import {
   Search,
   Bot,
   MessageSquare,
-  Database,
-  ClipboardList,
   Filter,
   X,
 } from "lucide-react";
@@ -18,13 +16,10 @@ import type { Lead } from "../types";
 import { useNav } from "../nav";
 import { Button } from "../../components/ui/Button";
 import { EmptyState, Skeleton } from "../ui";
-import { toast } from "sonner";
 import { cn } from "../../lib/utils";
 import { listInboxConversations } from "@/lib/api/inbox";
-import { createLeadTask, sendLeadToCrm } from "@/lib/api/leads";
 import { leadFromConversation } from "../apiAdapters";
 import { useI18n } from "@/i18n/I18nProvider";
-import { useProductPermissions } from "../CurrentUser";
 import type { Locale } from "@/i18n/config";
 import { ResourceErrorState } from "../ResourceErrorState";
 
@@ -268,8 +263,6 @@ const LeadRow = React.forwardRef<
 function LeadSummary({ lead }: { lead: Lead }) {
   const { go } = useNav();
   const { formatCurrency, t } = useI18n();
-  const permissions = useProductPermissions();
-  const [pendingAction, setPendingAction] = useState<"crm" | "task" | null>(null);
 
   const fields: { label: string; value: string }[] = [
     { label: t("ops.common.source"), value: lead.source },
@@ -286,40 +279,6 @@ function LeadSummary({ lead }: { lead: Lead }) {
         : channels[lead.channel].label,
     },
   ];
-
-  const handleSendToCrm = async () => {
-    if (!permissions.canManageLeads) return;
-    if (!lead.apiLeadId) {
-      toast.error(t("ops.common.apiLeadOnly"));
-      return;
-    }
-    setPendingAction("crm");
-    try {
-      await sendLeadToCrm(lead.apiLeadId);
-      toast.success(t("ops.common.crmSent"));
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : t("ops.common.crmFailed"));
-    } finally {
-      setPendingAction(null);
-    }
-  };
-
-  const handleCreateTask = async () => {
-    if (!permissions.canManageLeads) return;
-    if (!lead.apiLeadId) {
-      toast.error(t("ops.common.apiLeadOnly"));
-      return;
-    }
-    setPendingAction("task");
-    try {
-      await createLeadTask(lead.apiLeadId, t("ops.inbox.taskTitle", { name: lead.name }));
-      toast.success(t("ops.common.taskCreated"));
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : t("ops.common.taskFailed"));
-    } finally {
-      setPendingAction(null);
-    }
-  };
 
   return (
     <motion.div
@@ -377,7 +336,7 @@ function LeadSummary({ lead }: { lead: Lead }) {
         </div>
 
         {/* Action buttons */}
-        <div className="flex flex-col gap-2">
+        <div>
           <Button
             className="w-full justify-center"
             onClick={() => go("conversation", { id: lead.conversationId ?? lead.id })}
@@ -385,28 +344,6 @@ function LeadSummary({ lead }: { lead: Lead }) {
             <MessageSquare className="w-4 h-4 mr-1.5" />
             {t("ops.inbox.openConversation")}
           </Button>
-          {permissions.canManageLeads ? (
-            <>
-              <Button
-                variant="outline"
-                className="w-full justify-center"
-                disabled={pendingAction !== null}
-                onClick={() => void handleSendToCrm()}
-              >
-                <Database className="w-4 h-4 mr-1.5" />
-                {pendingAction === "crm" ? t("ops.common.sending") : t("ops.common.toCrm")}
-              </Button>
-              <Button
-                variant="ghost"
-                className="w-full justify-center"
-                disabled={pendingAction !== null}
-                onClick={() => void handleCreateTask()}
-              >
-                <ClipboardList className="w-4 h-4 mr-1.5" />
-                {pendingAction === "task" ? t("ops.common.creating") : t("ops.common.createTask")}
-              </Button>
-            </>
-          ) : null}
         </div>
       </Card>
     </motion.div>

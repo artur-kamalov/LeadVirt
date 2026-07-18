@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { Inject, Injectable, Optional, ServiceUnavailableException } from "@nestjs/common";
 import nodemailer from "nodemailer";
 import type { EmailOtpLocale } from "./dto/request-email-otp.dto.js";
@@ -18,7 +19,11 @@ type AuthEmailMessage = {
   html: string;
   locale: EmailOtpLocale;
   referenceKey: string;
-  purpose: "email_otp" | "password_reset" | "billing_plan_selection";
+  purpose:
+    | "email_otp"
+    | "password_reset"
+    | "billing_plan_selection"
+    | "integration_connection_request";
 };
 
 type OperationalEmailInput = {
@@ -26,7 +31,7 @@ type OperationalEmailInput = {
   subject: string;
   text: string;
   referenceKey: string;
-  purpose: "billing_plan_selection";
+  purpose: "billing_plan_selection" | "integration_connection_request";
 };
 
 const emailCopy: Record<EmailOtpLocale, EmailCopy> = {
@@ -105,6 +110,7 @@ type SmtpMessage = {
   subject: string;
   text: string;
   html: string;
+  messageId: string;
   headers: Record<string, string>;
   disableFileAccess: true;
   disableUrlAccess: true;
@@ -117,6 +123,15 @@ type SmtpTransportClient = {
 
 export type SmtpTransportFactory = (options: SmtpTransportOptions) => SmtpTransportClient;
 export const EMAIL_OTP_SMTP_TRANSPORT_FACTORY = Symbol("EMAIL_OTP_SMTP_TRANSPORT_FACTORY");
+
+export class EmailDeliveryFailure extends ServiceUnavailableException {
+  constructor(
+    readonly outcome: "rejected" | "unknown",
+    message = "Email delivery is temporarily unavailable.",
+  ) {
+    super(message);
+  }
+}
 
 const defaultSmtpTransportFactory: SmtpTransportFactory = (options) => {
   const transporter = nodemailer.createTransport(options);
@@ -176,6 +191,12 @@ function senderFromEnvironment(email: string | undefined, name: string | undefin
 
 function validEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function smtpMessageId(referenceKey: string, senderEmail: string) {
+  const domain = senderEmail.split("@")[1]?.toLowerCase() || "leadvirt.com";
+  const digest = createHash("sha256").update(referenceKey).digest("hex").slice(0, 40);
+  return `<leadvirt.${digest}@${domain}>`;
 }
 
 function uniSenderConfiguration() {
@@ -388,15 +409,28 @@ export class EmailOtpDeliveryService {
   }
 
   async sendOperationalEmail(input: OperationalEmailInput) {
+    const config = this.requireOperationalEmailDelivery(input.email);
+    if (config.mode === "mock") {
+      return { providerMessageId: `mock:${input.referenceKey}` };
+    }
+
+    return this.deliver(config.mode, {
+      email: config.recipient,
+      subject: input.subject,
+      text: input.text,
+      html: operationalHtmlBody(input.subject, input.text),
+      locale: "en",
+      referenceKey: input.referenceKey,
+      purpose: input.purpose,
+    });
+  }
+
+  requireOperationalEmailDelivery(email?: string) {
     const mode = operationalEmailProvider();
     if (!providerReady(mode)) {
       throw new ServiceUnavailableException("Operational email is not configured.");
     }
-    if (mode === "mock") {
-      return { providerMessageId: `mock:${input.referenceKey}` };
-    }
-
-    const explicitRecipient = input.email?.trim() ?? "";
+    const explicitRecipient = email?.trim() ?? "";
     if (explicitRecipient && !validEmail(explicitRecipient)) {
       throw new ServiceUnavailableException("Operational email is not configured.");
     }
@@ -410,16 +444,7 @@ export class EmailOtpDeliveryService {
     if (!recipient) {
       throw new ServiceUnavailableException("Operational email is not configured.");
     }
-
-    return this.deliver(mode, {
-      email: recipient,
-      subject: input.subject,
-      text: input.text,
-      html: operationalHtmlBody(input.subject, input.text),
-      locale: "en",
-      referenceKey: input.referenceKey,
-      purpose: input.purpose,
-    });
+    return { mode, recipient };
   }
 
   private async deliver(mode: string, input: AuthEmailMessage) {
@@ -442,6 +467,7 @@ export class EmailOtpDeliveryService {
           subject: input.subject,
           text: input.text,
           html: input.html,
+          messageId: smtpMessageId(input.referenceKey, config.sender.email),
           headers: { "X-LeadVirt-Purpose": input.purpose },
           disableFileAccess: true,
           disableUrlAccess: true,
@@ -451,7 +477,7 @@ export class EmailOtpDeliveryService {
         }
         return { providerMessageId: result.messageId };
       } catch {
-        throw new ServiceUnavailableException("Email delivery is temporarily unavailable.");
+        throw new EmailDeliveryFailure("unknown");
       } finally {
         try {
           transport.close();
@@ -484,17 +510,27 @@ export class EmailOtpDeliveryService {
     });
 
     let payload: UniSenderResponse;
+    let response: Response;
     try {
-      const response = await fetch(config.apiUrl, {
+      response = await fetch(config.apiUrl, {
         method: "POST",
         headers: { "content-type": "application/x-www-form-urlencoded;charset=UTF-8" },
         body: form,
         signal: AbortSignal.timeout(10_000),
       });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    } catch {
+      throw new EmailDeliveryFailure("unknown");
+    }
+    if (!response.ok) {
+      const definiteRejection = [400, 401, 403, 404, 405, 413, 415, 422, 429].includes(
+        response.status,
+      );
+      throw new EmailDeliveryFailure(definiteRejection ? "rejected" : "unknown");
+    }
+    try {
       payload = (await response.json()) as UniSenderResponse;
     } catch {
-      throw new ServiceUnavailableException("Email delivery is temporarily unavailable.");
+      throw new EmailDeliveryFailure("unknown");
     }
 
     const result = firstDeliveryResult(payload);
@@ -505,7 +541,7 @@ export class EmailOtpDeliveryService {
       (typeof messageId !== "string" && typeof messageId !== "number") ||
       hasErrors
     ) {
-      throw new ServiceUnavailableException("Email delivery is temporarily unavailable.");
+      throw new EmailDeliveryFailure("rejected");
     }
 
     return { providerMessageId: typeof messageId === "number" ? messageId.toString() : messageId };

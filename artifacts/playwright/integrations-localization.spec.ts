@@ -160,10 +160,7 @@ test("Integrations and the one-token Telegram dialog render all six locales", as
     await expect(widgetTile).toContainText(widgetTitle);
     await expect(
       widgetTile.getByRole("link", {
-        name: messages[locale]["integrations.readiness.endpointLabel"].replace(
-          "{title}",
-          widgetTitle,
-        ),
+        name: messages[locale]["integrations.openWidget"],
       }),
     ).toBeVisible();
 
@@ -178,7 +175,12 @@ test("Integrations and the one-token Telegram dialog render all six locales", as
     await expect(dialog).toBeVisible();
     await expect(dialog).toContainText(messages[locale]["integrations.telegram.description"]);
     await expect(dialog).toContainText(messages[locale]["integrations.telegram.autoWebhook"]);
-    await expect(dialog.getByRole("button", { name: "Close dialog", exact: true })).toBeVisible();
+    await expect(
+      dialog.getByRole("button", {
+        name: messages[locale]["integrations.closeDialog"],
+        exact: true,
+      }),
+    ).toBeVisible();
     await expect(dialog.locator("input")).toHaveCount(1);
     await expect(dialog.getByText("Webhook secret token")).toHaveCount(0);
     await expectNoOverflow(localePage, dialog);
@@ -187,6 +189,7 @@ test("Integrations and the one-token Telegram dialog render all six locales", as
       .click();
     await expect(dialog).toBeHidden();
 
+    await localePage.getByTestId("integrations-planned-toggle").click();
     const instagramCard = localePage.getByTestId("integration-card-instagram");
     await instagramCard
       .getByRole("button", {
@@ -198,10 +201,16 @@ test("Integrations and the one-token Telegram dialog render all six locales", as
       name: messages[locale]["integrations.settingsTitle"].replace("{name}", "Instagram"),
     });
     await expect(setupDialog).toContainText(
-      messages[locale]["integrations.setup.instagram.summary"],
+      messages[locale]["integrations.request.description"].replace("{name}", "Instagram"),
     );
     await expect(setupDialog).toContainText(messages[locale]["integrations.setup.instagram.step1"]);
     await expect(setupDialog).toContainText(messages[locale]["integrations.notSelfServe"]);
+    await expect(
+      setupDialog.getByRole("button", {
+        name: messages[locale]["integrations.request.submit"],
+        exact: true,
+      }),
+    ).toBeVisible();
     await expectNoOverflow(localePage, setupDialog);
     await setupDialog
       .getByRole("button", { name: messages[locale]["integrations.close"], exact: true })
@@ -241,6 +250,7 @@ for (const testCase of [
     await page.goto(`${webBase}/app/integrations`, { waitUntil: "domcontentloaded" });
     await expectNoOverflow(page);
 
+    await page.getByTestId("integrations-planned-toggle").click();
     const instagramCard = page.getByTestId("integration-card-instagram");
     await instagramCard
       .getByRole("button", {

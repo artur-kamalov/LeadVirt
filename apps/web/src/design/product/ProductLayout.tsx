@@ -55,6 +55,7 @@ import {
 } from "./ui";
 import { useProductMode, type ProductMode } from "./ProductMode";
 import { useI18n } from "@/i18n/I18nProvider";
+import { localizeDemoSeedText } from "@/i18n/demo-seed-messages";
 import { dashboardActivityLabel } from "@/i18n/api-labels";
 import type { Locale } from "@/i18n/config";
 import type { TranslationKey, TranslationValues } from "@/i18n/messages";
@@ -356,7 +357,11 @@ export function ProductLayout({
     locale,
     t,
   );
-  const tenantDisplayName = identity.tenantName ?? t("product.account.label");
+  const tenantDisplayName = identity.tenantName
+    ? demo
+      ? localizeDemoSeedText(identity.tenantName, locale)
+      : identity.tenantName
+    : t("product.account.label");
   const activeNavigationRoute =
     route === "conversation" ? "inbox" : route === "billing" ? "settings" : route;
 

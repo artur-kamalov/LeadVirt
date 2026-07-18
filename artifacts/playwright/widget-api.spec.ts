@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 const webBase = process.env.LEADVIRT_WEB_BASE ?? "http://localhost:3001";
 const publicKey = "demo-website-widget";
 
-test("widget demo loads config and sends a message through public widget API", async ({ page }) => {
+test("widget frame loads config and sends a message through public widget API", async ({ page }) => {
   let postedBody: { sessionId?: string; text?: string; clientMessageId?: string } | null = null;
 
   await page.route(`**/api/public/widget/${publicKey}/config`, async (route) => {
@@ -66,7 +66,7 @@ test("widget demo loads config and sends a message through public widget API", a
   });
 
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.goto(`${webBase}/widget/demo`, { waitUntil: "networkidle" });
+  await page.goto(`${webBase}/widget/frame?key=${publicKey}`, { waitUntil: "networkidle" });
   await expect(page.getByTestId("leadvirt-widget")).toHaveAttribute("data-widget-locale", "ru");
   await page.getByRole("button", { name: "Открыть чат" }).click();
 
@@ -80,9 +80,41 @@ test("widget demo loads config and sends a message through public widget API", a
   await expect.poll(() => postedBody?.sessionId?.startsWith(`lvw_${publicKey}_`)).toBe(true);
   await expect(page.getByText("API ответ виджета: подберу свободное время.")).toBeVisible();
   await page.screenshot({
-    path: "artifacts/playwright/fresh-widget-demo-desktop.png",
+    path: "artifacts/playwright/fresh-widget-frame-desktop.png",
     fullPage: true,
   });
+});
+
+test("widget demo stays local and never calls the public widget API", async ({ page }) => {
+  let publicApiCalls = 0;
+  await page.route("**/api/public/widget/**", async (route) => {
+    publicApiCalls += 1;
+    await route.abort();
+  });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${webBase}/widget/demo`, { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Открыть чат" }).click();
+
+  await expect(page.getByText("Студия Лето", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText(
+      "Здравствуйте! Подскажу цены, соберу удобное время и передам заявку менеджеру.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+
+  await page.getByPlaceholder("Напишите сообщение...").fill("Нужно окрашивание в пятницу");
+  await page.getByRole("button", { name: "Отправить сообщение" }).click();
+
+  await expect(page.getByText("Нужно окрашивание в пятницу", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText(
+      "Спасибо! Уточню услугу и удобное время, затем передам заявку менеджеру для подтверждения.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  expect(publicApiCalls).toBe(0);
 });
 
 test("widget embed script points an iframe at the requested public key", async ({ request }) => {

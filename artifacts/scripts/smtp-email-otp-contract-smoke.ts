@@ -1,4 +1,5 @@
 import {
+  EmailDeliveryFailure,
   EmailOtpDeliveryService,
   type SmtpTransportFactory,
 } from "../../apps/api/src/modules/auth/email-otp-delivery.service.js";
@@ -222,6 +223,32 @@ async function main() {
       JSON.stringify({ "X-LeadVirt-Purpose": "billing_plan_selection" }),
     "SMTP operational purpose header is incorrect.",
   );
+  const stableOperationalMessageId = capturedMessage?.messageId;
+  assert(
+    typeof stableOperationalMessageId === "string" &&
+      /^<leadvirt\.[a-f0-9]{40}@leadvirt\.com>$/.test(stableOperationalMessageId),
+    "SMTP operational delivery has no deterministic Message-ID.",
+  );
+  await service.sendOperationalEmail({
+    subject: "LeadVirt.ai plan request: Professional",
+    text: "Tenant ID: tenant-contract\nRequested plan: PROFESSIONAL",
+    referenceKey: "billing-plan-contract-1",
+    purpose: "billing_plan_selection",
+  });
+  assert(
+    capturedMessage?.messageId === stableOperationalMessageId,
+    "SMTP retry identity changed for the same persisted reference.",
+  );
+  await service.sendOperationalEmail({
+    subject: "LeadVirt.ai plan request: Professional",
+    text: "Tenant ID: tenant-contract\nRequested plan: PROFESSIONAL",
+    referenceKey: "billing-plan-contract-2",
+    purpose: "billing_plan_selection",
+  });
+  assert(
+    capturedMessage?.messageId !== stableOperationalMessageId,
+    "Separate SMTP lifecycles reused a Message-ID.",
+  );
   assert(closed, "SMTP transport was not closed after operational delivery.");
   process.env.EMAIL_PROVIDER = "smtp";
 
@@ -271,6 +298,25 @@ async function main() {
   );
   assert(failureClosed, "SMTP transport was not closed after a reset delivery error.");
 
+  failureClosed = false;
+  deliveryError = undefined;
+  try {
+    await failureService.sendOperationalEmail({
+      email: "ops@leadvirt.test",
+      subject: "LeadVirt.ai integration request: Instagram",
+      text: "Tenant ID: tenant-contract",
+      referenceKey: "integration-request-contract-smtp-failure",
+      purpose: "integration_connection_request",
+    });
+  } catch (error) {
+    deliveryError = error;
+  }
+  assert(
+    deliveryError instanceof EmailDeliveryFailure && deliveryError.outcome === "unknown",
+    "An ambiguous SMTP operational failure was not classified as UNKNOWN.",
+  );
+  assert(failureClosed, "SMTP transport was not closed after an operational delivery error.");
+
   delete process.env.SMTP_PASSWORD;
   assert(
     new EmailOtpDeliveryService(factory).config().enabled === false,
@@ -308,7 +354,7 @@ async function main() {
     operationalMockResult.providerMessageId === "mock:billing-plan-mock",
     "Development operational mock result is incorrect.",
   );
-  console.log(JSON.stringify({ ok: true, checks: 45 }));
+  console.log(JSON.stringify({ ok: true, checks: 50 }));
 }
 
 void main().catch((error: unknown) => {

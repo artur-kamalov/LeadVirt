@@ -124,10 +124,10 @@ const en = {
   "integrations.copied": "Copied",
   "integrations.ready": "Pilot ready",
   "integrations.needsSetup": "Setup required",
-  "integrations.readiness.title": "Inbound channel readiness",
+  "integrations.readiness.title": "Inbound entry points",
   "integrations.readiness.subtitle":
-    "Check the public key, endpoint, and recent events before sending the first test traffic.",
-  "integrations.readiness.count": "{ready}/3 channels ready",
+    "Telegram, the website widget, and optional Webhook/API are checked separately before live traffic.",
+  "integrations.readiness.count": "{ready}/3 entry points ready",
   "integrations.testLead": "Test lead",
   "integrations.sending": "Sending...",
   "integrations.openWidget": "Open widget",
@@ -157,6 +157,7 @@ const en = {
   "integrations.saving": "Saving...",
   "integrations.documentation": "Documentation",
   "integrations.close": "Close",
+  "integrations.closeDialog": "Close dialog",
   "integrations.setupFlow": "Connection steps",
   "integrations.openDocumentation": "Open documentation",
   "integrations.connectionName": "Connection name",
@@ -167,7 +168,23 @@ const en = {
   "integrations.notes": "Notes",
   "integrations.notesPlaceholder": "For example: primary sales account, sandbox, or production.",
   "integrations.notSelfServe":
-    "This integration is not available for self-service in the pilot. The dialog shows the actual requirements but does not save settings.",
+    "This integration is not available for self-service in the pilot. Send a request and our team will contact you before any setup changes.",
+  "integrations.request.description":
+    "Send a managed connection request for {name}. Nothing changes in your account until our team confirms the scope with you.",
+  "integrations.request.submit": "Send request",
+  "integrations.request.sending": "Sending request...",
+  "integrations.request.sent": "Request sent",
+  "integrations.request.confirmation":
+    "Request sent. Our team will contact you using the contact details saved in your account.",
+  "integrations.request.failed": "The request could not be sent. Try again.",
+  "integrations.request.unknown": "Delivery needs review",
+  "integrations.request.unknownDescription":
+    "Delivery could not be confirmed. LeadVirt will not send a duplicate automatically; this request needs manual review.",
+  "integrations.request.contactRequired":
+    "Add a reachable phone number in Settings before sending this request.",
+  "integrations.request.openSettings": "Add contact",
+  "integrations.request.noPermission":
+    "A workspace owner or administrator can send this connection request.",
   "integrations.notAvailableYet":
     "{name} is not available yet because LeadVirt does not have a live provider implementation. These requirements are for planning only.",
   "integrations.publicEndpoint": "Public inbound endpoint",
@@ -277,10 +294,10 @@ const ru = locale({
   "integrations.copied": "Скопировано",
   "integrations.ready": "Готов к пилоту",
   "integrations.needsSetup": "Нужна настройка",
-  "integrations.readiness.title": "Готовность входящих каналов",
+  "integrations.readiness.title": "Точки входа",
   "integrations.readiness.subtitle":
-    "Проверьте public key, endpoint и последние события перед запуском первого тестового трафика.",
-  "integrations.readiness.count": "{ready}/3 канала готовы",
+    "Telegram, виджет сайта и дополнительный Webhook/API проверяются отдельно до запуска трафика.",
+  "integrations.readiness.count": "Готово точек входа: {ready}/3",
   "integrations.testLead": "Тестовый лид",
   "integrations.sending": "Отправляем...",
   "integrations.openWidget": "Открыть виджет",
@@ -309,6 +326,7 @@ const ru = locale({
   "integrations.saving": "Сохраняем...",
   "integrations.documentation": "Документация",
   "integrations.close": "Закрыть",
+  "integrations.closeDialog": "Закрыть окно",
   "integrations.setupFlow": "Сценарий подключения",
   "integrations.openDocumentation": "Открыть документацию",
   "integrations.connectionName": "Название подключения",
@@ -319,7 +337,23 @@ const ru = locale({
   "integrations.notes": "Заметки",
   "integrations.notesPlaceholder": "Например: основной аккаунт продаж, sandbox или продакшен.",
   "integrations.notSelfServe":
-    "Эта интеграция не входит в самостоятельное подключение пилота. Окно показывает реальные требования, но не сохраняет настройки.",
+    "Эта интеграция пока не подключается самостоятельно. Отправьте заявку, и команда свяжется с вами до изменения настроек.",
+  "integrations.request.description":
+    "Отправьте заявку на подключение {name}. До согласования с вами никаких изменений в аккаунте не произойдёт.",
+  "integrations.request.submit": "Отправить заявку",
+  "integrations.request.sending": "Отправляем заявку...",
+  "integrations.request.sent": "Заявка отправлена",
+  "integrations.request.confirmation":
+    "Заявка отправлена. Команда свяжется с вами по контактам, сохранённым в вашем аккаунте.",
+  "integrations.request.failed": "Не удалось отправить заявку. Попробуйте ещё раз.",
+  "integrations.request.unknown": "Доставка требует проверки",
+  "integrations.request.unknownDescription":
+    "Доставку не удалось подтвердить. LeadVirt не отправит дубликат автоматически; заявку нужно проверить вручную.",
+  "integrations.request.contactRequired":
+    "Добавьте доступный номер телефона в Настройках перед отправкой заявки.",
+  "integrations.request.openSettings": "Добавить контакт",
+  "integrations.request.noPermission":
+    "Отправить заявку может владелец или администратор рабочего пространства.",
   "integrations.notAvailableYet":
     "{name} пока недоступна: в LeadVirt ещё нет рабочей интеграции с этим сервисом. Требования показаны только для планирования.",
   "integrations.publicEndpoint": "Публичный входящий endpoint",
@@ -503,10 +537,10 @@ const es = locale({
   "integrations.copied": "Copiado",
   "integrations.ready": "Lista para el piloto",
   "integrations.needsSetup": "Requiere configuración",
-  "integrations.readiness.title": "Estado de los canales entrantes",
+  "integrations.readiness.title": "Puntos de entrada",
   "integrations.readiness.subtitle":
-    "Comprueba la clave pública, el endpoint y los eventos recientes antes de enviar el primer tráfico de prueba.",
-  "integrations.readiness.count": "{ready}/3 canales listos",
+    "Telegram, el widget web y Webhook/API opcional se comprueban por separado antes del tráfico real.",
+  "integrations.readiness.count": "{ready}/3 puntos de entrada listos",
   "integrations.testLead": "Lead de prueba",
   "integrations.sending": "Enviando...",
   "integrations.openWidget": "Abrir widget",
@@ -537,6 +571,7 @@ const es = locale({
   "integrations.saving": "Guardando...",
   "integrations.documentation": "Documentación",
   "integrations.close": "Cerrar",
+  "integrations.closeDialog": "Cerrar diálogo",
   "integrations.setupFlow": "Pasos de conexión",
   "integrations.openDocumentation": "Abrir documentación",
   "integrations.connectionName": "Nombre de la conexión",
@@ -548,7 +583,23 @@ const es = locale({
   "integrations.notesPlaceholder":
     "Por ejemplo: cuenta principal de ventas, entorno de pruebas o producción.",
   "integrations.notSelfServe":
-    "Esta integración no se puede configurar de forma autónoma durante el piloto. El cuadro de diálogo muestra los requisitos reales, pero no guarda la configuración.",
+    "Esta integración aún no está disponible como autoservicio. Envía una solicitud y nuestro equipo se pondrá en contacto antes de cambiar la configuración.",
+  "integrations.request.description":
+    "Envía una solicitud de conexión gestionada para {name}. Nada cambiará en tu cuenta hasta que confirmemos el alcance contigo.",
+  "integrations.request.submit": "Enviar solicitud",
+  "integrations.request.sending": "Enviando solicitud...",
+  "integrations.request.sent": "Solicitud enviada",
+  "integrations.request.confirmation":
+    "Solicitud enviada. Nuestro equipo se pondrá en contacto contigo mediante los datos guardados en tu cuenta.",
+  "integrations.request.failed": "No se pudo enviar la solicitud. Inténtalo de nuevo.",
+  "integrations.request.unknown": "La entrega requiere revisión",
+  "integrations.request.unknownDescription":
+    "No se pudo confirmar la entrega. LeadVirt no enviará un duplicado automáticamente; esta solicitud requiere revisión manual.",
+  "integrations.request.contactRequired":
+    "Añade un teléfono de contacto válido en Configuración antes de enviar la solicitud.",
+  "integrations.request.openSettings": "Añadir contacto",
+  "integrations.request.noPermission":
+    "Solo un propietario o administrador puede enviar esta solicitud de conexión.",
   "integrations.notAvailableYet":
     "{name} aún no está disponible porque LeadVirt no tiene una integración activa con este proveedor. Estos requisitos son solo para planificación.",
   "integrations.publicEndpoint": "Endpoint público de entrada",
@@ -733,10 +784,10 @@ const fr = locale({
   "integrations.copied": "Copié",
   "integrations.ready": "Prête pour le pilote",
   "integrations.needsSetup": "Configuration requise",
-  "integrations.readiness.title": "État des canaux entrants",
+  "integrations.readiness.title": "Points d'entrée",
   "integrations.readiness.subtitle":
-    "Vérifiez la clé publique, l'endpoint et les événements récents avant d'envoyer le premier trafic de test.",
-  "integrations.readiness.count": "{ready}/3 canaux prêts",
+    "Telegram, le widget du site et le Webhook/API facultatif sont vérifiés séparément avant le trafic réel.",
+  "integrations.readiness.count": "{ready}/3 points d'entrée prêts",
   "integrations.testLead": "Prospect test",
   "integrations.sending": "Envoi...",
   "integrations.openWidget": "Ouvrir le widget",
@@ -767,6 +818,7 @@ const fr = locale({
   "integrations.saving": "Enregistrement...",
   "integrations.documentation": "Documentation",
   "integrations.close": "Fermer",
+  "integrations.closeDialog": "Fermer la fenêtre",
   "integrations.setupFlow": "Étapes de connexion",
   "integrations.openDocumentation": "Ouvrir la documentation",
   "integrations.connectionName": "Nom de la connexion",
@@ -778,7 +830,23 @@ const fr = locale({
   "integrations.notesPlaceholder":
     "Par exemple : compte de vente principal, environnement de test ou production.",
   "integrations.notSelfServe":
-    "Cette intégration ne peut pas être configurée en libre-service pendant le pilote. La boîte de dialogue affiche les prérequis réels, mais n'enregistre pas les paramètres.",
+    "Cette intégration n'est pas encore disponible en libre-service. Envoyez une demande et notre équipe vous contactera avant toute modification.",
+  "integrations.request.description":
+    "Envoyez une demande de connexion accompagnée pour {name}. Votre compte ne changera pas avant validation du périmètre avec vous.",
+  "integrations.request.submit": "Envoyer la demande",
+  "integrations.request.sending": "Envoi de la demande...",
+  "integrations.request.sent": "Demande envoyée",
+  "integrations.request.confirmation":
+    "Demande envoyée. Notre équipe vous contactera aux coordonnées enregistrées dans votre compte.",
+  "integrations.request.failed": "La demande n'a pas pu être envoyée. Réessayez.",
+  "integrations.request.unknown": "La livraison doit être vérifiée",
+  "integrations.request.unknownDescription":
+    "La livraison n'a pas pu être confirmée. LeadVirt n'enverra pas de doublon automatiquement ; cette demande doit être vérifiée manuellement.",
+  "integrations.request.contactRequired":
+    "Ajoutez un numéro de téléphone joignable dans les paramètres avant d'envoyer la demande.",
+  "integrations.request.openSettings": "Ajouter un contact",
+  "integrations.request.noPermission":
+    "Seul un propriétaire ou administrateur peut envoyer cette demande de connexion.",
   "integrations.notAvailableYet":
     "{name} n'est pas encore disponible, car LeadVirt ne dispose pas d'une intégration active avec ce fournisseur. Ces prérequis sont fournis uniquement à titre de planification.",
   "integrations.publicEndpoint": "Endpoint entrant public",
@@ -963,10 +1031,10 @@ const de = locale({
   "integrations.copied": "Kopiert",
   "integrations.ready": "Pilotbereit",
   "integrations.needsSetup": "Einrichtung erforderlich",
-  "integrations.readiness.title": "Bereitschaft eingehender Kanäle",
+  "integrations.readiness.title": "Eingangspunkte",
   "integrations.readiness.subtitle":
-    "Prüfen Sie öffentlichen Schlüssel, Endpunkt und letzte Ereignisse, bevor Sie den ersten Testverkehr senden.",
-  "integrations.readiness.count": "{ready}/3 Kanäle bereit",
+    "Telegram, Website-Widget und optionaler Webhook/API werden vor Live-Traffic getrennt geprüft.",
+  "integrations.readiness.count": "{ready}/3 Eingangspunkte bereit",
   "integrations.testLead": "Test-Lead",
   "integrations.sending": "Wird gesendet...",
   "integrations.openWidget": "Widget öffnen",
@@ -996,6 +1064,7 @@ const de = locale({
   "integrations.saving": "Speichern...",
   "integrations.documentation": "Dokumentation",
   "integrations.close": "Schließen",
+  "integrations.closeDialog": "Dialog schließen",
   "integrations.setupFlow": "Verbindungsschritte",
   "integrations.openDocumentation": "Dokumentation öffnen",
   "integrations.connectionName": "Verbindungsname",
@@ -1007,7 +1076,23 @@ const de = locale({
   "integrations.notesPlaceholder":
     "Zum Beispiel: primäres Vertriebskonto, Sandbox oder Produktion.",
   "integrations.notSelfServe":
-    "Diese Integration kann im Pilotbetrieb nicht selbst eingerichtet werden. Der Dialog zeigt die tatsächlichen Anforderungen, speichert aber keine Einstellungen.",
+    "Diese Integration ist noch nicht zur Selbstbedienung verfügbar. Senden Sie eine Anfrage; unser Team meldet sich vor jeder Änderung.",
+  "integrations.request.description":
+    "Senden Sie eine betreute Verbindungsanfrage für {name}. Ihr Konto bleibt unverändert, bis wir den Umfang mit Ihnen bestätigt haben.",
+  "integrations.request.submit": "Anfrage senden",
+  "integrations.request.sending": "Anfrage wird gesendet...",
+  "integrations.request.sent": "Anfrage gesendet",
+  "integrations.request.confirmation":
+    "Anfrage gesendet. Unser Team kontaktiert Sie über die in Ihrem Konto gespeicherten Kontaktdaten.",
+  "integrations.request.failed": "Die Anfrage konnte nicht gesendet werden. Versuchen Sie es erneut.",
+  "integrations.request.unknown": "Zustellung muss geprüft werden",
+  "integrations.request.unknownDescription":
+    "Die Zustellung konnte nicht bestätigt werden. LeadVirt sendet nicht automatisch ein Duplikat; diese Anfrage muss manuell geprüft werden.",
+  "integrations.request.contactRequired":
+    "Fügen Sie vor dem Senden in den Einstellungen eine erreichbare Telefonnummer hinzu.",
+  "integrations.request.openSettings": "Kontakt hinzufügen",
+  "integrations.request.noPermission":
+    "Nur ein Workspace-Inhaber oder Administrator kann diese Anfrage senden.",
   "integrations.notAvailableYet":
     "{name} ist noch nicht verfügbar, da LeadVirt keine aktive Integration für diesen Anbieter hat. Diese Anforderungen dienen nur der Planung.",
   "integrations.publicEndpoint": "Öffentlicher Eingangs-Endpunkt",
@@ -1186,10 +1271,10 @@ const pt = locale({
   "integrations.copied": "Copiado",
   "integrations.ready": "Pronta para piloto",
   "integrations.needsSetup": "Configuração necessária",
-  "integrations.readiness.title": "Prontidão dos canais de entrada",
+  "integrations.readiness.title": "Pontos de entrada",
   "integrations.readiness.subtitle":
-    "Verifique a chave pública, o endpoint e os eventos recentes antes de enviar o primeiro tráfego de teste.",
-  "integrations.readiness.count": "{ready}/3 canais prontos",
+    "Telegram, widget do site e Webhook/API opcional são verificados separadamente antes do tráfego real.",
+  "integrations.readiness.count": "{ready}/3 pontos de entrada prontos",
   "integrations.testLead": "Lead de teste",
   "integrations.sending": "Enviando...",
   "integrations.openWidget": "Abrir widget",
@@ -1220,6 +1305,7 @@ const pt = locale({
   "integrations.saving": "Salvando...",
   "integrations.documentation": "Documentação",
   "integrations.close": "Fechar",
+  "integrations.closeDialog": "Fechar diálogo",
   "integrations.setupFlow": "Etapas da conexão",
   "integrations.openDocumentation": "Abrir documentação",
   "integrations.connectionName": "Nome da conexão",
@@ -1230,7 +1316,23 @@ const pt = locale({
   "integrations.notes": "Observações",
   "integrations.notesPlaceholder": "Por exemplo: conta principal de vendas, sandbox ou produção.",
   "integrations.notSelfServe":
-    "Esta integração não está disponível para configuração autônoma no piloto. A caixa de diálogo mostra os requisitos reais, mas não salva configurações.",
+    "Esta integração ainda não está disponível em autoatendimento. Envie uma solicitação e nossa equipe entrará em contato antes de qualquer alteração.",
+  "integrations.request.description":
+    "Envie uma solicitação de conexão assistida para {name}. Nada mudará na conta até confirmarmos o escopo com você.",
+  "integrations.request.submit": "Enviar solicitação",
+  "integrations.request.sending": "Enviando solicitação...",
+  "integrations.request.sent": "Solicitação enviada",
+  "integrations.request.confirmation":
+    "Solicitação enviada. Nossa equipe entrará em contato com você usando os dados salvos na sua conta.",
+  "integrations.request.failed": "Não foi possível enviar a solicitação. Tente novamente.",
+  "integrations.request.unknown": "A entrega precisa de revisão",
+  "integrations.request.unknownDescription":
+    "Não foi possível confirmar a entrega. O LeadVirt não enviará uma duplicata automaticamente; esta solicitação precisa de revisão manual.",
+  "integrations.request.contactRequired":
+    "Adicione um telefone de contato válido nas Configurações antes de enviar a solicitação.",
+  "integrations.request.openSettings": "Adicionar contato",
+  "integrations.request.noPermission":
+    "Somente um proprietário ou administrador pode enviar esta solicitação de conexão.",
   "integrations.notAvailableYet":
     "{name} ainda não está disponível porque o LeadVirt não possui uma integração ativa com este provedor. Estes requisitos servem apenas para planejamento.",
   "integrations.publicEndpoint": "Endpoint público de entrada",

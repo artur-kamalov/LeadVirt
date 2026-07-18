@@ -246,7 +246,10 @@ export function DashboardPage() {
   const tenantResource = useCurrentTenantResource();
   const readinessResource = useDashboardReadinessResource();
   const summary = summaryResource.data;
-  const tenantName = tenantResource.data?.name || null;
+  const isDemo = mode === "demo";
+  const tenantName = tenantResource.data?.name
+    ? localizeSeedText(tenantResource.data.name, locale, isDemo)
+    : null;
 
   if (!summary) {
     return (
@@ -335,7 +338,10 @@ export function DashboardPage() {
     summary.metrics.averageResponseTimeSeconds,
     summary.metrics.conversionRate,
   ];
-  const dashboardStats = stats.map((stat, index) => {
+  const visibleStats = stats
+    .map((stat, index) => ({ stat, index }))
+    .filter(({ index }) => !isDemo || index === 0 || index === 1 || index === 4 || index === 5);
+  const dashboardStats = visibleStats.map(({ stat, index }) => {
     const values = [
       formatNumber(summary.metrics.newLeadsCount),
       formatNumber(summary.metrics.aiConversationsCount),
@@ -440,7 +446,12 @@ export function DashboardPage() {
         />
 
         {/* ── 2. Stat cards ── */}
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-6">
+        <div
+          className={cn(
+            "grid grid-cols-2 gap-3 sm:gap-4",
+            isDemo ? "lg:grid-cols-4" : "lg:grid-cols-3 xl:grid-cols-6",
+          )}
+        >
           {dashboardStats.map((s, i) => (
             <StatCard
               key={s.label}
@@ -467,7 +478,7 @@ export function DashboardPage() {
             <Card className="p-4 sm:p-6">
               <SectionTitle
                 title={t("dashboard.chart.title")}
-                sub={t("dashboard.chart.description")}
+                sub={isDemo ? t("dashboard.chart.leads") : t("dashboard.chart.description")}
                 action={
                   <Link
                     href={hrefForRoute("analytics", {}, mode)}
@@ -523,17 +534,24 @@ export function DashboardPage() {
                         dot={false}
                         activeDot={{ r: 4, fill: "#34d399", stroke: "#18181b", strokeWidth: 2 }}
                       />
-                      <Area
-                        key="booked"
-                        type="monotone"
-                        dataKey="booked"
-                        name={t("dashboard.chart.bookings")}
-                        stroke="#818cf8"
-                        strokeWidth={2}
-                        fill="url(#gradBooked)"
-                        dot={false}
-                        activeDot={{ r: 4, fill: "#818cf8", stroke: "#18181b", strokeWidth: 2 }}
-                      />
+                      {!isDemo ? (
+                        <Area
+                          key="booked"
+                          type="monotone"
+                          dataKey="booked"
+                          name={t("dashboard.chart.bookings")}
+                          stroke="#818cf8"
+                          strokeWidth={2}
+                          fill="url(#gradBooked)"
+                          dot={false}
+                          activeDot={{
+                            r: 4,
+                            fill: "#818cf8",
+                            stroke: "#18181b",
+                            strokeWidth: 2,
+                          }}
+                        />
+                      ) : null}
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -551,10 +569,14 @@ export function DashboardPage() {
                     <span className="w-3 h-0.5 bg-emerald-400 rounded-full" />
                     <span className="text-xs text-zinc-500">{t("dashboard.chart.leads")}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-0.5 bg-indigo-400 rounded-full" />
-                    <span className="text-xs text-zinc-500">{t("dashboard.chart.bookings")}</span>
-                  </div>
+                  {!isDemo ? (
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-0.5 bg-indigo-400 rounded-full" />
+                      <span className="text-xs text-zinc-500">
+                        {t("dashboard.chart.bookings")}
+                      </span>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
             </Card>

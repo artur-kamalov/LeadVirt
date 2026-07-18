@@ -1,5 +1,33 @@
 # Decision Log
 
+## 2026-07-18: Request Managed Integrations Without Inventing Connectivity
+
+Decision: Non-self-serve integrations accept an owner/admin connection request, notify a monitored operator recipient, and expose only the durable requested state. Requests serialize per tenant and provider, preserve any historical integration status/settings, and may be submitted again only after the requested lifecycle is explicitly cleared.
+
+Context: Planned integration cards previously explained manual setup but offered no working action. A naive request upsert could send duplicate emails under concurrency or overwrite existing integration evidence.
+
+Consequences:
+
+- `ExternalOperation` is the durable delivery authority; `IntegrationAccount.settings` projects the current client-visible request lifecycle, while audit events remain evidence.
+- The serialized transaction persists the integration request and a unique lifecycle reference before a dispatcher sends email outside the transaction.
+- A claimed or ambiguous delivery is never resent automatically. SMTP uses a deterministic message ID for the persisted lifecycle, and UniSender receives a unique `ref_key` for each renewed request.
+- Client state distinguishes pending delivery, confirmed delivery, and an ambiguous outcome that requires manual review; a synchronous wait timeout is durably fenced as unknown before the API responds.
+- Requests require a reachable non-internal user email or saved user/business phone. Terminal delivery evidence retains identifiers and provider references but removes the operator recipient, message body, and requester contact details.
+- Production readiness requires an explicit valid `INTEGRATION_REQUEST_EMAIL`; the request fails closed instead of falling back to the sender mailbox.
+- Telegram and Webhook/API remain the only self-serve integrations; a request never presents another provider as connected.
+
+## 2026-07-18: Expose Only Verifiable Product Actions And Plan Benefits
+
+Decision: Product actions, analytics recommendations, onboarding promises, and pricing benefits are shown only when the current runtime can execute or verify them. Demo content follows the same Telegram/website-widget pilot boundary.
+
+Context: Several controls implied CRM sync, bookings, tasks, downstream automation, advanced analytics, or service guarantees that had no provider-backed implementation.
+
+Consequences:
+
+- Lead actions follow the implemented pipeline state machine and stop after qualification or closure.
+- Public and account pricing retain only shared numeric limits and implemented basic analytics.
+- Demo channels, business information, operational labels, and readiness remain localized without rewriting live customer content.
+
 ## 2026-07-18: Keep Mobile Setup Paths Explicit
 
 Decision: On compact screens, multi-section settings use one labeled selector that always exposes the active section. First-run product surfaces show the next setup action before diagnostics or explanatory empty states.

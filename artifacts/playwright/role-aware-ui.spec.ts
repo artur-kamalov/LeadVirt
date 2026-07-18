@@ -220,6 +220,7 @@ test("VIEWER gets read-only product controls", async ({ page }) => {
   await expect(page.getByTestId("conversation-read-only")).toBeVisible();
   await expect(page.getByRole("button", { name: "Send message", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Send to CRM/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Mark as qualified/ })).toHaveCount(0);
   await page.screenshot({
     path: "artifacts/playwright/role-aware-viewer-conversation.png",
     fullPage: true,
@@ -249,5 +250,5 @@ test("AGENT can operate leads and conversations but not administration", async (
   await expect(page.getByTestId("conversation-operator")).toBeVisible();
   await expect(page.getByTestId("product-topbar-open-inbox")).toBeVisible();
   await expect(page.getByRole("button", { name: "Send message", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Send to CRM/ }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: /Mark as qualified/ }).first()).toBeVisible();
 });

@@ -317,6 +317,12 @@ function checkEnvironment() {
   );
 
   const requiredEmailProviders = new Set([emailProvider]);
+  strictCheck(
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(process.env.INTEGRATION_REQUEST_EMAIL?.trim() ?? ""),
+    "INTEGRATION_REQUEST_EMAIL",
+    "configured",
+    "missing or invalid; managed integration requests fail closed without an operator recipient",
+  );
   if (isTruthy(process.env.AUTH_EMAIL_OTP_ENABLED)) {
     const emailOtpProvider = (process.env.EMAIL_OTP_PROVIDER ?? "mock").trim().toLowerCase();
     strictCheck(

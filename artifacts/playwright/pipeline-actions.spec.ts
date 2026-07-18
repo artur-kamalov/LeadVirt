@@ -34,7 +34,8 @@ const baseLead = {
   createdAt: "2026-06-22T09:55:00.000Z",
 };
 
-function pipelineSummary(lead = baseLead) {
+function pipelineSummary(input: typeof baseLead | Array<typeof baseLead> = baseLead) {
+  const leads = Array.isArray(input) ? input : [input];
   const statuses = [
     "NEW",
     "IN_PROGRESS",
@@ -47,12 +48,15 @@ function pipelineSummary(lead = baseLead) {
   ];
   return {
     data: {
-      stages: statuses.map((status) => ({
-        status,
-        count: lead.status === status ? 1 : 0,
-        valueAmount: lead.status === status ? lead.valueAmount : 0,
-        leads: lead.status === status ? [lead] : [],
-      })),
+      stages: statuses.map((status) => {
+        const stageLeads = leads.filter((lead) => lead.status === status);
+        return {
+          status,
+          count: stageLeads.length,
+          valueAmount: stageLeads.reduce((sum, lead) => sum + lead.valueAmount, 0),
+          leads: stageLeads,
+        };
+      }),
     },
   };
 }
@@ -113,6 +117,61 @@ test("pipeline advances API leads through the update adapter", async ({ page }) 
   await expect(page.getByText(updatedManager)).toBeVisible();
 });
 
+test("pipeline metrics count and value only qualified leads", async ({ page }) => {
+  const metricLeads = [
+    { ...baseLead, id: "lead-new", status: "NEW", valueAmount: 10_000 },
+    { ...baseLead, id: "lead-qualified", status: "QUALIFIED", valueAmount: 30_000 },
+    { ...baseLead, id: "lead-closed", status: "CLOSED", valueAmount: 100_000 },
+  ];
+
+  await page.route("**/api/leads/pipeline/summary", async (route) => {
+    await route.fulfill({ json: pipelineSummary(metricLeads) });
+  });
+  await page.route("**/api/inbox/conversations?limit=100", async (route) => {
+    await route.fulfill({
+      json: { data: [], pagination: { page: 1, limit: 100, total: 0, hasMore: false } },
+    });
+  });
+
+  await page.goto(`${webBase}/app/leads`, { waitUntil: "networkidle" });
+
+  await expect(page.getByTestId("pipeline-stat-qualification")).toContainText(
+    "Доля квалифицированных",
+  );
+  await expect(page.getByTestId("pipeline-stat-qualification")).toContainText(/33\s*%/);
+  await expect(page.getByTestId("pipeline-stat-qualified-average")).toContainText(
+    "Средняя сумма квалифицированного лида",
+  );
+  await expect(page.getByTestId("pipeline-stat-qualified-average")).toContainText(
+    /30[\s\u00a0]?000/,
+  );
+});
+
+test("pipeline omits unavailable CRM, task, and implicit booking actions", async ({ page }) => {
+  let currentLead = { ...baseLead, status: "QUALIFIED" };
+
+  await page.route("**/api/leads/pipeline/summary", async (route) => {
+    await route.fulfill({ json: pipelineSummary(currentLead) });
+  });
+  await page.route("**/api/inbox/conversations?limit=100", async (route) => {
+    await route.fulfill({
+      json: { data: [], pagination: { page: 1, limit: 100, total: 0, hasMore: false } },
+    });
+  });
+
+  await page.goto(`${webBase}/app/leads`, { waitUntil: "networkidle" });
+
+  await expect(page.getByTestId(`pipeline-advance-${baseLead.id}`)).toHaveCount(0);
+  await page.getByRole("button", { name: /Действия лида/ }).click();
+  await expect(page.getByRole("menuitem", { name: /Отметить квалифицированным/ })).toHaveCount(0);
+  await expect(page.getByRole("menuitem", { name: /Закрыть лид/ })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: /CRM|Создать задачу|Записать на приём/ })).toHaveCount(0);
+
+  currentLead = { ...baseLead, status: "BOOKED" };
+  await page.reload({ waitUntil: "networkidle" });
+  await expect(page.getByTestId(`pipeline-advance-${baseLead.id}`)).toHaveCount(0);
+});
+
 test("pipeline blocks duplicate lead mutations and reconciles failures from the API", async ({
   page,
 }) => {
@@ -171,9 +230,8 @@ test("pipeline blocks duplicate lead mutations and reconciles failures from the 
 
   await expect.poll(() => reconciliationCalls).toBe(1);
   await expect(page.getByText(reconciledManager)).toBeVisible();
-  await expect(
-    page.locator(`[data-testid="pipeline-advance-${baseLead.id}"]:not(:disabled)`),
-  ).toHaveCount(1);
+  await expect(page.getByTestId(`pipeline-advance-${baseLead.id}`)).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Действия лида/ })).toBeEnabled();
   expect(mutationCalls).toBe(1);
 });
 

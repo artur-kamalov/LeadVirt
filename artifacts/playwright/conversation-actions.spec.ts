@@ -71,31 +71,9 @@ function conversation(status = "IN_PROGRESS") {
   };
 }
 
-test("conversation side-panel actions call lead APIs with the API lead id", async ({ page }) => {
-  let crmCalled = false;
-  let taskTitle = "";
-  let appointmentTitle = "";
+test("conversation exposes only supported lead actions", async ({ page }) => {
   let qualifiedStatus = "";
   let currentStatus = "IN_PROGRESS";
-
-  await page.route(`**/api/leads/${leadId}/actions/send-to-crm`, async (route) => {
-    crmCalled = true;
-    currentStatus = "SENT_TO_CRM";
-    await route.fulfill({ json: { data: lead(currentStatus) } });
-  });
-
-  await page.route(`**/api/leads/${leadId}/actions/create-task`, async (route) => {
-    const body = route.request().postDataJSON() as { title?: string };
-    taskTitle = body.title ?? "";
-    await route.fulfill({ json: { data: { id: "task-actions", title: taskTitle } } });
-  });
-
-  await page.route(`**/api/leads/${leadId}/actions/book-appointment`, async (route) => {
-    const body = route.request().postDataJSON() as { title?: string };
-    appointmentTitle = body.title ?? "";
-    currentStatus = "BOOKED";
-    await route.fulfill({ json: { data: { id: "booking-actions", title: appointmentTitle } } });
-  });
 
   await page.route(`**/api/leads/${leadId}`, async (route) => {
     const body = route.request().postDataJSON() as { status?: string };
@@ -112,17 +90,16 @@ test("conversation side-panel actions call lead APIs with the API lead id", asyn
   await page.goto(`${webBase}/app/inbox/${conversationId}`, { waitUntil: "networkidle" });
 
   await expect(page.getByText("Action API Client")).toBeVisible();
-  await page.getByRole("button", { name: /Отправить в CRM/ }).click();
-  await expect.poll(() => crmCalled).toBe(true);
-
-  await page.getByRole("button", { name: /Создать задачу/ }).click();
-  await expect.poll(() => taskTitle).toBe("Связаться с лидом из диалога");
-
-  await page.getByRole("button", { name: /Записать на приём/ }).click();
-  await expect.poll(() => appointmentTitle).toBe("Action API service");
+  await expect(page.getByRole("button", { name: /CRM/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Создать задачу/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Записать на приём/ })).toHaveCount(0);
 
   await page.getByRole("button", { name: /Отметить квалифицированным/ }).click();
   await expect.poll(() => qualifiedStatus).toBe("QUALIFIED");
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole("button", { name: /Отметить квалифицированным/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /CRM|Создать задачу|Записать на приём/ })).toHaveCount(0);
 });
 
 test("conversation transport failures stay distinct from a true not-found response", async ({

@@ -579,8 +579,10 @@ try {
   const apiReadiness = read(
     join(repoRoot, "apps/api/src/modules/health/runtime-readiness.service.ts"),
   );
+  const authStagingReadiness = read(join(repoRoot, "artifacts/scripts/auth-staging-ready.mjs"));
   const apiWriterFiles = [
     "apps/api/src/modules/ai/runtime-queue.service.ts",
+    "apps/api/src/modules/integrations/integration-requests.service.ts",
     "apps/api/src/modules/knowledge/knowledge-publication-dispatcher.service.ts",
     "apps/api/src/modules/knowledge/knowledge-source-queue.service.ts",
     "apps/api/src/modules/knowledge/knowledge-v2-content-reconciliation.service.ts",
@@ -588,6 +590,11 @@ try {
     "apps/api/src/modules/knowledge/knowledge-v2-review-decision.service.ts",
     "apps/api/src/modules/knowledge/knowledge-v2-test-run.service.ts",
   ];
+  assert(
+    authStagingReadiness.includes('"INTEGRATION_REQUEST_EMAIL"') &&
+      authStagingReadiness.includes("managed integration requests fail closed"),
+    "Expected strict auth readiness to validate the managed-integration operator recipient.",
+  );
 
   assert(
     publicAppAnchor.length > 0 &&

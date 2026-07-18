@@ -6,12 +6,17 @@ import type { RequestContext } from "../../common/request-context.js";
 import { WorkspaceAuthGuard } from "../auth/workspace-auth.guard.js";
 import { ConnectIntegrationDto } from "./dto/connect-integration.dto.js";
 import { UpdateIntegrationSettingsDto } from "./dto/update-integration-settings.dto.js";
+import { IntegrationRequestsService } from "./integration-requests.service.js";
 import { IntegrationsService } from "./integrations.service.js";
 
 @UseGuards(WorkspaceAuthGuard, RolesGuard)
 @Controller("integrations")
 export class IntegrationsController {
-  constructor(@Inject(IntegrationsService) private readonly integrationsService: IntegrationsService) {}
+  constructor(
+    @Inject(IntegrationsService) private readonly integrationsService: IntegrationsService,
+    @Inject(IntegrationRequestsService)
+    private readonly integrationRequestsService: IntegrationRequestsService,
+  ) {}
 
   @Get()
   async list(@CurrentContext() context: RequestContext) {
@@ -22,6 +27,15 @@ export class IntegrationsController {
   @Post(":provider/connect")
   async connect(@CurrentContext() context: RequestContext, @Param("provider") provider: string, @Body() dto: ConnectIntegrationDto) {
     return { data: await this.integrationsService.connect(context, provider, dto) };
+  }
+
+  @Roles("OWNER", "ADMIN")
+  @Post(":provider/request")
+  async requestConnection(
+    @CurrentContext() context: RequestContext,
+    @Param("provider") provider: string,
+  ) {
+    return { data: await this.integrationRequestsService.request(context, provider) };
   }
 
   @Roles("OWNER", "ADMIN")

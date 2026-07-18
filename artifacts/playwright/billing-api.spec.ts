@@ -504,6 +504,10 @@ test("billing shows a truthful no-subscription state", async ({ page }) => {
   await expect(page.getByTestId("billing-plan-PROFESSIONAL")).toContainText("24,900");
   await expect(page.getByTestId("billing-plan-BUSINESS")).toContainText("59,900");
   await expect(page.getByTestId("billing-plan-CORPORATE")).toContainText("120,000");
+  await expect(page.getByText("CRM lead handoff", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("AI recommendations and insights", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Workflow A/B tests", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("SLA and availability guarantees", { exact: true })).toHaveCount(0);
   await page.getByTestId("billing-plan-START").getByRole("button", { name: "Choose" }).click();
 
   await expect(page.getByText("No active subscription")).toBeVisible();

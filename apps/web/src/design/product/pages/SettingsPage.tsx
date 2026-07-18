@@ -103,6 +103,7 @@ import {
   type WebhookOutboundSettingsPatch,
 } from "@/lib/api/channels";
 import { useI18n } from "@/i18n/I18nProvider";
+import { localizeDemoSeedText } from "@/i18n/demo-seed-messages";
 import type { TranslationKey } from "@/i18n/messages";
 import { useCurrentUser, useProductPermissions } from "../CurrentUser";
 import { useProductMode } from "../ProductMode";
@@ -383,7 +384,6 @@ const billingPlanCopy: Record<
       "pricing.feature.users3",
       "pricing.feature.scenarios3",
       "pricing.feature.basicAnalytics",
-      "pricing.feature.crm",
     ],
   },
   PROFESSIONAL: {
@@ -393,9 +393,7 @@ const billingPlanCopy: Record<
       "pricing.feature.channels5",
       "pricing.feature.users10",
       "pricing.feature.scenarios15",
-      "pricing.feature.advancedAnalytics",
-      "pricing.feature.automation",
-      "pricing.feature.prioritySupport",
+      "pricing.feature.basicAnalytics",
     ],
   },
   BUSINESS: {
@@ -405,20 +403,13 @@ const billingPlanCopy: Record<
       "pricing.feature.channels10",
       "pricing.feature.users25",
       "pricing.feature.scenarios50",
-      "pricing.feature.aiInsights",
-      "pricing.feature.abTests",
-      "pricing.feature.accountManager",
+      "pricing.feature.basicAnalytics",
     ],
   },
   CORPORATE: {
     tagline: "pricing.corporate.tagline",
     features: [
       "pricing.feature.customLimits",
-      "pricing.feature.sla",
-      "pricing.feature.customIntegrations",
-      "pricing.feature.dedicatedInfra",
-      "pricing.feature.teamTraining",
-      "pricing.feature.personalManager",
     ],
   },
 };
@@ -533,6 +524,14 @@ function ProfileTab() {
   const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement | null>(null);
   const skipNextAccountHydration = useRef(false);
+  const businessName =
+    demo && account?.businessName
+      ? localizeDemoSeedText(account.businessName, i18n.locale)
+      : account?.businessName;
+  const businessDescription =
+    demo && account?.description
+      ? localizeDemoSeedText(account.description, i18n.locale)
+      : account?.description;
 
   useEffect(() => {
     if (!account) return;
@@ -668,7 +667,7 @@ function ProfileTab() {
               className="mt-1 break-words text-sm font-medium text-zinc-200"
               data-testid="settings-business-profile-name"
             >
-              {account?.businessName || "—"}
+              {businessName || "—"}
             </dd>
           </div>
           <div className="min-w-0">
@@ -701,7 +700,7 @@ function ProfileTab() {
               className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-zinc-400"
               data-testid="settings-business-profile-description"
             >
-              {account?.description || "—"}
+              {businessDescription || "—"}
             </dd>
           </div>
         </dl>
@@ -717,7 +716,7 @@ function ProfileTab() {
               className="h-16 w-16 rounded-full border border-white/10 object-cover"
             />
           ) : (
-            <Avatar name={account?.businessName ?? ""} size={64} />
+            <Avatar name={businessName ?? ""} size={64} />
           )}
           <div>
             <p className="text-sm font-semibold text-zinc-200 mb-1">{t("settings.profile.logo")}</p>

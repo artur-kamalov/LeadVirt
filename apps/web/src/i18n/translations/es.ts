@@ -352,20 +352,21 @@ export const es: Record<BaseTranslationKey, string> = {
   "onboarding.availability.available": "Disponible",
   "onboarding.availability.request": "Bajo solicitud",
   "onboarding.availability.planned": "Planificado",
-  "onboarding.scenario.title": "Elige un flujo de trabajo de IA",
-  "onboarding.scenario.description": "¿Cómo debería funcionar tu asistente de IA?",
+  "onboarding.scenario.title": "Elige un objetivo de configuración",
+  "onboarding.scenario.description":
+    "Guarda un objetivo para configurarlo más adelante. Este paso no activa ninguna automatización.",
   "onboarding.scenario.booking": "Reserva de servicios",
   "onboarding.scenario.bookingDescription":
-    "AI reserva clientes automáticamente y confirma la fecha, hora y especialista",
+    "Objetivo: recopilar la fecha, la hora y el especialista preferidos para que el equipo los confirme",
   "onboarding.scenario.order": "Procesamiento de pedidos",
   "onboarding.scenario.orderDescription":
-    "Acepta pedidos, confirma detalles y los envía para su procesamiento",
+    "Objetivo: recopilar los detalles del pedido y entregarlos al equipo para su procesamiento",
   "onboarding.scenario.consult": "Consulta y calificación",
   "onboarding.scenario.consultDescription":
-    "Responde preguntas, identifica necesidades y califica clientes potenciales",
+    "Objetivo: responder con conocimiento aprobado, identificar necesidades y calificar leads",
   "onboarding.scenario.support": "Atención al cliente",
   "onboarding.scenario.supportDescription":
-    "Maneja solicitudes comunes y reduce la carga de trabajo del equipo",
+    "Objetivo: responder preguntas comunes con conocimiento aprobado y derivar cuando sea necesario",
   "onboarding.company.title": "Información de la empresa",
   "onboarding.company.description": "AI usa esta información cuando habla con los clientes",
   "onboarding.company.name": "Nombre de la empresa",
@@ -402,7 +403,7 @@ export const es: Record<BaseTranslationKey, string> = {
   "onboarding.summary.business": "Negocios",
   "onboarding.summary.channels": "Canales",
   "onboarding.summary.notSelected": "No seleccionado",
-  "onboarding.summary.scenario": "Flujo de trabajo de IA",
+  "onboarding.summary.scenario": "Objetivo de configuración",
   "onboarding.summary.company": "Empresa",
   "onboarding.ready.title": "Configuración inicial guardada",
   "onboarding.ready.description":

@@ -230,11 +230,16 @@ function baseChannels(): Channel[] {
           businessName: "Студия Лето",
           title: "Студия Лето",
           subtitle: "AI-администратор на связи",
-          welcomeMessage: "Здравствуйте! Подскажу цены, свободные окна и помогу записаться.",
+          welcomeMessage:
+            "Здравствуйте! Подскажу цены, соберу удобное время и передам заявку менеджеру.",
           primaryColor: "#34d399",
           accentColor: "#10b981",
           position: "bottom-right",
-          suggestedReplies: ["Хочу записаться", "Сколько стоит окрашивание?", "Позовите менеджера"],
+          suggestedReplies: [
+            "Хочу оставить заявку",
+            "Сколько стоит окрашивание?",
+            "Позовите менеджера",
+          ],
           consentText: "Нажимая отправить, вы соглашаетесь на обработку заявки.",
           poweredBy: "LeadVirt.ai",
         },
@@ -252,32 +257,6 @@ function baseChannels(): Channel[] {
       publicKey: "demo-telegram",
       settings: { botUsername: "studio_leto_bot" },
       lastHealthAt: iso(5),
-      automaticRepliesEnabled: false,
-      automaticRepliesGeneration: 1,
-    },
-    {
-      id: "demo-channel-webhook",
-      tenantId,
-      type: "WEBHOOK",
-      status: "ACTIVE",
-      name: "Webhook / API",
-      publicKey: "lvwh_demo_preview",
-      settings: {
-        endpointPath: "/api/public/channels/webhook/lvwh_demo_preview/events",
-        secretHeader: "x-leadvirt-webhook-secret",
-      },
-      lastHealthAt: iso(18),
-      automaticRepliesEnabled: false,
-      automaticRepliesGeneration: 1,
-    },
-    {
-      id: "demo-channel-instagram",
-      tenantId,
-      type: "INSTAGRAM",
-      status: "PENDING",
-      name: "Instagram Direct",
-      settings: {},
-      lastHealthAt: null,
       automaticRepliesEnabled: false,
       automaticRepliesGeneration: 1,
     },
@@ -335,13 +314,13 @@ function buildInitialState(): DemoState {
       name: "Анна Соколова",
       phone: "+7 911 320-44-12",
       email: "anna@example.ru",
-      source: "Instagram Direct",
-      channelType: "INSTAGRAM",
+      source: "Telegram",
+      channelType: "TELEGRAM",
       status: "QUALIFIED",
       temperature: "HOT",
       valueAmount: 16500,
       interest: "Окрашивание + стрижка",
-      summary: "Хочет записаться на пятницу, просит уточнить свободные окна.",
+      summary: "Удобное время и телефон собраны, менеджер должен подтвердить заявку.",
       lastMessageAt: iso(6),
       createdAt: iso(52),
     }),
@@ -365,32 +344,19 @@ function buildInitialState(): DemoState {
       phone: "+7 921 772-12-33",
       source: "Telegram",
       channelType: "TELEGRAM",
-      status: "BOOKED",
+      status: "QUALIFIED",
       temperature: "HOT",
       valueAmount: 4200,
       interest: "Укладка перед мероприятием",
-      summary: "Запись подтверждена на завтра, 16:00.",
+      summary: "Предпочтительное время собрано, заявка передана менеджеру.",
       lastMessageAt: iso(32),
       createdAt: iso(120),
     }),
     makeLead({
-      id: "demo-lead-igor",
-      name: "Игорь Лебедев",
-      source: "Webhook / API",
-      channelType: "WEBHOOK",
-      status: "SENT_TO_CRM",
-      temperature: "WARM",
-      valueAmount: 28000,
-      interest: "Подарочный сертификат",
-      summary: "Передан в CRM с комментарием менеджеру.",
-      lastMessageAt: iso(60),
-      createdAt: iso(210),
-    }),
-    makeLead({
       id: "demo-lead-maria",
       name: "Мария Белова",
-      source: "VK",
-      channelType: "VK",
+      source: "Виджет сайта",
+      channelType: "WEBSITE",
       status: "NEW",
       temperature: "COLD",
       valueAmount: 3200,
@@ -402,7 +368,7 @@ function buildInitialState(): DemoState {
   ];
 
   const conversations: ConversationDetail[] = [
-    conversationForLead(leads[0], channels[3], "Нужна запись на окрашивание", [
+    conversationForLead(leads[0], channels[1], "Заявка на окрашивание", [
       makeMessage({
         id: "demo-msg-anna-1",
         conversationId: "demo-conv-anna",
@@ -432,7 +398,7 @@ function buildInitialState(): DemoState {
         conversationId: "demo-conv-anna",
         senderType: "AI",
         direction: "OUTBOUND",
-        text: "Тогда ориентир 14 000-16 000 ₽ и около 3 часов. Забронировать пятницу 18:00?",
+        text: "Ориентир 14 000-16 000 ₽ и около 3 часов. Передать менеджеру пятницу 18:00 как удобное время?",
         createdAt: iso(9),
       }),
       makeMessage({
@@ -440,8 +406,16 @@ function buildInitialState(): DemoState {
         conversationId: "demo-conv-anna",
         senderType: "CUSTOMER",
         direction: "INBOUND",
-        text: "Да, забронируйте. Телефон +7 999 123-45-67.",
+        text: "Да, передайте. Телефон +7 999 123-45-67.",
         createdAt: iso(6),
+      }),
+      makeMessage({
+        id: "demo-msg-anna-6",
+        conversationId: "demo-conv-anna",
+        senderType: "AI",
+        direction: "OUTBOUND",
+        text: "Передала менеджеру удобное время и телефон. Он подтвердит заявку в этом чате.",
+        createdAt: iso(5),
       }),
     ]),
     conversationForLead(leads[1], channels[0], "Мужская стрижка", [
@@ -466,7 +440,7 @@ function buildInitialState(): DemoState {
         conversationId: "demo-conv-dmitry",
         senderType: "CUSTOMER",
         direction: "INBOUND",
-        text: "19:30 подходит, запишите на Дмитрия.",
+        text: "19:30 подходит. Передайте менеджеру, пожалуйста.",
         createdAt: iso(22),
       }),
       makeMessage({
@@ -474,7 +448,7 @@ function buildInitialState(): DemoState {
         conversationId: "demo-conv-dmitry",
         senderType: "AI",
         direction: "OUTBOUND",
-        text: "Записала Дмитрия на сегодня 19:30. Напомню за 2 часа до визита.",
+        text: "Передала менеджеру имя и удобное время. Он подтвердит заявку в этом чате.",
         createdAt: iso(20),
       }),
     ]),
@@ -508,47 +482,13 @@ function buildInitialState(): DemoState {
         conversationId: "demo-conv-elena",
         senderType: "AI",
         direction: "OUTBOUND",
-        text: "Забронировала завтра 14:00. Ориентир по стоимости 4 800-5 500 ₽, мастер уточнит после оценки длины.",
+        text: "Передала менеджеру завтра 14:00 как удобное время. Ориентир 4 800-5 500 ₽, итог мастер уточнит после оценки длины.",
         createdAt: iso(32),
       }),
     ]),
-    conversationForLead(leads[3], channels[2], "Подарочный сертификат", [
-      makeMessage({
-        id: "demo-msg-igor-1",
-        conversationId: "demo-conv-igor",
-        senderType: "CUSTOMER",
-        direction: "INBOUND",
-        text: "Хочу подарочный сертификат на 28 000 ₽. Можно оплатить онлайн?",
-        createdAt: iso(72),
-      }),
-      makeMessage({
-        id: "demo-msg-igor-2",
-        conversationId: "demo-conv-igor",
-        senderType: "AI",
-        direction: "OUTBOUND",
-        text: "Да, оформим электронный сертификат. Подскажите имя получателя и куда отправить сертификат: WhatsApp или email?",
-        createdAt: iso(66),
-      }),
-      makeMessage({
-        id: "demo-msg-igor-3",
-        conversationId: "demo-conv-igor",
-        senderType: "CUSTOMER",
-        direction: "INBOUND",
-        text: "Получатель Ольга, отправьте в WhatsApp.",
-        createdAt: iso(62),
-      }),
-      makeMessage({
-        id: "demo-msg-igor-4",
-        conversationId: "demo-conv-igor",
-        senderType: "AI",
-        direction: "OUTBOUND",
-        text: "Передала менеджеру заявку: сертификат 28 000 ₽, получатель Ольга, отправка в WhatsApp. Сейчас пришлём ссылку на оплату.",
-        createdAt: iso(60),
-      }),
-    ]),
     conversationForLead(
-      leads[4],
-      null,
+      leads[3],
+      channels[0],
       "Консультация по уходу",
       [
         makeMessage({
@@ -646,7 +586,7 @@ function buildInitialState(): DemoState {
     notifications: {
       new_lead: true,
       no_reply: true,
-      booking: true,
+      booking: false,
       daily: true,
       tg_summary: false,
     },
@@ -682,12 +622,12 @@ function buildInitialState(): DemoState {
       businessProfileEtag: '"demo-business-profile-1"',
       businessProfileUpdatedAt: iso(3600),
       currentStep: "launch",
-      completedSteps: ["business", "channels", "scenario", "company", "crm", "launch"],
+      completedSteps: ["business", "channels", "scenario", "company", "launch"],
       data: {
         businessType: "beauty",
-        selectedChannels: ["website", "telegram", "instagram"],
-        scenario: "booking",
-        crm: "amocrm",
+        selectedChannels: ["website", "telegram"],
+        scenario: "qualification",
+        crm: "none",
         companyInfo: {
           services: [
             {
@@ -712,7 +652,7 @@ function buildInitialState(): DemoState {
             { day: "THU", enabled: true, opensAt: "10:00", closesAt: "21:00" },
             { day: "FRI", enabled: true, opensAt: "10:00", closesAt: "21:00" },
             { day: "SAT", enabled: true, opensAt: "10:00", closesAt: "21:00" },
-            { day: "SUN", enabled: true, opensAt: "10:00", closesAt: "20:00" },
+            { day: "SUN", enabled: true, opensAt: "10:00", closesAt: "21:00" },
           ],
           name: "Студия Лето",
           description: "Салон красоты в центре города: окрашивание, стрижки, укладки и уход.",
@@ -776,69 +716,44 @@ function conversationForLead(
 function baseWorkflows(): Workflow[] {
   return [
     {
-      id: "demo-workflow-booking",
+      id: "demo-workflow-qualification",
       tenantId,
-      name: "Booking appointment",
-      description: null,
-      status: "PAUSED",
-      version: 3,
-      publishedAt: null,
-      steps: [
-        {
-          id: "demo-step-trigger",
-          workflowId: "demo-workflow-booking",
-          type: "TRIGGER",
-          name: "New message",
-          positionX: 80,
-          positionY: 160,
-          config: { channels: { website: true, telegram: true, instagram: true } },
-        },
-        {
-          id: "demo-step-ai",
-          workflowId: "demo-workflow-booking",
-          type: "AI_MESSAGE",
-          name: "AI response",
-          positionX: 320,
-          positionY: 160,
-          config: { tone: "friendly", fallback: "handoff" },
-        },
-        {
-          id: "demo-step-action",
-          workflowId: "demo-workflow-booking",
-          type: "ACTION",
-          name: "",
-          positionX: 560,
-          positionY: 160,
-          config: { action: "task" },
-        },
-      ],
-    },
-    {
-      id: "demo-workflow-crm",
-      tenantId,
-      name: "Send to CRM",
+      name: "Lead qualification",
       description: null,
       status: "PAUSED",
       version: 1,
       publishedAt: null,
       steps: [
         {
-          id: "demo-step-crm-trigger",
-          workflowId: "demo-workflow-crm",
+          id: "demo-step-trigger",
+          workflowId: "demo-workflow-qualification",
           type: "TRIGGER",
           name: "New message",
           positionX: 80,
           positionY: 160,
-          config: {},
+          config: {
+            blockType: "trigger",
+            channels: { website: true, telegram: true },
+            enabled: true,
+          },
         },
         {
-          id: "demo-step-crm",
-          workflowId: "demo-workflow-crm",
-          type: "ACTION",
-          name: "",
+          id: "demo-step-qualify",
+          workflowId: "demo-workflow-qualification",
+          type: "QUESTION",
+          name: "Collect key details",
           positionX: 320,
           positionY: 160,
-          config: { provider: "AMOCRM" },
+          config: { blockType: "qualify", enabled: true },
+        },
+        {
+          id: "demo-step-handoff",
+          workflowId: "demo-workflow-qualification",
+          type: "HANDOFF",
+          name: "",
+          positionX: 560,
+          positionY: 160,
+          config: { blockType: "handoff", enabled: true },
         },
       ],
     },
@@ -863,7 +778,18 @@ function integration(
     connectedAt: status === "CONNECTED" ? iso(2200) : null,
     lastSyncAt: status === "CONNECTED" ? iso(21) : null,
     inboundEndpoint:
-      provider === "WEBHOOK_API"
+      provider === "TELEGRAM"
+        ? {
+            channelType: "TELEGRAM",
+            publicKey: "demo-telegram",
+            endpointPath: "/api/public/channels/telegram/demo-telegram/webhook",
+            secretHeader: "x-telegram-bot-api-secret-token",
+            samplePayload: {
+              update_id: 10001,
+              message: { text: "New customer message" },
+            },
+          }
+        : provider === "WEBHOOK_API"
         ? {
             channelType: "WEBHOOK",
             publicKey: "lvwh_demo_preview",
@@ -907,17 +833,9 @@ function integration(
 
 function baseIntegrations(): IntegrationAccount[] {
   return [
-    integration("AMOCRM", "amoCRM", "CONNECTED", "CRM", { syncMode: "two-way" }),
-    integration("BITRIX24", "Bitrix24", "DISCONNECTED", "CRM"),
-    integration("RETAILCRM", "RetailCRM", "DISCONNECTED", "CRM"),
-    integration("TELEGRAM", "Telegram", "CONNECTED", "Каналы"),
-    integration("WHATSAPP_BUSINESS", "WhatsApp Business", "DISCONNECTED", "Каналы"),
-    integration("INSTAGRAM", "Instagram", "PENDING", "Каналы"),
-    integration("VK", "VK", "DISCONNECTED", "Каналы"),
-    integration("EMAIL", "Email", "CONNECTED", "Каналы"),
-    integration("GOOGLE_CALENDAR", "Google Calendar", "CONNECTED", "Календарь"),
-    integration("SHOPIFY", "Shopify", "DISCONNECTED", "E-commerce"),
-    integration("WEBHOOK_API", "Webhook / API", "CONNECTED", "Разработчикам"),
+    integration("TELEGRAM", "Telegram", "CONNECTED", "Каналы", {
+      botUsername: "studio_leto_bot",
+    }),
   ];
 }
 
@@ -931,7 +849,12 @@ function demoState() {
 export function shouldUseDemoApi() {
   if (typeof window === "undefined") return false;
   const pathname = window.location.pathname;
-  return pathname === "/demo" || pathname.startsWith("/demo/");
+  return (
+    pathname === "/demo" ||
+    pathname.startsWith("/demo/") ||
+    pathname === "/widget/demo" ||
+    pathname.startsWith("/widget/demo/")
+  );
 }
 
 function apiPath(path: string) {
@@ -1125,23 +1048,20 @@ function appendEvent(s: DemoState, leadId: string, type: string, title: string) 
 
 function dashboardSummary(s: DemoState): DashboardSummary {
   const activeLeads = s.leads.filter((lead) => lead.status !== "LOST");
-  const bookings = activeLeads.filter(
-    (lead) => lead.status === "BOOKED" || lead.status === "ORDERED",
-  ).length;
-  const crm = activeLeads.filter((lead) => lead.status === "SENT_TO_CRM").length;
+  const qualified = activeLeads.filter((lead) => lead.status === "QUALIFIED").length;
   return {
     metrics: {
       newLeadsCount: activeLeads.length,
       aiConversationsCount: s.conversations.filter((conversation) => conversation.aiEnabled).length,
-      bookingsOrdersCreated: bookings,
-      leadsSentToCrm: crm,
+      bookingsOrdersCreated: 0,
+      leadsSentToCrm: 0,
       averageResponseTimeSeconds: 18,
-      conversionRate: Math.round(((bookings + crm) / Math.max(activeLeads.length, 1)) * 100),
+      conversionRate: Math.round((qualified / Math.max(activeLeads.length, 1)) * 100),
       deltas: {
         newLeadsPercent: 18,
         aiConversationsPercent: 24,
-        bookingsOrdersPercent: 12,
-        leadsSentToCrmPercent: 16,
+        bookingsOrdersPercent: 0,
+        leadsSentToCrmPercent: 0,
         averageResponseTimePercent: -22,
         conversionRatePoints: 4,
       },
@@ -1165,20 +1085,19 @@ function dashboardSummary(s: DemoState): DashboardSummary {
       {
         id: "demo-activity-1",
         action: "ai.reply",
-        title: "AI квалифицировал 4 обращения за последний час",
+        title: "AI подготовил ответ клиенту",
         createdAt: iso(4),
       },
       {
         id: "demo-activity-2",
-        action: "booking.created",
-        title: "Создана запись: укладка, завтра 16:00",
+        action: "lead.updated",
         createdAt: iso(32),
       },
       {
         id: "demo-activity-3",
-        action: "crm.sent",
-        title: "Лид Игорь Лебедев отправлен в CRM",
-        createdAt: iso(60),
+        action: "ai.reply",
+        title: "AI уточнил удобное время",
+        createdAt: iso(46),
       },
       {
         id: "demo-activity-4",
@@ -1189,46 +1108,30 @@ function dashboardSummary(s: DemoState): DashboardSummary {
     ],
     channelPerformance: [
       {
-        channelType: "INSTAGRAM",
-        name: "Instagram",
-        leads: 412,
-        conversations: 390,
-        conversionRate: 31,
-        valueAmount: 820000,
-      },
-      {
         channelType: "WEBSITE",
         name: "Website widget",
-        leads: 388,
-        conversations: 365,
-        conversionRate: 38,
-        valueAmount: 940000,
+        leads: 2,
+        conversations: 2,
+        conversionRate: 50,
+        valueAmount: 12100,
       },
       {
         channelType: "TELEGRAM",
         name: "Telegram",
-        leads: 256,
-        conversations: 244,
-        conversionRate: 34,
-        valueAmount: 610000,
-      },
-      {
-        channelType: "WEBHOOK",
-        name: "Webhook / API",
-        leads: 198,
-        conversations: 170,
-        conversionRate: 27,
-        valueAmount: 520000,
+        leads: 2,
+        conversations: 2,
+        conversionRate: 100,
+        valueAmount: 20700,
       },
     ],
     trend: [
-      { name: "Пн", leads: 32, booked: 9 },
-      { name: "Вт", leads: 45, booked: 16 },
-      { name: "Ср", leads: 38, booked: 13 },
-      { name: "Чт", leads: 52, booked: 19 },
-      { name: "Пт", leads: 61, booked: 24 },
-      { name: "Сб", leads: 44, booked: 15 },
-      { name: "Вс", leads: 29, booked: 8 },
+      { name: "Пн", leads: 2, booked: 0 },
+      { name: "Вт", leads: 3, booked: 0 },
+      { name: "Ср", leads: 2, booked: 0 },
+      { name: "Чт", leads: 4, booked: 0 },
+      { name: "Пт", leads: 3, booked: 0 },
+      { name: "Сб", leads: 2, booked: 0 },
+      { name: "Вс", leads: 1, booked: 0 },
     ],
   };
 }
@@ -1236,34 +1139,30 @@ function dashboardSummary(s: DemoState): DashboardSummary {
 function analyticsOverview(): AnalyticsOverview {
   return {
     leadsOverTime: [
-      { name: "Mon", leads: 32, booked: 9 },
-      { name: "Tue", leads: 45, booked: 16 },
-      { name: "Wed", leads: 38, booked: 13 },
-      { name: "Thu", leads: 52, booked: 19 },
-      { name: "Fri", leads: 61, booked: 24 },
-      { name: "Sat", leads: 44, booked: 15 },
-      { name: "Sun", leads: 29, booked: 8 },
+      { name: "Mon", leads: 2, booked: 0 },
+      { name: "Tue", leads: 3, booked: 0 },
+      { name: "Wed", leads: 2, booked: 0 },
+      { name: "Thu", leads: 4, booked: 0 },
+      { name: "Fri", leads: 3, booked: 0 },
+      { name: "Sat", leads: 2, booked: 0 },
+      { name: "Sun", leads: 1, booked: 0 },
     ],
     leadsByChannel: [
-      { channelType: "WEBSITE", leads: 388, conversionRate: 38 },
-      { channelType: "INSTAGRAM", leads: 412, conversionRate: 31 },
-      { channelType: "TELEGRAM", leads: 256, conversionRate: 34 },
-      { channelType: "WEBHOOK", leads: 198, conversionRate: 27 },
+      { channelType: "WEBSITE", leads: 9, conversionRate: 44 },
+      { channelType: "TELEGRAM", leads: 8, conversionRate: 50 },
     ],
     conversionByScenario: [
-      { scenario: "Qualification and booking", conversionRate: 38, runs: 982 },
-      { scenario: "Send to CRM", conversionRate: 31, runs: 612 },
-      { scenario: "Follow-up", conversionRate: 24, runs: 204 },
+      { scenario: "Lead qualification", conversionRate: 47, runs: 17 },
+      { scenario: "Manager handoff", conversionRate: 100, runs: 6 },
     ],
     responseTime: { averageSeconds: 18, p90Seconds: 44 },
-    bookingsOrders: { bookings: 386, orders: 42 },
-    estimatedRevenue: 3260000,
+    bookingsOrders: { bookings: 0, orders: 0 },
+    estimatedRevenue: 0,
     bestPerformingChannels: [
       { channelType: "WEBSITE", score: 94 },
       { channelType: "TELEGRAM", score: 89 },
-      { channelType: "INSTAGRAM", score: 84 },
     ],
-    aiInsightCodes: ["EARLY_BOOKING_TIME", "CHANNEL_VALUE", "PRICE_FOLLOWUP"],
+    aiInsightCodes: [],
   };
 }
 
@@ -1272,8 +1171,6 @@ function pipelineSummary(s: DemoState) {
     "NEW",
     "IN_PROGRESS",
     "QUALIFIED",
-    "BOOKED",
-    "SENT_TO_CRM",
     "CLOSED",
   ];
   return {
@@ -1316,15 +1213,15 @@ function billingInvoices(s: DemoState): BillingInvoice[] {
 
 function billingUsage(s: DemoState): UsageSummary {
   return {
-    aiConversations: 982,
+    aiConversations: 17,
     aiConversationsLimit: s.subscription.plan.aiConversations,
-    messagesSent: 1840,
-    messagesReceived: 2190,
-    leadsCreated: 1439,
-    bookingsCreated: 386,
-    ordersCreated: 42,
-    crmSyncs: 612,
-    workflowRuns: 1204,
+    messagesSent: 21,
+    messagesReceived: 24,
+    leadsCreated: 17,
+    bookingsCreated: 0,
+    ordersCreated: 0,
+    crmSyncs: 0,
+    workflowRuns: 0,
     channels: s.channels.filter((channel) => channel.status === "ACTIVE").length,
     channelsLimit: s.subscription.plan.channelsLimit,
     users: s.team.length,
@@ -1373,13 +1270,13 @@ function auditResponse(): AiAuditResponse {
         id: "demo-audit-2",
         kind: "audit",
         createdAt: iso(32),
-        action: "booking.created",
+        action: "lead.updated",
         status: "SUCCESS",
         entityType: "lead",
-        entityId: "demo-lead-elena",
-        leadId: "demo-lead-elena",
-        leadName: "Елена Васнецова",
-        payload: { slot: "завтра 16:00", redacted: true },
+        entityId: "demo-lead-anna",
+        leadId: "demo-lead-anna",
+        leadName: "Анна Соколова",
+        payload: { fields: ["status", "summary"], redacted: true },
       },
     ],
   };
@@ -1397,14 +1294,14 @@ function widgetConfig(s: DemoState): WidgetConfig {
     subtitle: stringValue(widget.subtitle, "AI-администратор на связи"),
     welcomeMessage: stringValue(
       widget.welcomeMessage,
-      "Здравствуйте! Подскажу цены и помогу записаться.",
+      "Здравствуйте! Подскажу цены и передам заявку менеджеру.",
     ),
     primaryColor: stringValue(widget.primaryColor, "#34d399"),
     accentColor: stringValue(widget.accentColor, "#10b981"),
     position,
     locale: "ru",
     suggestedReplies: stringArrayValue(widget.suggestedReplies, [
-      "Хочу записаться",
+      "Хочу оставить заявку",
       "Сколько стоит?",
       "Позовите менеджера",
     ]),
@@ -1582,12 +1479,15 @@ export function demoApiRequest<T>(path: string, init: RequestInit = {}): T {
     if (method === "POST" && action === "ai" && subAction === "reply") {
       const reply: AiDraftReply = {
         reply:
-          "Спасибо! Могу предложить ближайшие окна: сегодня 17:00 или завтра 12:30. Подскажите, какое время удобнее?",
-        intent: "booking",
-        leadFields: { interest: conversation.lead?.interest ?? "Запись", temperature: "HOT" },
-        nextAction: { type: "send_message", reason: "Клиент готов выбрать время" },
+          "Спасибо! Я передам менеджеру услугу, удобное время и контакт, чтобы он подтвердил заявку.",
+        intent: "qualification",
+        leadFields: {
+          interest: conversation.lead?.interest ?? "Консультация",
+          temperature: "HOT",
+        },
+        nextAction: { type: "send_message", reason: "Нужно подтверждение менеджера" },
         confidence: 0.88,
-        handoffRequired: false,
+        handoffRequired: true,
       };
       return envelope(reply) as T;
     }
@@ -1627,38 +1527,25 @@ export function demoApiRequest<T>(path: string, init: RequestInit = {}): T {
       return envelope(clone(updated)) as T;
     }
     if (method === "POST" && action === "send-to-crm") {
-      const updated = {
-        ...lead,
-        status: "SENT_TO_CRM" as const,
-        lastMessageAt: new Date().toISOString(),
-      };
-      syncLead(s, updated);
-      appendEvent(s, updated.id, "crm.sent", "Лид отправлен в CRM");
-      return envelope(clone(updated)) as T;
+      throw new DemoApiError(
+        "CRM delivery is not enabled in the current pilot.",
+        409,
+        "PILOT_CAPABILITY_UNAVAILABLE",
+      );
     }
     if (method === "POST" && action === "create-task") {
-      appendEvent(
-        s,
-        lead.id,
-        "task.created",
-        typeof body.title === "string" ? body.title : "Задача создана",
+      throw new DemoApiError(
+        "Task creation is not enabled in the current pilot.",
+        409,
+        "PILOT_CAPABILITY_UNAVAILABLE",
       );
-      return envelope({ id: id("demo-task"), created: true }) as T;
     }
     if (method === "POST" && action === "book-appointment") {
-      const updated = {
-        ...lead,
-        status: "BOOKED" as const,
-        lastMessageAt: new Date().toISOString(),
-      };
-      syncLead(s, updated);
-      appendEvent(
-        s,
-        lead.id,
-        "booking.created",
-        typeof body.title === "string" ? body.title : "Запись создана",
+      throw new DemoApiError(
+        "Appointment creation is not enabled in the current pilot.",
+        409,
+        "PILOT_CAPABILITY_UNAVAILABLE",
       );
-      return envelope({ id: id("demo-booking"), created: true }) as T;
     }
   }
 
@@ -1668,6 +1555,20 @@ export function demoApiRequest<T>(path: string, init: RequestInit = {}): T {
     const provider = providerFromPath(integrationMatch[1]);
     const action = integrationMatch[2];
     const account = ensureIntegration(s, provider);
+    if (method === "POST" && action === "request") {
+      const requestedAt = new Date().toISOString();
+      account.settings = {
+        ...(isRecord(account.settings) ? account.settings : {}),
+        requestStatus: "REQUESTED",
+        requestedAt,
+      };
+      return envelope({
+        id: account.id,
+        provider,
+        status: "REQUESTED",
+        requestedAt,
+      }) as T;
+    }
     if (method === "POST" && action === "connect") {
       account.status = "CONNECTED";
       account.connectedAt = new Date().toISOString();
@@ -2097,7 +1998,7 @@ export function demoApiRequest<T>(path: string, init: RequestInit = {}): T {
       id: id("demo-widget-ai"),
       senderType: "AI" as const,
       direction: "OUTBOUND" as const,
-      text: "Спасибо! В demo я не записываю данные в базу, но сценарий выглядит так: уточняю услугу, предлагаю время и передаю менеджеру.",
+      text: "Спасибо! Уточню услугу и удобное время, затем передам заявку менеджеру для подтверждения.",
       createdAt: iso(0),
       status: "SENT" as const,
     };
@@ -2107,7 +2008,7 @@ export function demoApiRequest<T>(path: string, init: RequestInit = {}): T {
       leadId: "demo-widget-lead",
       status: "OPEN",
       messages: [...existing, customerMessage, aiMessage],
-      ai: { replied: true, handoffRequired: false, confidence: 0.84, intent: "booking" },
+      ai: { replied: true, handoffRequired: true, confidence: 0.84, intent: "qualification" },
     };
     s.widgetSessions[sessionId] = response;
     return envelope(response) as T;

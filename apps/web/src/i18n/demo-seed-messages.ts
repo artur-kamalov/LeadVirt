@@ -1,3 +1,4 @@
+import type { BusinessProfileData } from "@leadvirt/types";
 import { supportedLocales, type Locale } from "./config";
 
 type DemoSeedTranslations = Record<Locale, string>;
@@ -41,6 +42,99 @@ const demoSeedTranslations: readonly DemoSeedTranslations[] = [
     "LeadVirt-Demo",
     "Demonstração da LeadVirt",
     "Демо LeadVirt",
+  ),
+  seed(
+    "Summer Studio",
+    "Estudio Verano",
+    "Studio Été",
+    "Studio Sommer",
+    "Estúdio Verão",
+    "Студия Лето",
+  ),
+  seed(
+    "Beauty studio in the city center: coloring, haircuts, styling, and treatments.",
+    "Estudio de belleza en el centro: coloración, cortes, peinados y tratamientos.",
+    "Studio de beauté en centre-ville : coloration, coupes, coiffage et soins.",
+    "Beauty-Studio im Stadtzentrum: Färben, Haarschnitte, Styling und Pflege.",
+    "Estúdio de beleza no centro: coloração, cortes, penteados e tratamentos.",
+    "Салон красоты в центре города: окрашивание, стрижки, укладки и уход.",
+  ),
+  seed("Haircut", "Corte", "Coupe", "Haarschnitt", "Corte", "Стрижка"),
+  seed("Coloring", "Coloración", "Coloration", "Färben", "Coloração", "Окрашивание"),
+  seed(
+    "Haircut with consultation and styling.",
+    "Corte con consulta y peinado.",
+    "Coupe avec conseil et coiffage.",
+    "Haarschnitt mit Beratung und Styling.",
+    "Corte com consultoria e finalização.",
+    "Стрижка с консультацией и укладкой.",
+  ),
+  seed(
+    "Shade selection, coloring, and treatment.",
+    "Selección de tono, coloración y tratamiento.",
+    "Choix de la teinte, coloration et soin.",
+    "Farbauswahl, Färben und Pflege.",
+    "Escolha de tom, coloração e tratamento.",
+    "Подбор оттенка, окрашивание и уход.",
+  ),
+  seed("RUB 2,800", "2.800 RUB", "2 800 RUB", "2.800 RUB", "2.800 RUB", "2800 ₽"),
+  seed(
+    "from RUB 12,000",
+    "desde 12.000 RUB",
+    "à partir de 12 000 RUB",
+    "ab 12.000 RUB",
+    "a partir de 12.000 RUB",
+    "от 12000 ₽",
+  ),
+  seed("60 min", "60 min", "60 min", "60 Min.", "60 min", "60 мин"),
+  seed("180 min", "180 min", "180 min", "180 Min.", "180 min", "180 мин"),
+  seed(
+    "Daily, 10:00 AM–9:00 PM",
+    "Todos los días, 10:00–21:00",
+    "Tous les jours, 10 h–21 h",
+    "Täglich, 10:00–21:00 Uhr",
+    "Todos os dias, 10:00–21:00",
+    "Ежедневно 10:00-21:00",
+  ),
+  seed(
+    "Haircut RUB 2,800, coloring from RUB 12,000, styling from RUB 4,200",
+    "Corte 2.800 RUB, coloración desde 12.000 RUB, peinado desde 4.200 RUB",
+    "Coupe 2 800 RUB, coloration dès 12 000 RUB, coiffage dès 4 200 RUB",
+    "Haarschnitt 2.800 RUB, Färben ab 12.000 RUB, Styling ab 4.200 RUB",
+    "Corte 2.800 RUB, coloração a partir de 12.000 RUB, penteado a partir de 4.200 RUB",
+    "Стрижка 2800 ₽, окрашивание от 12000 ₽, укладка от 4200 ₽",
+  ),
+  seed(
+    "Preferred times: today at 5:00 PM, tomorrow at 12:30 PM and 4:00 PM",
+    "Horarios preferidos: hoy a las 17:00; mañana a las 12:30 y 16:00",
+    "Horaires souhaités : aujourd’hui à 17 h, demain à 12 h 30 et 16 h",
+    "Wunschzeiten: heute 17:00 Uhr, morgen 12:30 und 16:00 Uhr",
+    "Horários preferidos: hoje às 17:00; amanhã às 12:30 e 16:00",
+    "Свободные окна: сегодня 17:00, завтра 12:30 и 16:00",
+  ),
+  seed(
+    "Prepayment is required only for complex coloring.",
+    "Solo se requiere prepago para coloraciones complejas.",
+    "Un acompte est requis uniquement pour les colorations complexes.",
+    "Eine Vorauszahlung ist nur bei aufwendigen Färbungen erforderlich.",
+    "O pré-pagamento é necessário apenas para colorações complexas.",
+    "Предоплата нужна только для сложного окрашивания.",
+  ),
+  seed(
+    "Cancel at least 12 hours before the appointment.",
+    "Cancela al menos 12 horas antes de la cita.",
+    "Annulez au moins 12 heures avant le rendez-vous.",
+    "Bitte mindestens 12 Stunden vor dem Termin absagen.",
+    "Cancele com pelo menos 12 horas de antecedência.",
+    "Отмена записи за 12 часов.",
+  ),
+  seed(
+    "Hand complex coloring requests and complaints to a manager.",
+    "Transfiere las coloraciones complejas y las reclamaciones a un responsable.",
+    "Transférez les colorations complexes et les réclamations à un responsable.",
+    "Aufwendige Färbungen und Beschwerden an einen Manager übergeben.",
+    "Transfira colorações complexas e reclamações para um responsável.",
+    "Передавать менеджеру сложное окрашивание и жалобы.",
   ),
   seed(
     "Webhook Demo Client",
@@ -235,6 +329,14 @@ const demoSeedTranslations: readonly DemoSeedTranslations[] = [
     "Agendamento para coloração",
     "Нужна запись на окрашивание",
   ),
+  seed(
+    "Coloring request",
+    "Solicitud de coloración",
+    "Demande de coloration",
+    "Anfrage zum Färben",
+    "Solicitação de coloração",
+    "Заявка на окрашивание",
+  ),
 
   seed(
     "Wants to book Friday and asks about available times.",
@@ -243,6 +345,14 @@ const demoSeedTranslations: readonly DemoSeedTranslations[] = [
     "Möchte für Freitag buchen und fragt nach freien Terminen.",
     "Quer agendar para sexta-feira e pergunta pelos horários disponíveis.",
     "Хочет записаться на пятницу, просит уточнить свободные окна.",
+  ),
+  seed(
+    "Preferred time and phone were collected; a manager needs to confirm the request.",
+    "Se recopilaron el horario preferido y el teléfono; un responsable debe confirmar la solicitud.",
+    "L’horaire souhaité et le téléphone ont été recueillis ; un responsable doit confirmer la demande.",
+    "Wunschzeit und Telefonnummer wurden erfasst; ein Manager muss die Anfrage bestätigen.",
+    "O horário preferido e o telefone foram coletados; um responsável deve confirmar a solicitação.",
+    "Удобное время и телефон собраны, менеджер должен подтвердить заявку.",
   ),
   seed(
     "AI collected the service and budget and offered two time slots.",
@@ -259,6 +369,14 @@ const demoSeedTranslations: readonly DemoSeedTranslations[] = [
     "Termin für morgen um 16:00 Uhr bestätigt.",
     "Agendamento confirmado para amanhã às 16:00.",
     "Запись подтверждена на завтра, 16:00.",
+  ),
+  seed(
+    "Preferred time was collected; the request was handed to a manager.",
+    "Se recopiló el horario preferido y la solicitud se transfirió a un responsable.",
+    "L’horaire souhaité a été recueilli et la demande a été transférée à un responsable.",
+    "Die Wunschzeit wurde erfasst und die Anfrage an einen Manager übergeben.",
+    "O horário preferido foi coletado e a solicitação foi transferida para um responsável.",
+    "Предпочтительное время собрано, заявка передана менеджеру.",
   ),
   seed(
     "Sent to the CRM with a note for the manager.",
@@ -310,12 +428,36 @@ const demoSeedTranslations: readonly DemoSeedTranslations[] = [
     "Тогда ориентир 14 000-16 000 ₽ и около 3 часов. Забронировать пятницу 18:00?",
   ),
   seed(
+    "The estimate is RUB 14,000–16,000 and about 3 hours. Shall I pass Friday at 6:00 PM to the manager as your preferred time?",
+    "El precio estimado es de 14.000–16.000 RUB y unas 3 horas. ¿Paso al responsable el viernes a las 18:00 como horario preferido?",
+    "Comptez 14 000 à 16 000 RUB et environ 3 heures. Dois-je transmettre vendredi à 18 h au responsable comme horaire souhaité ?",
+    "Der Richtpreis beträgt 14.000–16.000 RUB bei etwa 3 Stunden. Soll ich Freitag um 18:00 Uhr als Wunschzeit an den Manager weitergeben?",
+    "A estimativa é de 14.000–16.000 RUB e cerca de 3 horas. Posso informar ao responsável sexta-feira às 18:00 como horário preferido?",
+    "Ориентир 14 000-16 000 ₽ и около 3 часов. Передать менеджеру пятницу 18:00 как удобное время?",
+  ),
+  seed(
     "Yes, please book it. Phone: +7 999 123-45-67.",
     "Sí, reserve. Teléfono: +7 999 123-45-67.",
     "Oui, réservez. Téléphone : +7 999 123-45-67.",
     "Ja, bitte buchen. Telefon: +7 999 123-45-67.",
     "Sim, pode agendar. Telefone: +7 999 123-45-67.",
     "Да, забронируйте. Телефон +7 999 123-45-67.",
+  ),
+  seed(
+    "Yes, please pass it on. Phone: +7 999 123-45-67.",
+    "Sí, páselo. Teléfono: +7 999 123-45-67.",
+    "Oui, transmettez-le. Téléphone : +7 999 123-45-67.",
+    "Ja, bitte weitergeben. Telefon: +7 999 123-45-67.",
+    "Sim, pode encaminhar. Telefone: +7 999 123-45-67.",
+    "Да, передайте. Телефон +7 999 123-45-67.",
+  ),
+  seed(
+    "I've passed the preferred time and phone number to the manager. They will confirm the request in this chat.",
+    "He pasado el horario preferido y el teléfono al responsable. Confirmará la solicitud en este chat.",
+    "J’ai transmis l’horaire souhaité et le téléphone au responsable. Il confirmera la demande dans ce chat.",
+    "Ich habe Wunschzeit und Telefonnummer an den Manager weitergegeben. Die Anfrage wird in diesem Chat bestätigt.",
+    "Enviei o horário preferido e o telefone ao responsável. A solicitação será confirmada neste chat.",
+    "Передала менеджеру удобное время и телефон. Он подтвердит заявку в этом чате.",
   ),
 
   seed(
@@ -343,12 +485,28 @@ const demoSeedTranslations: readonly DemoSeedTranslations[] = [
     "19:30 подходит, запишите на Дмитрия.",
   ),
   seed(
+    "7:30 PM works. Please pass it to the manager.",
+    "Las 19:30 me van bien. Páselo al responsable, por favor.",
+    "19 h 30 me convient. Transmettez-le au responsable, s’il vous plaît.",
+    "19:30 Uhr passt. Bitte an den Manager weitergeben.",
+    "19:30 funciona. Encaminhe ao responsável, por favor.",
+    "19:30 подходит. Передайте менеджеру, пожалуйста.",
+  ),
+  seed(
     "Dmitry is booked for today at 7:30 PM. I'll remind you 2 hours before the visit.",
     "Dmitry está reservado para hoy a las 19:30. Le recordaré 2 horas antes de la visita.",
     "Dmitry est réservé aujourd'hui à 19 h 30. Je vous enverrai un rappel 2 heures avant.",
     "Dmitry ist heute um 19:30 Uhr eingetragen. Ich erinnere Sie 2 Stunden vorher.",
     "Dmitry está agendado para hoje às 19:30. Enviarei um lembrete 2 horas antes.",
     "Записала Дмитрия на сегодня 19:30. Напомню за 2 часа до визита.",
+  ),
+  seed(
+    "I've passed the name and preferred time to the manager. They will confirm the request in this chat.",
+    "He pasado el nombre y el horario preferido al responsable. Confirmará la solicitud en este chat.",
+    "J’ai transmis le nom et l’horaire souhaité au responsable. Il confirmera la demande dans ce chat.",
+    "Ich habe Name und Wunschzeit an den Manager weitergegeben. Die Anfrage wird in diesem Chat bestätigt.",
+    "Enviei o nome e o horário preferido ao responsável. A solicitação será confirmada neste chat.",
+    "Передала менеджеру имя и удобное время. Он подтвердит заявку в этом чате.",
   ),
 
   seed(
@@ -382,6 +540,14 @@ const demoSeedTranslations: readonly DemoSeedTranslations[] = [
     "Für morgen um 14:00 Uhr gebucht. Der Richtpreis beträgt 4.800–5.500 RUB; die Fachkraft bestätigt ihn nach Prüfung der Haarlänge.",
     "Agendado para amanhã às 14:00. A estimativa é de 4.800–5.500 RUB; o profissional confirmará após avaliar o comprimento.",
     "Забронировала завтра 14:00. Ориентир по стоимости 4 800-5 500 ₽, мастер уточнит после оценки длины.",
+  ),
+  seed(
+    "I've passed tomorrow at 2:00 PM to the manager as your preferred time. The estimate is RUB 4,800–5,500; the stylist will confirm after assessing the length.",
+    "He pasado mañana a las 14:00 al responsable como horario preferido. El precio estimado es de 4.800–5.500 RUB; el especialista lo confirmará tras evaluar el largo.",
+    "J’ai transmis demain à 14 h au responsable comme horaire souhaité. Le prix estimé est de 4 800 à 5 500 RUB ; le coiffeur confirmera après avoir évalué la longueur.",
+    "Ich habe morgen um 14:00 Uhr als Wunschzeit an den Manager weitergegeben. Der Richtpreis beträgt 4.800–5.500 RUB; die Fachkraft bestätigt ihn nach Prüfung der Haarlänge.",
+    "Enviei amanhã às 14:00 ao responsável como horário preferido. A estimativa é de 4.800–5.500 RUB; o profissional confirmará após avaliar o comprimento.",
+    "Передала менеджеру завтра 14:00 как удобное время. Ориентир 4 800-5 500 ₽, итог мастер уточнит после оценки длины.",
   ),
 
   seed(
@@ -444,4 +610,29 @@ for (const translations of demoSeedTranslations) {
 
 export function localizeDemoSeedText(value: string, locale: Locale) {
   return demoSeedByText.get(value)?.[locale] ?? value;
+}
+
+export function localizeDemoBusinessProfile(
+  profile: BusinessProfileData,
+  locale: Locale,
+): BusinessProfileData {
+  const localized = (value: string) => localizeDemoSeedText(value, locale);
+  return {
+    ...profile,
+    name: localized(profile.name),
+    description: localized(profile.description),
+    servicesCatalog: localized(profile.servicesCatalog),
+    hours: localized(profile.hours),
+    availability: localized(profile.availability),
+    faq: localized(profile.faq),
+    policies: localized(profile.policies),
+    escalationRules: localized(profile.escalationRules),
+    services: profile.services.map((service) => ({
+      ...service,
+      name: localized(service.name),
+      description: localized(service.description),
+      price: localized(service.price),
+      duration: localized(service.duration),
+    })),
+  };
 }

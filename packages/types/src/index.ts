@@ -772,6 +772,13 @@ export interface IntegrationSampleDeliveryResult {
   integration: IntegrationAccount;
 }
 
+export interface IntegrationConnectionRequest {
+  id: string;
+  provider: IntegrationProvider;
+  status: "REQUESTED";
+  requestedAt: string;
+}
+
 export interface IntegrationInboundEndpoint {
   channelType: ChannelType;
   publicKey: string;

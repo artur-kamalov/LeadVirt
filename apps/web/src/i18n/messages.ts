@@ -379,20 +379,21 @@ const ru = {
   "onboarding.availability.available": "Доступно",
   "onboarding.availability.request": "По запросу",
   "onboarding.availability.planned": "Планируется",
-  "onboarding.scenario.title": "Выберите сценарий AI",
-  "onboarding.scenario.description": "Как должен работать ваш AI-ассистент?",
+  "onboarding.scenario.title": "Выберите цель настройки",
+  "onboarding.scenario.description":
+    "Сохраните цель будущей настройки. Этот шаг не включает автоматизацию.",
   "onboarding.scenario.booking": "Запись на услугу",
   "onboarding.scenario.bookingDescription":
-    "AI записывает клиентов автоматически, уточняет дату, время и специалиста",
+    "Цель: собрать желаемые дату, время и специалиста для подтверждения командой",
   "onboarding.scenario.order": "Оформление заказа",
   "onboarding.scenario.orderDescription":
-    "Принимает заказы, уточняет детали и передаёт в обработку",
+    "Цель: собрать детали заказа и передать их команде для обработки",
   "onboarding.scenario.consult": "Консультация и квалификация",
   "onboarding.scenario.consultDescription":
-    "Отвечает на вопросы, выявляет потребности и квалифицирует лиды",
+    "Цель: отвечать по подтверждённой базе знаний, выяснять потребности и квалифицировать лиды",
   "onboarding.scenario.support": "Поддержка клиентов",
   "onboarding.scenario.supportDescription":
-    "Обрабатывает типовые обращения, снижает нагрузку на команду",
+    "Цель: отвечать на типовые вопросы по базе знаний и при необходимости передавать диалог команде",
   "onboarding.company.title": "Информация о компании",
   "onboarding.company.description": "AI использует эти данные для общения с клиентами",
   "onboarding.company.name": "Название компании",
@@ -429,7 +430,7 @@ const ru = {
   "onboarding.summary.business": "Бизнес",
   "onboarding.summary.channels": "Каналы",
   "onboarding.summary.notSelected": "Не выбраны",
-  "onboarding.summary.scenario": "Сценарий AI",
+  "onboarding.summary.scenario": "Цель настройки",
   "onboarding.summary.company": "Компания",
   "onboarding.ready.title": "Первичная настройка сохранена",
   "onboarding.ready.description":
@@ -797,20 +798,21 @@ const en: Record<BaseTranslationKey, string> = {
   "onboarding.availability.available": "Available",
   "onboarding.availability.request": "By request",
   "onboarding.availability.planned": "Planned",
-  "onboarding.scenario.title": "Choose an AI workflow",
-  "onboarding.scenario.description": "How should your AI assistant work?",
+  "onboarding.scenario.title": "Choose a setup goal",
+  "onboarding.scenario.description":
+    "Save a goal for later configuration. This step does not activate an automation.",
   "onboarding.scenario.booking": "Service booking",
   "onboarding.scenario.bookingDescription":
-    "AI books customers automatically and confirms the date, time, and specialist",
+    "Goal: collect the preferred date, time, and specialist for team confirmation",
   "onboarding.scenario.order": "Order processing",
   "onboarding.scenario.orderDescription":
-    "Accepts orders, confirms details, and sends them for processing",
+    "Goal: collect order details and hand them to the team for processing",
   "onboarding.scenario.consult": "Consultation and qualification",
   "onboarding.scenario.consultDescription":
-    "Answers questions, identifies needs, and qualifies leads",
+    "Goal: answer from approved business knowledge, identify needs, and qualify leads",
   "onboarding.scenario.support": "Customer support",
   "onboarding.scenario.supportDescription":
-    "Handles common requests and reduces the team's workload",
+    "Goal: answer common questions from approved knowledge and hand off when needed",
   "onboarding.company.title": "Company information",
   "onboarding.company.description": "AI uses this information when talking to customers",
   "onboarding.company.name": "Company name",
@@ -847,7 +849,7 @@ const en: Record<BaseTranslationKey, string> = {
   "onboarding.summary.business": "Business",
   "onboarding.summary.channels": "Channels",
   "onboarding.summary.notSelected": "Not selected",
-  "onboarding.summary.scenario": "AI workflow",
+  "onboarding.summary.scenario": "Setup goal",
   "onboarding.summary.company": "Company",
   "onboarding.ready.title": "Initial setup saved",
   "onboarding.ready.description":

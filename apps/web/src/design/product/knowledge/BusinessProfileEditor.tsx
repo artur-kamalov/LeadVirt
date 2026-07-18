@@ -19,12 +19,14 @@ import {
   UserRoundCheck,
 } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
+import { localizeDemoBusinessProfile } from "@/i18n/demo-seed-messages";
 import type { TranslationKey } from "@/i18n/messages";
 import { getBusinessProfile, updateBusinessProfile } from "@/lib/api/business-profile";
 import { ApiClientError } from "@/lib/api/client";
 import { Button } from "../../components/ui/Button";
 import { cn } from "../../lib/utils";
 import { LoadingOverlay, Select, StatusBadge } from "../ui";
+import { useProductMode } from "../ProductMode";
 
 type Day = BusinessProfileScheduleDay["day"];
 
@@ -200,7 +202,8 @@ export function BusinessProfileEditor({
   canEdit: boolean;
   onChanged: () => void;
 }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
+  const { demo } = useProductMode();
   const [view, setView] = React.useState<BusinessProfileView | null>(null);
   const [draft, setDraft] = React.useState<BusinessProfileData | null>(null);
   const [baseline, setBaseline] = React.useState<BusinessProfileData | null>(null);
@@ -215,10 +218,15 @@ export function BusinessProfileEditor({
   const requestSequence = React.useRef(0);
   const saveAttempt = React.useRef<{ signature: string; key: string } | null>(null);
   const translate = React.useRef(t);
+  const demoLocalization = React.useRef({ demo, locale });
 
   React.useEffect(() => {
     translate.current = t;
   }, [t]);
+
+  React.useEffect(() => {
+    demoLocalization.current = { demo, locale };
+  }, [demo, locale]);
 
   const dirty = React.useMemo(
     () => Boolean(draft && baseline && JSON.stringify(draft) !== JSON.stringify(baseline)),
@@ -232,7 +240,10 @@ export function BusinessProfileEditor({
     try {
       const next = await getBusinessProfile();
       if (!mounted.current || sequence !== requestSequence.current) return;
-      const profile = normalizeProfile(next.profile);
+      const normalizedProfile = normalizeProfile(next.profile);
+      const profile = demoLocalization.current.demo
+        ? localizeDemoBusinessProfile(normalizedProfile, demoLocalization.current.locale)
+        : normalizedProfile;
       setView({ ...next, profile });
       setDraft(profile);
       setBaseline(profile);
@@ -265,6 +276,17 @@ export function BusinessProfileEditor({
       mounted.current = false;
     };
   }, [loadProfile]);
+
+  React.useEffect(() => {
+    if (!demo || dirty) return;
+    setView((current) =>
+      current
+        ? { ...current, profile: localizeDemoBusinessProfile(current.profile, locale) }
+        : current,
+    );
+    setDraft((current) => (current ? localizeDemoBusinessProfile(current, locale) : current));
+    setBaseline((current) => (current ? localizeDemoBusinessProfile(current, locale) : current));
+  }, [demo, dirty, locale]);
 
   const businessTypeOptions = React.useMemo(() => {
     const options = BUSINESS_TYPES.map((item) => ({ value: item.value, label: t(item.labelKey) }));

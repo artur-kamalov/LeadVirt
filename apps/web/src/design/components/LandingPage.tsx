@@ -29,7 +29,7 @@ export function LandingPage() {
       
       <LandingHeader />
 
-      <main className="relative z-10 pt-32 pb-20">
+      <main className="relative z-10 pt-20 pb-20 lg:pt-32">
         
         {/* Global Page Background for sections below Hero */}
         <div className="absolute top-[1040px] inset-x-0 bottom-0 pointer-events-none overflow-hidden -z-10">
@@ -46,33 +46,51 @@ export function LandingPage() {
         </div>
 
         {/* HERO SECTION */}
-        <section className="container mx-auto px-6 pt-10 pb-24 lg:pt-20 lg:pb-32">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-8 items-center">
+        <section
+          data-testid="landing-hero"
+          className="container mx-auto px-6 pt-1 pb-2 lg:pt-20 lg:pb-32"
+        >
+          <div className="grid items-center gap-2 lg:grid-cols-2 lg:gap-8">
             <div
               className="leadvirt-hero-copy-enter max-w-2xl"
             >
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900/70 border border-zinc-800 text-sm font-medium text-emerald-400 mb-6">
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/70 px-3 py-1 text-xs font-medium text-emerald-400 sm:mb-3 sm:text-sm lg:mb-6">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
                 {t("landing.badge")}
               </div>
-              <h1 className="text-5xl lg:text-7xl font-bold tracking-tight leading-[1.1] mb-6">
+              <h1 className="mb-2 text-[2rem] font-bold leading-[1.1] tracking-normal sm:mb-3 sm:text-5xl lg:mb-6 lg:text-7xl">
                 {t("landing.hero.before")} <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-400">{t("landing.hero.highlight")}</span> {t("landing.hero.after")}
               </h1>
-              <p className="text-lg text-zinc-400 mb-8 leading-relaxed max-w-xl">
+              <p className="mb-2 max-w-xl text-sm leading-[1.35] text-zinc-400 sm:mb-3 sm:text-lg sm:leading-relaxed lg:mb-8">
                 {t("landing.hero.description")}
               </p>
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-                <Button size="lg" className="h-10 w-full sm:w-auto group" asChild>
-                  <Link href={signupHref()} prefetch={false} className="leading-none">
-                    {t("landing.nav.trial")}
-                    <ChevronRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+              <div className="flex flex-row items-stretch gap-3 sm:items-center sm:gap-4">
+                <Button
+                  size="lg"
+                  className="group h-auto min-h-11 min-w-0 flex-1 whitespace-normal px-2 py-2 text-center leading-tight sm:flex-none sm:px-6"
+                  asChild
+                >
+                  <Link href={signupHref()} prefetch={false} data-testid="landing-primary-cta">
+                    <span className="min-w-0 whitespace-normal leading-tight">
+                      {t("landing.nav.trial")}
+                    </span>
+                    <ChevronRight className="ml-1 hidden h-4 w-4 transition-transform group-hover:translate-x-1 sm:block" />
                   </Link>
                 </Button>
-                <Button variant="outline" size="lg" className="h-10 w-full sm:w-auto" asChild>
-                  <Link href="/demo" prefetch={false} className="leading-none">{t("landing.hero.demo")}</Link>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="h-auto min-h-11 min-w-0 flex-1 whitespace-normal px-2 py-2 text-center leading-tight sm:flex-none sm:px-6"
+                  asChild
+                >
+                  <Link href="/demo" prefetch={false} data-testid="landing-demo-cta">
+                    <span className="min-w-0 whitespace-normal leading-tight">
+                      {t("landing.hero.demo")}
+                    </span>
+                  </Link>
                 </Button>
               </div>
             </div>
@@ -86,7 +104,11 @@ export function LandingPage() {
         </section>
 
         {/* HOW IT WORKS */}
-        <section id="how-it-works" className="scroll-mt-20 py-24 relative overflow-hidden">
+        <section
+          id="how-it-works"
+          data-testid="landing-next-section"
+          className="relative scroll-mt-20 overflow-hidden py-6 md:py-24"
+        >
           <div className="absolute inset-0 bg-zinc-900/20 border-y border-white/5" />
           <div className="container mx-auto px-6 relative">
             <div className="leadvirt-reveal-up text-center max-w-2xl mx-auto mb-20">

@@ -36,7 +36,7 @@ import {
   sendConversationMessage,
   updateConversationStatus,
 } from "@/lib/api/conversations";
-import { bookLeadAppointment, createLeadTask, sendLeadToCrm, updateLead } from "@/lib/api/leads";
+import { updateLead } from "@/lib/api/leads";
 import type {
   ConversationDetail,
   ConversationStatus,
@@ -448,7 +448,7 @@ function TypingBubble({
 }
 
 /* ── Lead info panel ─────────────────────────────────────────── */
-type LeadAction = "crm" | "task" | "appointment" | "qualified";
+type LeadAction = "qualified";
 type ConversationAction = "handoff" | "close" | "open";
 
 function LeadInfoPanel({
@@ -466,6 +466,7 @@ function LeadInfoPanel({
 }) {
   const { formatCurrency, t } = useI18n();
   const isPending = (action: LeadAction) => pendingAction === action;
+  const canQualify = lead.stage === "new" || lead.stage === "progress";
 
   return (
     <div className="flex flex-col gap-4">
@@ -502,49 +503,12 @@ function LeadInfoPanel({
       </Card>
 
       {/* Actions */}
-      {canManage ? (
+      {canManage && canQualify ? (
         <Card className="p-5">
           <h3 className="text-sm font-semibold text-zinc-300 tracking-tight mb-3">
             {t("ops.common.actions")}
           </h3>
           <div className="flex flex-col gap-2">
-            <Button
-              size="sm"
-              className="w-full justify-start gap-2"
-              disabled={Boolean(pendingAction)}
-              onClick={() => onAction("crm")}
-            >
-              {isPending("crm") ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Database className="w-4 h-4" />
-              )}
-              {t("ops.conversation.sendToCrm")}
-            </Button>
-            <button
-              disabled={Boolean(pendingAction)}
-              onClick={() => onAction("task")}
-              className="w-full flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/8 transition-colors px-3 py-2 text-sm font-medium text-zinc-200 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {isPending("task") ? (
-                <Loader2 className="w-4 h-4 animate-spin text-zinc-400" />
-              ) : (
-                <CheckSquare className="w-4 h-4 text-zinc-400" />
-              )}
-              {t("ops.common.createTask")}
-            </button>
-            <button
-              disabled={Boolean(pendingAction)}
-              onClick={() => onAction("appointment")}
-              className="w-full flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/8 transition-colors px-3 py-2 text-sm font-medium text-zinc-200 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {isPending("appointment") ? (
-                <Loader2 className="w-4 h-4 animate-spin text-zinc-400" />
-              ) : (
-                <CalendarPlus className="w-4 h-4 text-zinc-400" />
-              )}
-              {t("ops.common.bookAppointment")}
-            </button>
             <button
               disabled={Boolean(pendingAction)}
               onClick={() => onAction("qualified")}
@@ -1089,22 +1053,6 @@ export function ConversationPage() {
     setApiConversation((current) => (current ? { ...current, lead: updatedLead } : current));
   }
 
-  async function refreshConversation(
-    targetConversationId: string,
-    mutationToken: ConversationMutationToken,
-  ) {
-    if (!isCurrentServerMutation(mutationToken)) return;
-    const updated = await getConversation(targetConversationId);
-    if (!isCurrentServerMutation(mutationToken)) return;
-    setApiConversation(updated);
-    const nextMessages = messagesFromConversation(updated, locale);
-    setMessages((current) => {
-      if (chatMessagesEqual(current, nextMessages)) return current;
-      shouldAutoScrollRef.current = isNearConversationBottom(messagesScrollRef.current);
-      return nextMessages;
-    });
-  }
-
   function applyConversationUpdate(
     updated: ConversationDetail,
     mutationToken: ConversationMutationToken,
@@ -1189,39 +1137,10 @@ export function ConversationPage() {
     const targetLeadId = apiLeadId;
     const mutationToken = beginServerMutation(targetConversationId);
     try {
-      if (action === "crm") {
-        const updated = await sendLeadToCrm(targetLeadId);
-        applyApiLead(updated, mutationToken);
-        if (isCurrentConversationScope(mutationToken)) {
-          toast.success(t("ops.common.crmSent"));
-        }
-      }
-
-      if (action === "task") {
-        await createLeadTask(targetLeadId, t("ops.conversation.taskTitle"));
-        if (isCurrentConversationScope(mutationToken)) {
-          toast.success(t("ops.common.taskCreated"));
-        }
-      }
-
-      if (action === "appointment") {
-        await bookLeadAppointment(
-          targetLeadId,
-          lead.service || t("ops.common.bookingFallback"),
-          new Date(Date.now() + 24 * 60 * 60_000).toISOString(),
-        );
-        await refreshConversation(targetConversationId, mutationToken);
-        if (isCurrentConversationScope(mutationToken)) {
-          toast.success(t("ops.conversation.appointmentCreated"));
-        }
-      }
-
-      if (action === "qualified") {
-        const updated = await updateLead(targetLeadId, { status: "QUALIFIED" });
-        applyApiLead(updated, mutationToken);
-        if (isCurrentConversationScope(mutationToken)) {
-          toast.success(t("ops.conversation.leadQualified"));
-        }
+      const updated = await updateLead(targetLeadId, { status: "QUALIFIED" });
+      applyApiLead(updated, mutationToken);
+      if (isCurrentConversationScope(mutationToken)) {
+        toast.success(t("ops.conversation.leadQualified"));
       }
     } catch (caught) {
       if (isCurrentConversationScope(mutationToken)) {
@@ -1579,34 +1498,22 @@ export function ConversationPage() {
       </div>
 
       {/* Sticky mobile actions */}
-      {permissions.canManageLeads ? (
+      {permissions.canManageLeads && (lead.stage === "new" || lead.stage === "progress") ? (
         <div className="lg:hidden fixed bottom-16 inset-x-0 z-30 px-4 pb-2 pt-2 bg-gradient-to-t from-zinc-950 via-zinc-950/90 to-transparent pointer-events-none">
-          <div className="flex gap-2 pointer-events-auto">
+          <div className="pointer-events-auto">
             <Button
               size="sm"
-              className="flex-1 justify-center gap-2"
+              className="w-full justify-center gap-2"
               disabled={Boolean(pendingLeadAction)}
-              onClick={() => void handleLeadAction("crm")}
+              onClick={() => void handleLeadAction("qualified")}
             >
-              {pendingLeadAction === "crm" ? (
+              {pendingLeadAction === "qualified" ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                <Database className="w-4 h-4" />
+                <BadgeCheck className="w-4 h-4" />
               )}
-              {t("ops.common.toCrm")}
+              {t("ops.common.qualified")}
             </Button>
-            <button
-              disabled={Boolean(pendingLeadAction)}
-              onClick={() => void handleLeadAction("appointment")}
-              className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-white/10 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {pendingLeadAction === "appointment" ? (
-                <Loader2 className="w-4 h-4 animate-spin text-zinc-400" />
-              ) : (
-                <CalendarPlus className="w-4 h-4 text-zinc-400" />
-              )}
-              {t("ops.common.bookAppointment")}
-            </button>
           </div>
         </div>
       ) : null}

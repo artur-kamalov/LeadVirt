@@ -168,6 +168,141 @@ test("integration resource failures retry instead of appearing disconnected", as
   await expect(page.getByTestId("pilot-readiness-panel")).toContainText("0/3");
 });
 
+test("ambiguous managed request delivery requires review without a duplicate action", async ({
+  page,
+}) => {
+  let deliveryUnknown = false;
+  let requestAttempts = 0;
+  await page.route("**/api/integrations", async (route) => {
+    await route.fulfill({
+      json: {
+        data: deliveryUnknown
+          ? [
+              {
+                ...integration("INSTAGRAM", "DISCONNECTED"),
+                settings: {
+                  requestStatus: "DELIVERY_UNKNOWN",
+                  requestDeliveryStatus: "UNKNOWN",
+                },
+              },
+            ]
+          : [],
+      },
+    });
+  });
+  await page.route("**/api/integrations/INSTAGRAM/request", async (route) => {
+    requestAttempts += 1;
+    deliveryUnknown = true;
+    await route.fulfill({
+      status: 503,
+      json: {
+        error: {
+          code: "INTEGRATION_REQUEST_DELIVERY_UNKNOWN",
+          message: "Delivery could not be confirmed.",
+          retryable: false,
+        },
+      },
+    });
+  });
+  await page.route("**/api/channels", async (route) => {
+    await route.fulfill({ json: { data: [] } });
+  });
+
+  await page.goto(`${webBase}/app/integrations`, { waitUntil: "networkidle" });
+  await selectLocale(page, "en");
+  await page.getByTestId("integrations-planned-toggle").click();
+
+  const card = page.getByTestId("integration-card-instagram");
+  await card.getByRole("button", { name: "Connect by request", exact: true }).click();
+
+  const dialog = page.getByRole("dialog", { name: "Instagram: settings" });
+  await dialog.getByTestId("integration-request-submit").click();
+  await expect.poll(() => requestAttempts).toBe(1);
+  await expect(dialog.getByTestId("integration-request-status")).toContainText(
+    "LeadVirt will not send a duplicate automatically",
+  );
+  await expect(dialog.getByTestId("integration-request-submit")).toHaveCount(0);
+  await expect(dialog).not.toContainText("The request could not be sent. Try again.");
+});
+
+test("pending managed request stays pending instead of showing a sent confirmation", async ({
+  page,
+}) => {
+  await page.route("**/api/integrations", async (route) => {
+    await route.fulfill({
+      json: {
+        data: [
+          {
+            ...integration("WHATSAPP_BUSINESS", "DISCONNECTED"),
+            settings: {
+              requestStatus: "REQUESTED",
+              requestDeliveryStatus: "PENDING",
+              requestedAt: "2026-07-18T10:00:00.000Z",
+            },
+          },
+        ],
+      },
+    });
+  });
+  await page.route("**/api/channels", async (route) => {
+    await route.fulfill({ json: { data: [] } });
+  });
+
+  await page.goto(`${webBase}/app/integrations`, { waitUntil: "networkidle" });
+  await selectLocale(page, "en");
+  await page.getByTestId("integrations-planned-toggle").click();
+
+  const card = page.getByTestId("integration-card-whatsapp");
+  await expect(card).toContainText("Sending request...");
+  await expect(card).not.toContainText("Request sent");
+  await card.getByRole("button", { name: "Sending request...", exact: true }).click();
+
+  const dialog = page.getByRole("dialog", { name: "WhatsApp Business: settings" });
+  await expect(dialog.getByTestId("integration-request-status")).toHaveText(
+    "Sending request...",
+  );
+  await expect(dialog.getByTestId("integration-request-submit")).toBeDisabled();
+  await expect(dialog).not.toContainText("Request sent. Our team will contact you");
+});
+
+test("managed requests direct Telegram-only users to add a reachable contact", async ({ page }) => {
+  await page.route("**/api/integrations", async (route) => {
+    await route.fulfill({ json: { data: [] } });
+  });
+  await page.route("**/api/channels", async (route) => {
+    await route.fulfill({ json: { data: [] } });
+  });
+  await page.route("**/api/integrations/WHATSAPP_BUSINESS/request", async (route) => {
+    await route.fulfill({
+      status: 400,
+      json: {
+        error: {
+          code: "INTEGRATION_REQUEST_CONTACT_REQUIRED",
+          message: "A reachable requester contact is required.",
+          retryable: false,
+        },
+      },
+    });
+  });
+
+  await page.goto(`${webBase}/app/integrations`, { waitUntil: "networkidle" });
+  await selectLocale(page, "en");
+  await page.getByTestId("integrations-planned-toggle").click();
+  const card = page.getByTestId("integration-card-whatsapp");
+  await card.getByRole("button", { name: "Connect by request", exact: true }).click();
+
+  const dialog = page.getByRole("dialog", { name: "WhatsApp Business: settings" });
+  await dialog.getByTestId("integration-request-submit").click();
+  await expect(dialog.getByTestId("integration-request-status")).toContainText(
+    "Add a reachable phone number in Settings",
+  );
+  await expect(dialog.getByTestId("integration-request-submit")).toHaveCount(0);
+  await expect(dialog.getByRole("link", { name: "Add contact", exact: true })).toHaveAttribute(
+    "href",
+    "/app/settings?tab=profile",
+  );
+});
+
 test("Telegram connects from one bot token while LeadVirt manages webhook security", async ({
   page,
 }) => {
@@ -271,6 +406,7 @@ test("integrations expose only live self-service controls and preserve channel w
   test.setTimeout(60_000);
   const sampledProviders: string[] = [];
   const testedProviders: string[] = [];
+  const requestedProviders: string[] = [];
   const unavailableMutationRequests: string[] = [];
   page.on("request", (request) => {
     if (
@@ -331,6 +467,21 @@ test("integrations expose only live self-service controls and preserve channel w
           channel("TELEGRAM", "demo-telegram-webhook"),
           channel("WEBHOOK", "demo-generic-webhook"),
         ],
+      },
+    });
+  });
+
+  await page.route("**/api/integrations/*/request", async (route) => {
+    const provider = new URL(route.request().url()).pathname.split("/").at(-2) ?? "";
+    requestedProviders.push(provider);
+    await route.fulfill({
+      json: {
+        data: {
+          id: `request-${provider.toLowerCase()}`,
+          provider,
+          status: "REQUESTED",
+          requestedAt: "2026-07-18T10:00:00.000Z",
+        },
       },
     });
   });
@@ -457,7 +608,7 @@ test("integrations expose only live self-service controls and preserve channel w
   );
   await expect(page.getByTestId("pilot-readiness-widget-open")).toHaveAttribute(
     "href",
-    "/widget/demo",
+    "/widget/frame?key=demo-website-widget",
   );
   await expect(page.getByTestId("api-webhook-endpoint")).toContainText(
     "http://localhost:4001/api/public/channels/webhook/demo-generic-webhook/events",
@@ -517,8 +668,15 @@ test("integrations expose only live self-service controls and preserve channel w
   await page.setViewportSize({ width: 1440, height: 1000 });
   await expect(instagramDialog.getByText("Instagram Business Account ID")).toBeVisible();
   await expect(instagramDialog.getByText("Professional Instagram account").first()).toBeVisible();
-  await instagramDialog.getByRole("button", { name: "Закрыть" }).click();
+  await instagramDialog.getByTestId("integration-request-submit").click();
+  await expect.poll(() => requestedProviders).toContain("INSTAGRAM");
+  await expect(instagramDialog.getByTestId("integration-request-status")).toContainText(
+    "Заявка отправлена",
+  );
+  await expect(instagramDialog.getByTestId("integration-request-submit")).toBeDisabled();
+  await instagramDialog.getByRole("button", { name: "Закрыть", exact: true }).click();
   await expect(instagramDialog).toBeHidden();
+  await expect(page.getByTestId("integration-card-instagram")).toContainText("Заявка отправлена");
   await expect(page.getByTestId("integration-card-whatsapp")).toContainText(
     "Подключение по запросу",
   );
@@ -532,7 +690,12 @@ test("integrations expose only live self-service controls and preserve channel w
   await expect(
     whatsappDialog.getByText("WhatsApp Business Account ID", { exact: true }),
   ).toBeVisible();
-  await whatsappDialog.getByRole("button", { name: "Закрыть" }).click();
+  await whatsappDialog.getByTestId("integration-request-submit").click();
+  await expect.poll(() => requestedProviders).toContain("WHATSAPP_BUSINESS");
+  await expect(whatsappDialog.getByTestId("integration-request-status")).toContainText(
+    "Заявка отправлена",
+  );
+  await whatsappDialog.getByRole("button", { name: "Закрыть", exact: true }).click();
   await expect(whatsappDialog).toBeHidden();
   await expect(page.getByTestId("integration-card-vk")).toContainText("Скоро будет");
   await page
@@ -542,7 +705,7 @@ test("integrations expose only live self-service controls and preserve channel w
   const vkDialog = page.getByRole("dialog", { name: /VK: настройки/ });
   await expect(vkDialog).toBeVisible();
   await expect(vkDialog.getByText("Community token", { exact: true })).toBeVisible();
-  await vkDialog.getByRole("button", { name: "Закрыть" }).click();
+  await vkDialog.getByRole("button", { name: "Закрыть", exact: true }).click();
   await expect(vkDialog).toBeHidden();
   await page
     .getByTestId("integration-card-shopify")
@@ -551,7 +714,7 @@ test("integrations expose only live self-service controls and preserve channel w
   const shopifyDialog = page.getByRole("dialog", { name: /Shopify: настройки/ });
   await expect(shopifyDialog).toBeVisible();
   await expect(shopifyDialog.getByText("Admin API access token", { exact: true })).toBeVisible();
-  await shopifyDialog.getByRole("button", { name: "Закрыть" }).click();
+  await shopifyDialog.getByRole("button", { name: "Закрыть", exact: true }).click();
   await expect(shopifyDialog).toBeHidden();
   await page
     .getByTestId("integration-card-shopscript")
@@ -562,7 +725,7 @@ test("integrations expose only live self-service controls and preserve channel w
   await expect(
     shopScriptDialog.getByText("Webasyst installation URL", { exact: true }),
   ).toBeVisible();
-  await shopScriptDialog.getByRole("button", { name: "Закрыть" }).click();
+  await shopScriptDialog.getByRole("button", { name: "Закрыть", exact: true }).click();
   await expect(shopScriptDialog).toBeHidden();
   await expect(page.getByText("sk-admin")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Входящий webhook" })).toBeVisible();
@@ -593,7 +756,7 @@ test("integrations expose only live self-service controls and preserve channel w
   await expect(
     amoDialog.getByRole("button", { name: /Сохранить|Подключить|Отключить/ }),
   ).toHaveCount(0);
-  await amoDialog.getByRole("button", { name: "Закрыть" }).click();
+  await amoDialog.getByRole("button", { name: "Закрыть", exact: true }).click();
 
   const telegramCard = page.locator(".group").filter({ hasText: "Telegram" }).first();
   await telegramCard.getByRole("button", { name: /Настроить/ }).click();
@@ -621,7 +784,7 @@ test("integrations expose only live self-service controls and preserve channel w
   await page.setViewportSize({ width: 1440, height: 1000 });
   await expect(telegramDialog.getByText("Webhook secret token")).toHaveCount(0);
   await expect(telegramDialog.getByText("x-telegram-bot-api-secret-token")).toHaveCount(0);
-  await telegramDialog.getByRole("button", { name: "Закрыть" }).click();
+  await telegramDialog.getByRole("button", { name: "Закрыть", exact: true }).click();
   await expect(telegramDialog).toBeHidden();
 
   const webhookCard = page.getByTestId("integration-card-webhook");
@@ -651,7 +814,7 @@ test("integrations expose only live self-service controls and preserve channel w
   await webhookDialog.screenshot({
     path: "artifacts/playwright/integrations-webhook-authoritative-settings.png",
   });
-  await page.getByRole("button", { name: "Закрыть" }).click();
+  await page.getByRole("button", { name: "Закрыть", exact: true }).click();
   await expect(webhookDialog).toBeHidden();
 
   const retailCard = page.locator(".group").filter({ hasText: "RetailCRM" }).first();
@@ -661,7 +824,7 @@ test("integrations expose only live self-service controls and preserve channel w
   const retailDialog = page.getByRole("dialog", { name: /RetailCRM: настройки/ });
   await expect(retailDialog).toBeVisible();
   await expect(retailDialog.locator("input, textarea, [role='switch']")).toHaveCount(0);
-  await retailDialog.getByRole("button", { name: "Закрыть" }).click();
+  await retailDialog.getByRole("button", { name: "Закрыть", exact: true }).click();
 
   const bitrixCard = page.getByTestId("integration-card-bitrix24");
   await expect(bitrixCard).toContainText("Скоро будет");
