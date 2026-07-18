@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { Check, Sparkles } from "lucide-react";
+import { Check, RussianRuble, Sparkles } from "lucide-react";
 import { Button } from "./ui/Button";
 import { plans } from "../product/plans";
 import { cn } from "../lib/utils";
@@ -48,6 +48,13 @@ export function PricingSection() {
         <h2 className="text-3xl md:text-5xl font-bold mb-4 tracking-tight">{t("pricing.title")}</h2>
         <p className="text-zinc-400 text-lg">
           {t("pricing.description")}
+        </p>
+        <p
+          data-testid="pricing-currency-notice"
+          className="mt-4 flex items-center justify-center gap-2 text-sm font-medium text-zinc-300"
+        >
+          <RussianRuble className="h-4 w-4 shrink-0 text-emerald-400" aria-hidden="true" />
+          <span>{t("pricing.currencyNotice")}</span>
         </p>
       </div>
 

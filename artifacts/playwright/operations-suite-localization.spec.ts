@@ -1,8 +1,33 @@
 import { expect, test, type Page } from "@playwright/test";
 import { supportedLocales, type Locale } from "../../apps/web/src/i18n/config";
 import { messages } from "../../apps/web/src/i18n/messages";
+import { operationsSuiteMessages } from "../../apps/web/src/i18n/operations-suite-messages";
+import { deOperationsSuiteOverrides } from "../../apps/web/src/i18n/operations-suite-translations/de";
+import { esOperationsSuiteOverrides } from "../../apps/web/src/i18n/operations-suite-translations/es";
+import { frOperationsSuiteOverrides } from "../../apps/web/src/i18n/operations-suite-translations/fr";
+import { ptOperationsSuiteOverrides } from "../../apps/web/src/i18n/operations-suite-translations/pt";
 
 const webBase = process.env.LEADVIRT_WEB_BASE ?? "http://localhost:3001";
+
+test("Operations Suite catalogs explicitly cover every supported non-base locale", () => {
+  const expectedKeys = Object.keys(operationsSuiteMessages.en).sort();
+  const catalogs = {
+    es: esOperationsSuiteOverrides,
+    fr: frOperationsSuiteOverrides,
+    de: deOperationsSuiteOverrides,
+    pt: ptOperationsSuiteOverrides,
+  } as const;
+
+  for (const [locale, catalog] of Object.entries(catalogs)) {
+    expect(Object.keys(catalog).sort(), locale).toEqual(expectedKeys);
+  }
+
+  for (const key of expectedKeys as (keyof typeof operationsSuiteMessages.en)[]) {
+    expect(operationsSuiteMessages.ru[key], `ru:${key}`).not.toBe(
+      operationsSuiteMessages.en[key],
+    );
+  }
+});
 
 const overview = {
   data: {
@@ -131,7 +156,7 @@ async function expectNoPageOverflow(page: Page) {
   expect(widths.document, JSON.stringify(widths)).toBeLessThanOrEqual(widths.viewport);
 }
 
-test("Automation, Analytics, and AI Audit render all six locales and keep actions working", async ({ context, page }) => {
+test("Automation, Analytics, and AI Audit render all six locales with truthful actions", async ({ context, page }) => {
   test.setTimeout(90_000);
   const requestedPeriods: string[] = [];
   await mockApis(page, requestedPeriods);
@@ -146,9 +171,12 @@ test("Automation, Analytics, and AI Audit render all six locales and keep action
   }
   await selectLocale(page, "en");
   await page.getByRole("button", { name: messages.en["suite.automation.save"], exact: true }).click();
-  await expect(page.getByRole("button", { name: messages.en["suite.automation.test"], exact: true })).toBeEnabled();
-  await page.getByRole("button", { name: messages.en["suite.automation.test"], exact: true }).click();
-  await expect(page.getByText("Localized test completed")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: messages.en["suite.automation.test"], exact: true }),
+  ).toBeDisabled();
+  await expect(page.getByTestId("automation-test-note")).toHaveText(
+    messages.en["suite.automation.testNeedsConversation"],
+  );
 
   await page.goto(`${webBase}/app/analytics`, { waitUntil: "domcontentloaded" });
   for (const locale of supportedLocales) {

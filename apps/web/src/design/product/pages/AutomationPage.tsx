@@ -29,6 +29,7 @@ import {
   AlertTriangle,
   Square,
   UserRoundCheck,
+  ChevronRight,
 } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { messages, type TranslationKey, type TranslationValues } from "@/i18n/messages";
@@ -1163,6 +1164,9 @@ export function AutomationPage() {
   const [selectedId, setSelectedId] = useState<string>("trigger");
   const [scenarioActive, setScenarioActive] = useState(false);
   const [activeScenario, setActiveScenario] = useState(0);
+  const scenarioTabsRef = React.useRef<HTMLDivElement>(null);
+  const scenarioTabRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
+  const [canScrollScenarioTabs, setCanScrollScenarioTabs] = useState(false);
   const [scenarioName, setScenarioName] = useState(scenarioDefaults[0]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
@@ -1198,6 +1202,35 @@ export function AutomationPage() {
         : scenarioDefaults[index] ?? t("suite.automation.scenarioNumber", { count: formatNumber(index + 1) });
     }
   );
+  const updateScenarioTabOverflow = React.useCallback(() => {
+    const viewport = scenarioTabsRef.current;
+    if (!viewport) return;
+    setCanScrollScenarioTabs(
+      viewport.scrollLeft + viewport.clientWidth < viewport.scrollWidth - 2,
+    );
+  }, []);
+
+  useEffect(() => {
+    const viewport = scenarioTabsRef.current;
+    if (!viewport) return;
+    updateScenarioTabOverflow();
+    const observer = new ResizeObserver(updateScenarioTabOverflow);
+    observer.observe(viewport);
+    window.addEventListener("resize", updateScenarioTabOverflow);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateScenarioTabOverflow);
+    };
+  }, [scenarioTabs.length, updateScenarioTabOverflow]);
+
+  useEffect(() => {
+    const viewport = scenarioTabsRef.current;
+    const activeTab = scenarioTabRefs.current[activeScenario];
+    if (!viewport || !activeTab) return;
+    const left = activeTab.offsetLeft - (viewport.clientWidth - activeTab.offsetWidth) / 2;
+    viewport.scrollTo({ left: Math.max(0, left), behavior: "smooth" });
+    window.requestAnimationFrame(updateScenarioTabOverflow);
+  }, [activeScenario, scenarioTabs.length, updateScenarioTabOverflow]);
   const currentDraftSnapshot = useMemo(
     () =>
       workflowDraftSnapshot({
@@ -1550,35 +1583,61 @@ export function AutomationPage() {
         {/* ── Toolbar ── */}
         <div className="flex flex-col gap-3 mb-5 flex-shrink-0">
           {/* Scenario tabs */}
-          <div
-            className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1 scrollbar-none overscroll-x-contain"
-            aria-label={t("suite.automation.title")}
-          >
-            {scenarioTabs.map((s, i) => {
-              const workflow = workflows[i] ?? null;
-              const restored = Boolean(workflow && restoredWorkflowIds.has(workflow.id));
-              return (
-                <button
-                  key={i}
-                  onClick={() => {
-                    if (workflow) {
-                      hydrateWorkflow(workflow, i);
-                      return;
-                    }
-                    hydrateDraftScenario(i, s);
-                  }}
-                  className={cn(
-                    "flex min-h-11 max-w-full shrink-0 snap-start items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-medium outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-emerald-400/60",
-                    i === activeScenario
-                      ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
-                      : "bg-white/3 border-white/6 text-zinc-400 hover:text-zinc-200 hover:border-white/12"
-                  )}
-                >
-                  <span className="truncate">{s}</span>
-                  <WorkflowStatusBadge workflow={workflow} restored={restored} compact />
-                </button>
-              );
-            })}
+          <div className="relative min-w-0">
+            <div
+              ref={scenarioTabsRef}
+              className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1 pr-12 scrollbar-none overscroll-x-contain"
+              aria-label={t("suite.automation.title")}
+              data-testid="automation-scenario-tabs"
+              onScroll={updateScenarioTabOverflow}
+            >
+              {scenarioTabs.map((s, i) => {
+                const workflow = workflows[i] ?? null;
+                const restored = Boolean(workflow && restoredWorkflowIds.has(workflow.id));
+                return (
+                  <button
+                    ref={(node) => {
+                      scenarioTabRefs.current[i] = node;
+                    }}
+                    key={i}
+                    onClick={() => {
+                      if (workflow) {
+                        hydrateWorkflow(workflow, i);
+                        return;
+                      }
+                      hydrateDraftScenario(i, s);
+                    }}
+                    className={cn(
+                      "flex min-h-11 max-w-full shrink-0 snap-start items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-medium outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-emerald-400/60",
+                      i === activeScenario
+                        ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
+                        : "bg-white/3 border-white/6 text-zinc-400 hover:text-zinc-200 hover:border-white/12"
+                    )}
+                  >
+                    <span className="truncate">{s}</span>
+                    <WorkflowStatusBadge workflow={workflow} restored={restored} compact />
+                  </button>
+                );
+              })}
+            </div>
+            {canScrollScenarioTabs ? (
+              <button
+                type="button"
+                aria-label={`${t("suite.automation.title")}: ${scenarioTabs[Math.min(activeScenario + 1, scenarioTabs.length - 1)]}`}
+                data-testid="automation-scenario-tabs-next"
+                onClick={() => {
+                  const viewport = scenarioTabsRef.current;
+                  if (!viewport) return;
+                  viewport.scrollBy({
+                    left: Math.max(140, viewport.clientWidth * 0.7),
+                    behavior: "smooth",
+                  });
+                }}
+                className="absolute inset-y-0 right-0 flex w-11 items-center justify-end border-l border-white/5 bg-gradient-to-l from-zinc-950 via-zinc-950 to-zinc-950/30 pr-1 text-zinc-300 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
+              >
+                <ChevronRight aria-hidden="true" className="h-5 w-5" />
+              </button>
+            ) : null}
           </div>
 
           {/* Main toolbar */}

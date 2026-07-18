@@ -138,10 +138,12 @@ type Translate = (key: TranslationKey, values?: TranslationValues) => string;
 function EmptyAnalyticsSection({
   testId,
   t,
+  message,
   className = "h-48 sm:h-[280px]",
 }: {
   testId: string;
   t: Translate;
+  message?: string;
   className?: string;
 }) {
   return (
@@ -152,7 +154,25 @@ function EmptyAnalyticsSection({
       )}
       data-testid={testId}
     >
-      {t("dashboard.recent.empty")}
+      {message ?? t("dashboard.recent.empty")}
+    </div>
+  );
+}
+
+function AccessibleChart({
+  label,
+  testId,
+  className,
+  children,
+}: {
+  label: string;
+  testId: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={cn("w-full", className)} role="img" aria-label={label} data-testid={testId}>
+      <div aria-hidden="true">{children}</div>
     </div>
   );
 }
@@ -455,6 +475,28 @@ export function AnalyticsPage() {
     channel: d.channel,
     color: PIE_COLORS[i % PIE_COLORS.length],
   }));
+  const channelChartLabel = `${t("suite.analytics.leadsByChannel")}. ${barData
+    .map((item) => `${item.name}: ${formatNumber(item.leads)}`)
+    .join("; ")}`;
+  const scenarioChartLabel = `${t("suite.analytics.scenarioConversion")}. ${scenarioData
+    .map((item) => `${item.name}: ${formatNumber(item.value)}%`)
+    .join("; ")}`;
+  const responseChartLabel = `${t("suite.analytics.aiResponse")}. ${responseData
+    .map((item) =>
+      `${item.label}: ${t("suite.analytics.seconds", { count: formatNumber(item.sec) })}`,
+    )
+    .join("; ")}`;
+  const trendChartLabel = `${demo ? t("suite.analytics.leads") : t("suite.analytics.leadsBookings")}. ${leadsTrend
+    .map((item) => {
+      const leadValue = `${item.day}: ${formatNumber(item.leads)} ${t("suite.analytics.leads")}`;
+      return demo
+        ? leadValue
+        : `${leadValue}, ${formatNumber(item.booked)} ${t("suite.analytics.bookings")}`;
+    })
+    .join("; ")}`;
+  const channelDistributionLabel = `${t("suite.analytics.bestChannels")}. ${pieData
+    .map((item) => `${item.name}: ${formatNumber(item.value)}`)
+    .join("; ")}`;
 
   const handleExportReport = () => {
     const csv = buildAnalyticsCsv({
@@ -508,7 +550,7 @@ export function AnalyticsPage() {
                 disabled={analyticsResource.isLoading}
                 aria-pressed={displayedPeriod === item.value}
                 className={cn(
-                  "rounded-xl px-4 py-1.5 text-sm font-medium transition-all disabled:cursor-wait disabled:opacity-70",
+                  "min-h-11 rounded-xl px-4 py-2 text-sm font-medium transition-all disabled:cursor-wait disabled:opacity-70",
                   displayedPeriod === item.value
                     ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/20 shadow-[0_0_14px_rgba(52,211,153,0.1)]"
                     : "text-zinc-400 hover:text-zinc-100",
@@ -522,7 +564,7 @@ export function AnalyticsPage() {
           <Button
             variant="outline"
             size="sm"
-            className="gap-2"
+            className="min-h-11 gap-2"
             onClick={handleExportReport}
             disabled={analyticsResource.isLoading}
           >
@@ -589,12 +631,13 @@ export function AnalyticsPage() {
                 sub={t("suite.analytics.inquiriesPeriod")}
               />
               {barData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart
-                    data={barData}
-                    layout="vertical"
-                    margin={{ left: 8, right: 12, top: 0, bottom: 0 }}
-                  >
+                <AccessibleChart label={channelChartLabel} testId="analytics-channel-chart">
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart
+                      data={barData}
+                      layout="vertical"
+                      margin={{ left: 8, right: 12, top: 0, bottom: 0 }}
+                    >
                     <CartesianGrid key="grid" horizontal={false} stroke="rgba(255,255,255,0.04)" />
                     <XAxis
                       key="x"
@@ -622,8 +665,9 @@ export function AnalyticsPage() {
                       radius={[0, 6, 6, 0]}
                       fill="#34d399"
                     />
-                  </BarChart>
-                </ResponsiveContainer>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </AccessibleChart>
               ) : (
                 <EmptyAnalyticsSection testId="analytics-channels-empty" t={t} />
               )}
@@ -639,8 +683,9 @@ export function AnalyticsPage() {
             <Card className="p-6">
               <SectionTitle title={t("suite.analytics.scenarioConversion")} sub="%" />
               {scenarioData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={scenarioData} margin={{ left: 0, right: 12, top: 0, bottom: 40 }}>
+                <AccessibleChart label={scenarioChartLabel} testId="analytics-scenario-chart">
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={scenarioData} margin={{ left: 0, right: 12, top: 0, bottom: 40 }}>
                     <CartesianGrid key="grid" vertical={false} stroke="rgba(255,255,255,0.04)" />
                     <XAxis
                       key="x"
@@ -672,8 +717,9 @@ export function AnalyticsPage() {
                         <Cell key={i} fill={["#818cf8", "#22d3ee", "#a78bfa", "#f59e0b"][i % 4]} />
                       ))}
                     </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </AccessibleChart>
               ) : (
                 <EmptyAnalyticsSection testId="analytics-scenarios-empty" t={t} />
               )}
@@ -691,8 +737,9 @@ export function AnalyticsPage() {
                 title={t("suite.analytics.aiResponse")}
                 sub={`${t("suite.analytics.averageResponse")} / P90`}
               />
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={responseData} margin={{ left: 0, right: 12, top: 4, bottom: 0 }}>
+              <AccessibleChart label={responseChartLabel} testId="analytics-response-chart-graphic">
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={responseData} margin={{ left: 0, right: 12, top: 4, bottom: 0 }}>
                   <CartesianGrid key="grid" stroke="rgba(255,255,255,0.04)" />
                   <XAxis
                     key="x"
@@ -722,8 +769,9 @@ export function AnalyticsPage() {
                     fill="#14b8a6"
                     radius={[6, 6, 0, 0]}
                   />
-                </BarChart>
-              </ResponsiveContainer>
+                  </BarChart>
+                </ResponsiveContainer>
+              </AccessibleChart>
             </Card>
           </motion.div>
 
@@ -739,8 +787,9 @@ export function AnalyticsPage() {
                 sub={t("suite.analytics.weeklyTrend")}
               />
               {leadsTrend.length > 0 ? (
-                <ResponsiveContainer width="100%" height={260}>
-                  <AreaChart data={leadsTrend} margin={{ left: 0, right: 12, top: 4, bottom: 0 }}>
+                <AccessibleChart label={trendChartLabel} testId="analytics-trend-chart">
+                  <ResponsiveContainer width="100%" height={260}>
+                    <AreaChart data={leadsTrend} margin={{ left: 0, right: 12, top: 4, bottom: 0 }}>
                     <defs key="defs-analytics-leads">
                       <linearGradient id="gradLeads" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#34d399" stopOpacity={0.2} />
@@ -793,8 +842,9 @@ export function AnalyticsPage() {
                         activeDot={{ r: 5 }}
                       />
                     ) : null}
-                  </AreaChart>
-                </ResponsiveContainer>
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </AccessibleChart>
               ) : (
                 <EmptyAnalyticsSection
                   testId="analytics-trend-empty"
@@ -819,8 +869,13 @@ export function AnalyticsPage() {
             />
             {analyticsChannels.length > 0 ? (
               <div className="flex flex-col lg:flex-row items-center gap-8">
-                <ResponsiveContainer width="100%" height={280} className="lg:max-w-xs">
-                  <PieChart>
+                <AccessibleChart
+                  label={channelDistributionLabel}
+                  testId="analytics-channel-distribution-chart"
+                  className="lg:max-w-xs"
+                >
+                  <ResponsiveContainer width="100%" height={280} className="lg:max-w-xs">
+                    <PieChart>
                     <Pie
                       data={pieData}
                       cx="50%"
@@ -836,8 +891,9 @@ export function AnalyticsPage() {
                       ))}
                     </Pie>
                     <Tooltip content={<DarkTooltip />} />
-                  </PieChart>
-                </ResponsiveContainer>
+                    </PieChart>
+                  </ResponsiveContainer>
+                </AccessibleChart>
 
                 <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {analyticsChannels.map((d, i) => {
@@ -891,6 +947,7 @@ export function AnalyticsPage() {
                 <EmptyAnalyticsSection
                   testId="analytics-recommendations-empty"
                   t={t}
+                  message={t("suite.analytics.noRecommendationsPeriod")}
                   className="h-32 sm:col-span-2"
                 />
               ) : null}

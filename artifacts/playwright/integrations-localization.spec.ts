@@ -109,6 +109,12 @@ async function expectNoOverflow(page: Page, locator = page.locator("body")) {
 }
 
 test("customer-facing integration copy does not fall back to English", () => {
+  for (const key of Object.keys(messages.en).filter((key) =>
+    key.startsWith("integrations."),
+  ) as IntegrationTranslationKey[]) {
+    expect(messages.ru[key], `ru:${key}`).not.toBe(messages.en[key]);
+  }
+
   for (const locale of fullyLocalizedLocales) {
     for (const key of representativeKeys) {
       expect(messages[locale][key], `${locale}:${key}`).not.toBe(messages.en[key]);
@@ -205,6 +211,26 @@ test("Integrations and the one-token Telegram dialog render all six locales", as
     );
     await expect(setupDialog).toContainText(messages[locale]["integrations.setup.instagram.step1"]);
     await expect(setupDialog).toContainText(messages[locale]["integrations.notSelfServe"]);
+    if (locale === "ru") {
+      for (const key of [
+        "integrations.field.metaAppId",
+        "integrations.field.facebookPageId",
+        "integrations.field.instagramBusinessAccountId",
+        "integrations.field.pageAccessToken",
+        "integrations.field.webhookVerifyToken",
+      ] as const) {
+        await expect(setupDialog.getByText(messages.ru[key], { exact: true })).toBeVisible();
+      }
+      for (const rawEnglishLabel of [
+        "Meta App ID",
+        "Facebook Page ID",
+        "Instagram Business Account ID",
+        "Page access token",
+        "Webhook verify token",
+      ]) {
+        await expect(setupDialog.getByText(rawEnglishLabel, { exact: true })).toHaveCount(0);
+      }
+    }
     await expect(
       setupDialog.getByRole("button", {
         name: messages[locale]["integrations.request.submit"],

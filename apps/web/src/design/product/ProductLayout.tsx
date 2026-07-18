@@ -330,10 +330,12 @@ function NavLink({
 
 export function ProductLayout({
   title,
+  mobileTitle,
   children,
   contentClassName,
 }: {
   title: string;
+  mobileTitle?: string;
   children: React.ReactNode;
   contentClassName?: string;
 }) {
@@ -649,7 +651,7 @@ export function ProductLayout({
           {/* Topbar */}
           <header className="sticky top-0 z-30 h-16 lg:h-20 border-b border-white/5 bg-zinc-950/95">
             <div className="h-full px-4 lg:px-8 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3 min-w-0">
+              <div className="flex min-w-0 flex-1 items-center gap-2 lg:gap-3">
                 <DialogPrimitive.Root open={mobileOpen} onOpenChange={setMobileOpen}>
                   <DialogPrimitive.Trigger asChild>
                     <button
@@ -662,12 +664,19 @@ export function ProductLayout({
                   </DialogPrimitive.Trigger>
                   {mobileDrawer}
                 </DialogPrimitive.Root>
-                <h1 className="text-lg lg:text-2xl font-bold tracking-tight truncate">
-                  {localizedTitle}
+                <h1 className="min-w-0 truncate text-lg font-bold tracking-tight lg:text-2xl">
+                  {mobileTitle ? (
+                    <>
+                      <span className="sm:hidden">{mobileTitle}</span>
+                      <span className="hidden sm:inline">{localizedTitle}</span>
+                    </>
+                  ) : (
+                    localizedTitle
+                  )}
                 </h1>
                 {demo ? (
                   <span
-                    className="inline-flex shrink-0 items-center rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-1 text-[10px] font-semibold uppercase text-emerald-300 sm:px-2.5 sm:text-[11px]"
+                    className="hidden shrink-0 items-center rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-1 text-[10px] font-semibold uppercase text-emerald-300 min-[360px]:inline-flex sm:px-2.5 sm:text-[11px]"
                     data-testid="product-demo-badge"
                   >
                     <span className="sm:hidden">{t("product.demo.short")}</span>
@@ -676,7 +685,7 @@ export function ProductLayout({
                 ) : null}
               </div>
 
-              <div className="flex items-center gap-2 lg:gap-3">
+              <div className="flex shrink-0 items-center gap-2 lg:gap-3">
                 <form
                   role="search"
                   aria-label={t("product.search.form")}
@@ -730,22 +739,22 @@ export function ProductLayout({
                 </Tip>
 
                 {demo ? (
-                  <Tip content={t("product.account.create")}>
-                    <Button
-                      asChild
-                      size="sm"
-                      className="h-11 w-11 shrink-0 px-0 xl:w-auto xl:px-4"
+                  <Button
+                    asChild
+                    size="sm"
+                    className="h-11 shrink-0 px-2.5 text-xs sm:px-3 sm:text-sm xl:px-4"
+                  >
+                    <Link
+                      href="/signup"
+                      aria-label={t("product.billing.createAccount")}
+                      data-testid="product-demo-create-account"
                     >
-                      <Link
-                        href="/signup"
-                        aria-label={t("product.account.create")}
-                        data-testid="product-demo-create-account"
-                      >
-                        <UserPlus className="h-4 w-4" />
-                        <span className="hidden xl:inline">{t("product.account.create")}</span>
-                      </Link>
-                    </Button>
-                  </Tip>
+                      <UserPlus className="hidden h-4 w-4 min-[360px]:block" />
+                      <span className="whitespace-nowrap">
+                        {t("product.billing.createAccount")}
+                      </span>
+                    </Link>
+                  </Button>
                 ) : (
                   <Dropdown
                     className="w-[340px] p-0 overflow-hidden"

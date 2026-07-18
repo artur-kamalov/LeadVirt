@@ -183,6 +183,14 @@ const entries = [
     de: "Verwalten Sie Darstellung und Kontakte des Arbeitsbereichs. Angaben für Kundenantworten bearbeiten Sie unter Unternehmensinformationen.",
     pt: "Gerencie a identidade visual e os contatos do workspace. Edite as informações usadas nas respostas aos clientes em Informações da empresa.",
   }),
+  entry("settings.profile.demoReadOnly", {
+    en: "This sample workspace is read-only.",
+    ru: "Это тестовое рабочее пространство доступно только для просмотра.",
+    es: "Este espacio de demostración es de solo lectura.",
+    fr: "Cet espace de démonstration est en lecture seule.",
+    de: "Dieser Demo-Arbeitsbereich ist schreibgeschützt.",
+    pt: "Este workspace de demonstração é somente leitura.",
+  }),
   entry("settings.profile.logo", {
     en: "Company logo",
     ru: "Логотип компании",

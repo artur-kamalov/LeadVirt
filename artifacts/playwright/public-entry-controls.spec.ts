@@ -87,6 +87,7 @@ test("landing describes the current pilot in all locales without mobile overflow
       request: "Request captured in Inbox",
       handoff: "Operator handoff requested",
       inbox: "Saved to Inbox",
+      currency: "All listed prices and invoices are in Russian rubles (RUB).",
       beauty:
         "Answers about services, prices, and hours, then captures appointment requests for the team.",
     },
@@ -96,6 +97,7 @@ test("landing describes the current pilot in all locales without mobile overflow
       request: "Запрос сохранён во входящих",
       handoff: "Запрошена передача оператору",
       inbox: "Сохранено во входящих",
+      currency: "Все цены и счета указаны в российских рублях (RUB).",
       beauty:
         "Ответы об услугах, ценах и графике с сохранением запросов на визит для команды.",
     },
@@ -105,6 +107,7 @@ test("landing describes the current pilot in all locales without mobile overflow
       request: "Solicitud guardada en la bandeja de entrada",
       handoff: "Transferencia a un agente solicitada",
       inbox: "Guardado en la bandeja de entrada",
+      currency: "Todos los precios y facturas se indican en rublos rusos (RUB).",
       beauty:
         "Respuestas sobre servicios, precios y horarios, con solicitudes de cita guardadas para el equipo.",
     },
@@ -114,6 +117,7 @@ test("landing describes the current pilot in all locales without mobile overflow
       request: "Demande enregistrée dans la boîte de réception",
       handoff: "Transfert à un opérateur demandé",
       inbox: "Enregistré dans la boîte de réception",
+      currency: "Tous les prix et factures sont indiqués en roubles russes (RUB).",
       beauty:
         "Réponses sur les services, les tarifs et les horaires, avec les demandes de rendez-vous transmises à l'équipe.",
     },
@@ -123,6 +127,7 @@ test("landing describes the current pilot in all locales without mobile overflow
       request: "Anfrage im Posteingang gespeichert",
       handoff: "Übergabe an Mitarbeiter angefordert",
       inbox: "Im Posteingang gespeichert",
+      currency: "Alle Preise und Rechnungen sind in russischen Rubeln (RUB) angegeben.",
       beauty:
         "Antworten zu Leistungen, Preisen und Öffnungszeiten; Terminwünsche werden für das Team gespeichert.",
     },
@@ -132,6 +137,7 @@ test("landing describes the current pilot in all locales without mobile overflow
       request: "Solicitação salva na Caixa de entrada",
       handoff: "Transferência para atendente solicitada",
       inbox: "Salvo na Caixa de entrada",
+      currency: "Todos os preços e faturas são indicados em rublos russos (RUB).",
       beauty:
         "Respostas sobre serviços, preços e horários, com solicitações de atendimento salvas para a equipe.",
     },
@@ -151,6 +157,7 @@ test("landing describes the current pilot in all locales without mobile overflow
     await expect(page.getByText(copy.handoff, { exact: true })).toBeVisible();
     await expect(page.getByText(copy.inbox, { exact: true })).toBeVisible();
     await expect(page.getByText(copy.beauty, { exact: true })).toBeVisible();
+    await expect(page.getByTestId("pricing-currency-notice")).toHaveText(copy.currency);
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
@@ -372,7 +379,7 @@ test("desktop navigation aligns Features and Pricing below the fixed header", as
   }
 });
 
-test("mobile menu has a full backdrop, accessible state, and 44px targets", async ({ page }) => {
+test("mobile menu traps focus, restores its trigger, and keeps 44px targets", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(webBase, { waitUntil: "domcontentloaded" });
 
@@ -383,13 +390,19 @@ test("mobile menu has a full backdrop, accessible state, and 44px targets", asyn
   expect(await menu.boundingBox()).toMatchObject({ width: 44, height: 44 });
 
   await menu.click();
-  await expect(menu).toHaveAttribute("aria-label", "Close menu");
   await expect(menu).toHaveAttribute("aria-expanded", "true");
 
   const backdrop = page.getByTestId("landing-mobile-menu-backdrop");
-  await expect.poll(async () => Math.round((await backdrop.boundingBox())?.height ?? 0)).toBe(764);
+  const dialog = page.getByTestId("landing-mobile-menu-dialog");
+  const close = page.getByTestId("landing-mobile-menu-close");
+  await expect(dialog).toHaveAttribute("role", "dialog");
+  await expect(dialog).toHaveAttribute("aria-modal", "true");
+  await expect(close).toBeFocused();
+  await expect(close).toHaveAccessibleName("Close menu");
+  await expect.poll(async () => Math.round((await backdrop.boundingBox())?.height ?? 0)).toBe(844);
   const backdropBox = await backdrop.boundingBox();
   expect(backdropBox?.width).toBe(390);
+  await expect.poll(async () => Math.round((await close.boundingBox())?.height ?? 0)).toBe(44);
 
   for (const target of [
     page.getByRole("link", { name: "Solutions", exact: true }),
@@ -397,15 +410,23 @@ test("mobile menu has a full backdrop, accessible state, and 44px targets", asyn
     page.getByRole("link", { name: "Pricing", exact: true }),
     page.getByTestId("landing-mobile-login"),
   ]) {
-    expect((await target.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+    await expect
+      .poll(async () => Math.round((await target.boundingBox())?.height ?? 0))
+      .toBeGreaterThanOrEqual(44);
   }
 
-  await menu.click();
-  await expect(menu).toHaveAttribute("aria-label", "Open menu");
-  await expect(menu).toHaveAttribute("aria-expanded", "false");
+  for (let index = 0; index < 12; index += 1) {
+    await page.keyboard.press("Tab");
+    expect(
+      await page.evaluate(() =>
+        Boolean(document.activeElement?.closest('[data-testid="landing-mobile-menu-dialog"]')),
+      ),
+    ).toBe(true);
+  }
 
-  await menu.click();
   await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
   await expect(menu).toHaveAttribute("aria-expanded", "false");
+  await expect(menu).toBeFocused();
   expect(await page.evaluate(() => document.body.style.overflow)).toBe("");
 });

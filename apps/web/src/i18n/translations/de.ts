@@ -82,9 +82,11 @@ export const de: Record<BaseTranslationKey, string> = {
   "pricing.title": "Wählen Sie Ihren Plan",
   "pricing.description":
     "Fangen Sie klein an und skalieren Sie, während Sie wachsen. Keine versteckten Gebühren oder langen Verträge.",
+  "pricing.currencyNotice":
+    "Alle Preise und Rechnungen sind in russischen Rubeln (RUB) angegeben.",
   "pricing.popular": "Beliebt",
   "pricing.note":
-    "Zum Erstellen eines Workspace ist keine Karte erforderlich. Ein kostenpflichtiger Tarif wird nach Bestätigung und Rechnungsstellung aktiviert. Alle Preise und Rechnungen sind in russischen Rubel (RUB) angegeben.",
+    "Zum Erstellen eines Workspace ist keine Karte erforderlich. Ein kostenpflichtiger Tarif wird nach Bestätigung und Rechnungsstellung aktiviert.",
   "pricing.perMonth": "pro Monat",
   "pricing.start.tagline": "Für kleine Unternehmen, die einen KI-Workflow testen",
   "pricing.start.cta": "Start auswählen",

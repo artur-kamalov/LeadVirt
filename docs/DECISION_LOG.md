@@ -3882,3 +3882,15 @@ Consequences:
 - Mobile and desktop Inbox filters cannot imply channels or lead states absent from the loaded workspace.
 - Assisted setup remains visible without claiming that LeadVirt has received a request.
 - Demo-only connection actions lead to account creation instead of looking like enabled controls that silently do nothing.
+
+## 2026-07-18: Keep Localized Product Controls Explicit And Test The Rendered UI
+
+Decision: Customer-facing integration fields and Operations Suite copy use typed locale keys with complete catalogs. Localization acceptance checks both catalog parity and rendered dialogs, while dense mobile controls expose accessible names, 44px actions, and visible overflow cues.
+
+Context: Catalog-only checks passed even though integration setup fields still rendered raw English labels. Several demo controls were technically present but hard to discover or operate on narrow screens and with a keyboard.
+
+Consequences:
+
+- New integration setup fields require a translation key instead of a raw label.
+- Operations Suite catalogs fail typecheck when a supported locale misses a key.
+- Charts expose localized data summaries, demo read-only surfaces explain their state, and horizontally scrollable workflows and pipelines visibly signal additional content.

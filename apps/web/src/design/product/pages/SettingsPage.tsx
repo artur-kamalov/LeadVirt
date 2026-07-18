@@ -617,13 +617,28 @@ function ProfileTab() {
   };
 
   return (
-    <fieldset
-      className="m-0 min-w-0 space-y-6 border-0 p-0"
-      disabled={!permissions.canManageAccount}
-      data-testid={
-        permissions.canManageAccount ? "settings-profile-editor" : "settings-profile-read-only"
-      }
-    >
+    <>
+      {demo && !permissions.canManageAccount ? (
+        <div
+          className="mb-5 flex flex-col gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.07] p-3 sm:flex-row sm:items-center sm:justify-between"
+          data-testid="settings-demo-read-only-notice"
+        >
+          <div className="flex min-w-0 items-center gap-2.5 text-sm text-zinc-300">
+            <Eye aria-hidden="true" className="h-4 w-4 shrink-0 text-emerald-400" />
+            <span>{t("settings.profile.demoReadOnly")}</span>
+          </div>
+          <Button asChild size="sm" className="min-h-11 shrink-0">
+            <Link href="/signup">{t("product.billing.createAccount")}</Link>
+          </Button>
+        </div>
+      ) : null}
+      <fieldset
+        className="m-0 min-w-0 space-y-6 border-0 p-0"
+        disabled={!permissions.canManageAccount}
+        data-testid={
+          permissions.canManageAccount ? "settings-profile-editor" : "settings-profile-read-only"
+        }
+      >
       <SectionHeader
         title={t("settings.profile.title")}
         description={t("settings.profile.description")}
@@ -828,7 +843,8 @@ function ProfileTab() {
           </Button>
         </div>
       </Card>
-    </fieldset>
+      </fieldset>
+    </>
   );
 }
 
@@ -3317,7 +3333,7 @@ function BillingTab() {
                     aria-label={t("settings.billing.downloadInvoice", { date: inv.date })}
                     disabled={!inv.invoice}
                     onClick={() => handleDownloadInvoice(inv.invoice)}
-                    className="text-zinc-500 hover:text-zinc-200 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex h-11 w-11 items-center justify-center rounded-xl text-zinc-500 transition-colors hover:bg-white/[0.06] hover:text-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <Download className="w-4 h-4" />
                   </button>

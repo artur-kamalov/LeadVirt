@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Menu, X } from "lucide-react";
 import { BrandMark } from "./BrandMark";
 import { BrandWordmark } from "./BrandWordmark";
@@ -12,21 +13,17 @@ import { signupHref } from "@/lib/acquisition";
 export function LandingHeader() {
   const { t } = useI18n();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const mobileMenuCloseRef = React.useRef<HTMLButtonElement>(null);
   const closeMenu = () => setMobileMenuOpen(false);
 
   React.useEffect(() => {
-    if (!mobileMenuOpen) return;
-    const previousOverflow = document.body.style.overflow;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMobileMenuOpen(false);
+    const desktopViewport = window.matchMedia("(min-width: 768px)");
+    const closeOnDesktop = () => {
+      if (desktopViewport.matches) setMobileMenuOpen(false);
     };
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [mobileMenuOpen]);
+    desktopViewport.addEventListener("change", closeOnDesktop);
+    return () => desktopViewport.removeEventListener("change", closeOnDesktop);
+  }, []);
 
   return (
     <header className="fixed top-0 inset-x-0 z-50 border-b border-white/5 bg-zinc-950/85">
@@ -68,55 +65,90 @@ export function LandingHeader() {
         </div>
 
         <div className="md:hidden">
-          <button
-            type="button"
-            data-testid="landing-mobile-menu"
-            aria-label={t(mobileMenuOpen ? "landing.nav.closeMenu" : "landing.nav.openMenu")}
-            aria-expanded={mobileMenuOpen}
-            aria-controls="landing-mobile-navigation"
-            onClick={() => setMobileMenuOpen((open) => !open)}
-            className="flex h-11 w-11 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-white/10 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
-          >
-            {mobileMenuOpen ? (
-              <X className="h-6 w-6" aria-hidden="true" />
-            ) : (
-              <Menu className="h-6 w-6" aria-hidden="true" />
-            )}
-          </button>
+          <DialogPrimitive.Root open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+            <DialogPrimitive.Trigger asChild>
+              <button
+                type="button"
+                data-testid="landing-mobile-menu"
+                aria-label={t("landing.nav.openMenu")}
+                className="flex h-11 w-11 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-white/10 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
+              >
+                <Menu className="h-6 w-6" aria-hidden="true" />
+              </button>
+            </DialogPrimitive.Trigger>
 
-          {mobileMenuOpen ? (
-            <div
-              id="landing-mobile-navigation"
-              data-testid="landing-mobile-menu-backdrop"
-              className="leadvirt-mobile-menu-enter fixed inset-x-0 bottom-0 top-20 overflow-y-auto border-t border-white/5 bg-zinc-950 backdrop-blur-xl"
-            >
-              <nav className="container mx-auto px-6 py-6 flex flex-col gap-4 text-zinc-300">
-                <a href="#niches" onClick={closeMenu} data-testid="landing-mobile-solutions" className="flex min-h-11 items-center">{t("landing.nav.solutions")}</a>
-                <a href="#features" onClick={closeMenu} className="flex min-h-11 items-center">{t("landing.nav.features")}</a>
-                <a href="#pricing" onClick={closeMenu} className="flex min-h-11 items-center">{t("landing.nav.pricing")}</a>
-                <div className="flex flex-col gap-3 pt-2">
-                  <LanguageSwitcher className="h-11 w-fit" />
+            <DialogPrimitive.Portal>
+              <DialogPrimitive.Overlay
+                data-testid="landing-mobile-menu-backdrop"
+                className="fixed inset-0 z-50 bg-zinc-950 md:hidden"
+              />
+              <DialogPrimitive.Content
+                aria-describedby={undefined}
+                aria-modal="true"
+                data-testid="landing-mobile-menu-dialog"
+                className="leadvirt-mobile-menu-enter fixed inset-0 z-50 flex flex-col overflow-hidden bg-zinc-950 text-zinc-50 outline-none md:hidden"
+                onOpenAutoFocus={(event) => {
+                  event.preventDefault();
+                  mobileMenuCloseRef.current?.focus();
+                }}
+              >
+                <DialogPrimitive.Title className="sr-only">
+                  {t("product.menu.navigation")}
+                </DialogPrimitive.Title>
+                <div className="container mx-auto flex h-20 shrink-0 items-center justify-between border-b border-white/5 px-6">
                   <Link
-                    href="/login"
-                    prefetch={false}
+                    href="/"
+                    aria-label={t("brand.name")}
                     onClick={closeMenu}
-                    data-testid="landing-mobile-login"
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-white/15 bg-transparent px-4 py-2 text-sm font-medium text-zinc-100 transition-all hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
+                    className="flex min-h-11 items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
                   >
-                    {t("landing.nav.login")}
+                    <BrandMark className="h-8 w-8 rounded-lg" />
+                    <BrandWordmark className="text-xl" />
                   </Link>
-                  <Link
-                    href={signupHref()}
-                    prefetch={false}
-                    onClick={closeMenu}
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-emerald-400 px-4 py-2 text-sm font-medium text-zinc-950 shadow-[0_0_22px_rgba(52,211,153,0.18)] transition-all hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
-                  >
-                    {t("landing.nav.trial")}
-                  </Link>
+                  <DialogPrimitive.Close asChild>
+                    <button
+                      ref={mobileMenuCloseRef}
+                      type="button"
+                      data-testid="landing-mobile-menu-close"
+                      aria-label={t("landing.nav.closeMenu")}
+                      className="flex h-11 w-11 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-white/10 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
+                    >
+                      <X className="h-6 w-6" aria-hidden="true" />
+                    </button>
+                  </DialogPrimitive.Close>
                 </div>
-              </nav>
-            </div>
-          ) : null}
+                <nav
+                  id="landing-mobile-navigation"
+                  aria-label={t("product.menu.navigation")}
+                  className="container mx-auto flex flex-1 flex-col gap-4 overflow-y-auto px-6 py-6 text-zinc-300"
+                >
+                  <a href="#niches" onClick={closeMenu} data-testid="landing-mobile-solutions" className="flex min-h-11 items-center">{t("landing.nav.solutions")}</a>
+                  <a href="#features" onClick={closeMenu} className="flex min-h-11 items-center">{t("landing.nav.features")}</a>
+                  <a href="#pricing" onClick={closeMenu} className="flex min-h-11 items-center">{t("landing.nav.pricing")}</a>
+                  <div className="flex flex-col gap-3 pt-2">
+                    <LanguageSwitcher className="h-11 w-fit" />
+                    <Link
+                      href="/login"
+                      prefetch={false}
+                      onClick={closeMenu}
+                      data-testid="landing-mobile-login"
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-white/15 bg-transparent px-4 py-2 text-sm font-medium text-zinc-100 transition-all hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
+                    >
+                      {t("landing.nav.login")}
+                    </Link>
+                    <Link
+                      href={signupHref()}
+                      prefetch={false}
+                      onClick={closeMenu}
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-emerald-400 px-4 py-2 text-sm font-medium text-zinc-950 shadow-[0_0_22px_rgba(52,211,153,0.18)] transition-all hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
+                    >
+                      {t("landing.nav.trial")}
+                    </Link>
+                  </div>
+                </nav>
+              </DialogPrimitive.Content>
+            </DialogPrimitive.Portal>
+          </DialogPrimitive.Root>
         </div>
       </div>
     </header>

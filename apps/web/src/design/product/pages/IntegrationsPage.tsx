@@ -264,10 +264,9 @@ type SetupFieldKind = "text" | "password" | "url";
 
 interface ProviderSetupField {
   key: string;
-  label: string;
+  labelKey: TranslationKey;
   placeholder?: string;
   placeholderKey?: TranslationKey;
-  hint?: string;
   kind?: SetupFieldKind;
   wide?: boolean;
 }
@@ -289,14 +288,14 @@ const genericSetupConfig: ProviderSetupConfig = {
   fields: [
     {
       key: "endpointUrl",
-      label: "Endpoint URL",
+      labelKey: "integrations.field.endpoint",
       placeholder: "https://example.com/api",
       kind: "url",
       wide: true,
     },
     {
       key: "apiToken",
-      label: "API token",
+      labelKey: "integrations.field.apiToken",
       placeholderKey: "integrations.field.enterToken",
       kind: "password",
       wide: true,
@@ -316,28 +315,32 @@ const providerSetupConfigs: Partial<Record<IntegrationProvider, ProviderSetupCon
     fields: [
       {
         key: "endpointUrl",
-        label: "amoCRM account URL",
+        labelKey: "integrations.field.accountUrl",
         placeholder: "https://example.amocrm.ru",
         kind: "url",
         wide: true,
       },
-      { key: "clientId", label: "Client ID", placeholderKey: "integrations.field.integrationUuid" },
+      {
+        key: "clientId",
+        labelKey: "integrations.field.clientId",
+        placeholderKey: "integrations.field.integrationUuid",
+      },
       {
         key: "clientSecret",
-        label: "Client secret",
+        labelKey: "integrations.field.clientSecret",
         placeholderKey: "integrations.field.integrationSecret",
         kind: "password",
       },
       {
         key: "authorizationCode",
-        label: "Authorization code",
+        labelKey: "integrations.field.authorizationCode",
         placeholderKey: "integrations.field.authorizationExpiry",
         kind: "password",
         wide: true,
       },
       {
         key: "redirectUri",
-        label: "Redirect URI",
+        labelKey: "integrations.field.redirectUri",
         placeholder: "https://leadvirt.com/oauth/amocrm/callback",
         kind: "url",
         wide: true,
@@ -355,21 +358,21 @@ const providerSetupConfigs: Partial<Record<IntegrationProvider, ProviderSetupCon
     fields: [
       {
         key: "portalUrl",
-        label: "Bitrix24 portal URL",
+        labelKey: "integrations.field.portalUrl",
         placeholder: "https://example.bitrix24.ru",
         kind: "url",
         wide: true,
       },
       {
         key: "webhookUrl",
-        label: "Incoming webhook URL",
+        labelKey: "integrations.field.incomingWebhookUrl",
         placeholder: "https://example.bitrix24.ru/rest/1/key/crm.lead.add.json",
         kind: "url",
         wide: true,
       },
       {
         key: "outgoingSecret",
-        label: "Outgoing webhook secret",
+        labelKey: "integrations.field.outgoingWebhookSecret",
         placeholderKey: "integrations.field.outgoingWebhook",
         kind: "password",
         wide: true,
@@ -387,18 +390,18 @@ const providerSetupConfigs: Partial<Record<IntegrationProvider, ProviderSetupCon
     fields: [
       {
         key: "endpointUrl",
-        label: "RetailCRM account URL",
+        labelKey: "integrations.field.accountUrl",
         placeholder: "https://example.retailcrm.ru",
         kind: "url",
         wide: true,
       },
       {
         key: "apiToken",
-        label: "API key",
+        labelKey: "integrations.field.apiKey",
         placeholderKey: "integrations.field.longKey",
         kind: "password",
       },
-      { key: "siteCode", label: "Site code", placeholder: "main" },
+      { key: "siteCode", labelKey: "integrations.field.siteCode", placeholder: "main" },
     ],
   },
   TELEGRAM: {
@@ -408,7 +411,7 @@ const providerSetupConfigs: Partial<Record<IntegrationProvider, ProviderSetupCon
     fields: [
       {
         key: "apiToken",
-        label: "Bot token",
+        labelKey: "integrations.telegram.token",
         placeholder: "123456:ABC...",
         kind: "password",
         wide: true,
@@ -424,12 +427,17 @@ const providerSetupConfigs: Partial<Record<IntegrationProvider, ProviderSetupCon
     ],
     docsUrl: "https://developers.facebook.com/docs/whatsapp/cloud-api/get-started",
     fields: [
-      { key: "businessPortfolioId", label: "Business portfolio ID" },
-      { key: "wabaId", label: "WhatsApp Business Account ID" },
-      { key: "phoneNumberId", label: "Phone number ID" },
-      { key: "appId", label: "Meta App ID" },
-      { key: "apiToken", label: "Access token", kind: "password", wide: true },
-      { key: "verifyToken", label: "Webhook verify token", kind: "password", wide: true },
+      { key: "businessPortfolioId", labelKey: "integrations.field.businessPortfolioId" },
+      { key: "wabaId", labelKey: "integrations.field.wabaId" },
+      { key: "phoneNumberId", labelKey: "integrations.field.phoneNumberId" },
+      { key: "appId", labelKey: "integrations.field.metaAppId" },
+      { key: "apiToken", labelKey: "integrations.field.accessToken", kind: "password", wide: true },
+      {
+        key: "verifyToken",
+        labelKey: "integrations.field.webhookVerifyToken",
+        kind: "password",
+        wide: true,
+      },
     ],
   },
   INSTAGRAM: {
@@ -441,11 +449,25 @@ const providerSetupConfigs: Partial<Record<IntegrationProvider, ProviderSetupCon
     ],
     docsUrl: "https://developers.facebook.com/docs/messenger-platform/instagram/features/webhook",
     fields: [
-      { key: "appId", label: "Meta App ID" },
-      { key: "facebookPageId", label: "Facebook Page ID" },
-      { key: "instagramBusinessAccountId", label: "Instagram Business Account ID", wide: true },
-      { key: "apiToken", label: "Page access token", kind: "password", wide: true },
-      { key: "verifyToken", label: "Webhook verify token", kind: "password", wide: true },
+      { key: "appId", labelKey: "integrations.field.metaAppId" },
+      { key: "facebookPageId", labelKey: "integrations.field.facebookPageId" },
+      {
+        key: "instagramBusinessAccountId",
+        labelKey: "integrations.field.instagramBusinessAccountId",
+        wide: true,
+      },
+      {
+        key: "apiToken",
+        labelKey: "integrations.field.pageAccessToken",
+        kind: "password",
+        wide: true,
+      },
+      {
+        key: "verifyToken",
+        labelKey: "integrations.field.webhookVerifyToken",
+        kind: "password",
+        wide: true,
+      },
     ],
   },
   VK: {
@@ -457,10 +479,14 @@ const providerSetupConfigs: Partial<Record<IntegrationProvider, ProviderSetupCon
     ],
     docsUrl: "https://dev.vk.com/ru/api/callback/getting-started",
     fields: [
-      { key: "groupId", label: "Community ID" },
-      { key: "apiToken", label: "Community token", kind: "password" },
-      { key: "confirmationCode", label: "Confirmation code", kind: "password" },
-      { key: "secretKey", label: "Secret key", kind: "password" },
+      { key: "groupId", labelKey: "integrations.field.communityId" },
+      { key: "apiToken", labelKey: "integrations.field.communityToken", kind: "password" },
+      {
+        key: "confirmationCode",
+        labelKey: "integrations.field.confirmationCode",
+        kind: "password",
+      },
+      { key: "secretKey", labelKey: "integrations.field.secretKey", kind: "password" },
     ],
   },
   EMAIL: {
@@ -472,16 +498,25 @@ const providerSetupConfigs: Partial<Record<IntegrationProvider, ProviderSetupCon
     ],
     docsUrl: "https://developers.google.com/workspace/gmail/imap/imap-smtp",
     fields: [
-      { key: "emailAddress", label: "Email address", placeholder: "sales@example.com", wide: true },
-      { key: "imapHost", label: "IMAP host", placeholder: "imap.gmail.com" },
-      { key: "imapPort", label: "IMAP port", placeholder: "993" },
-      { key: "smtpHost", label: "SMTP host", placeholder: "smtp.gmail.com" },
-      { key: "smtpPort", label: "SMTP port", placeholder: "465" },
-      { key: "username", label: "Username", placeholder: "sales@example.com" },
+      {
+        key: "emailAddress",
+        labelKey: "integrations.field.emailAddress",
+        placeholder: "sales@example.com",
+        wide: true,
+      },
+      { key: "imapHost", labelKey: "integrations.field.imapHost", placeholder: "imap.gmail.com" },
+      { key: "imapPort", labelKey: "integrations.field.imapPort", placeholder: "993" },
+      { key: "smtpHost", labelKey: "integrations.field.smtpHost", placeholder: "smtp.gmail.com" },
+      { key: "smtpPort", labelKey: "integrations.field.smtpPort", placeholder: "465" },
+      {
+        key: "username",
+        labelKey: "integrations.field.username",
+        placeholder: "sales@example.com",
+      },
       {
         key: "apiToken",
-        label: "App password / OAuth token",
-        placeholder: "16-digit app password or token",
+        labelKey: "integrations.field.appPasswordOauthToken",
+        placeholderKey: "integrations.field.appPasswordHint",
         kind: "password",
       },
     ],
@@ -495,10 +530,15 @@ const providerSetupConfigs: Partial<Record<IntegrationProvider, ProviderSetupCon
     ],
     docsUrl: "https://developers.google.com/workspace/calendar/api/quickstart/nodejs",
     fields: [
-      { key: "clientId", label: "OAuth Client ID", wide: true },
-      { key: "clientSecret", label: "OAuth Client secret", kind: "password", wide: true },
-      { key: "calendarId", label: "Calendar ID", placeholder: "primary" },
-      { key: "refreshToken", label: "Refresh token", kind: "password" },
+      { key: "clientId", labelKey: "integrations.field.oauthClientId", wide: true },
+      {
+        key: "clientSecret",
+        labelKey: "integrations.field.oauthClientSecret",
+        kind: "password",
+        wide: true,
+      },
+      { key: "calendarId", labelKey: "integrations.field.calendarId", placeholder: "primary" },
+      { key: "refreshToken", labelKey: "integrations.field.refreshToken", kind: "password" },
     ],
   },
   SHOPIFY: {
@@ -511,10 +551,24 @@ const providerSetupConfigs: Partial<Record<IntegrationProvider, ProviderSetupCon
     docsUrl:
       "https://shopify.dev/docs/apps/build/authentication-authorization/access-tokens/generate-app-access-tokens-admin",
     fields: [
-      { key: "shopDomain", label: "Shop domain", placeholder: "example.myshopify.com", wide: true },
-      { key: "apiToken", label: "Admin API access token", kind: "password", wide: true },
-      { key: "webhookSecret", label: "Webhook secret", kind: "password" },
-      { key: "scopes", label: "Scopes", placeholder: "read_orders, read_customers" },
+      {
+        key: "shopDomain",
+        labelKey: "integrations.field.shopDomain",
+        placeholder: "example.myshopify.com",
+        wide: true,
+      },
+      {
+        key: "apiToken",
+        labelKey: "integrations.field.adminApiAccessToken",
+        kind: "password",
+        wide: true,
+      },
+      { key: "webhookSecret", labelKey: "integrations.field.webhookSecret", kind: "password" },
+      {
+        key: "scopes",
+        labelKey: "integrations.field.scopes",
+        placeholder: "read_orders, read_customers",
+      },
     ],
   },
   SHOP_SCRIPT: {
@@ -528,13 +582,13 @@ const providerSetupConfigs: Partial<Record<IntegrationProvider, ProviderSetupCon
     fields: [
       {
         key: "endpointUrl",
-        label: "Webasyst installation URL",
+        labelKey: "integrations.field.webasystInstallationUrl",
         placeholder: "https://shop.example.com",
         kind: "url",
         wide: true,
       },
-      { key: "clientId", label: "Client ID" },
-      { key: "apiToken", label: "Access token", kind: "password" },
+      { key: "clientId", labelKey: "integrations.field.clientId" },
+      { key: "apiToken", labelKey: "integrations.field.accessToken", kind: "password" },
     ],
   },
   WEBHOOK_API: {
@@ -1224,11 +1278,10 @@ function IntegrationSettingsModal({
                   field.wide && "md:col-span-2",
                 )}
               >
-                <p className="text-sm font-medium text-zinc-300">{field.label}</p>
-                {(field.placeholder || field.hint) && (
+                <p className="text-sm font-medium text-zinc-300">{t(field.labelKey)}</p>
+                {(field.placeholder || field.placeholderKey) && (
                   <p className="mt-1 text-xs text-zinc-500">
-                    {field.hint ??
-                      (field.placeholderKey ? t(field.placeholderKey) : field.placeholder)}
+                    {field.placeholderKey ? t(field.placeholderKey) : field.placeholder}
                   </p>
                 )}
               </div>
@@ -1602,7 +1655,7 @@ function ApiCard({
   const rows: { id: ApiCopyTarget; label: string; value: string; empty: string }[] = [
     {
       id: "endpoint",
-      label: "Webhook URL",
+      label: t("integrations.field.endpoint"),
       value: endpointUrl,
       empty: t("integrations.api.connectForUrl"),
     },
@@ -1614,13 +1667,13 @@ function ApiCard({
     },
     {
       id: "secretHeader",
-      label: "Secret header",
+      label: t("integrations.secretHeader"),
       value: endpoint?.secretHeader ?? "",
       empty: t("integrations.api.headerUnavailable"),
     },
     {
       id: "payload",
-      label: "Sample payload",
+      label: t("integrations.samplePayload"),
       value: samplePayload,
       empty: t("integrations.api.payloadUnavailable"),
     },

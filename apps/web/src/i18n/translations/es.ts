@@ -82,9 +82,11 @@ export const es: Record<BaseTranslationKey, string> = {
   "pricing.title": "Elige tu plan",
   "pricing.description":
     "Comience poco a poco y escale a medida que crece. Sin tarifas ocultas ni contratos largos.",
+  "pricing.currencyNotice":
+    "Todos los precios y facturas se indican en rublos rusos (RUB).",
   "pricing.popular": "Popular",
   "pricing.note":
-    "No se requiere tarjeta para crear un espacio de trabajo. El plan de pago se activa tras la confirmación y la factura. Todos los precios y facturas se indican en rublos rusos (RUB).",
+    "No se requiere tarjeta para crear un espacio de trabajo. El plan de pago se activa tras la confirmación y la factura.",
   "pricing.perMonth": "por mes",
   "pricing.start.tagline": "Para pequeñas empresas que prueban un flujo de trabajo de IA",
   "pricing.start.cta": "Elegir Start",

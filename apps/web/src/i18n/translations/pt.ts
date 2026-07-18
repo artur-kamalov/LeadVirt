@@ -81,9 +81,11 @@ export const pt: Record<BaseTranslationKey, string> = {
   "pricing.title": "Escolha seu plano",
   "pricing.description":
     "Comece pequeno e expanda conforme você cresce. Sem taxas ocultas ou contratos longos.",
+  "pricing.currencyNotice":
+    "Todos os preços e faturas são indicados em rublos russos (RUB).",
   "pricing.popular": "Popular",
   "pricing.note":
-    "Não é necessário cartão para criar um workspace. O plano pago é ativado após confirmação e faturamento. Todos os preços e faturas são indicados em rublos russos (RUB).",
+    "Não é necessário cartão para criar um workspace. O plano pago é ativado após confirmação e faturamento.",
   "pricing.perMonth": "por mês",
   "pricing.start.tagline": "Para pequenas empresas testando um fluxo de trabalho de IA",
   "pricing.start.cta": "Escolher Start",

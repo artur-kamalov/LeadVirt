@@ -114,9 +114,11 @@ const ru = {
   "pricing.title": "Выберите свой тариф",
   "pricing.description":
     "Начните с малого и масштабируйтесь по мере роста. Без скрытых платежей и долгих контрактов.",
+  "pricing.currencyNotice":
+    "Все цены и счета указаны в российских рублях (RUB).",
   "pricing.popular": "Популярный",
   "pricing.note":
-    "Карта не требуется для создания рабочего пространства. Платный тариф подключается после подтверждения и выставления счёта. Все цены и счета указаны в российских рублях (RUB).",
+    "Карта не требуется для создания рабочего пространства. Платный тариф подключается после подтверждения и выставления счёта.",
   "pricing.perMonth": "в месяц",
   "pricing.start.tagline": "Для малого бизнеса и теста одного AI-сценария",
   "pricing.start.cta": "Выбрать Start",
@@ -536,9 +538,11 @@ const en: Record<BaseTranslationKey, string> = {
   "pricing.badge": "Transparent pricing",
   "pricing.title": "Choose your plan",
   "pricing.description": "Start small and scale as you grow. No hidden fees or long contracts.",
+  "pricing.currencyNotice":
+    "All listed prices and invoices are in Russian rubles (RUB).",
   "pricing.popular": "Popular",
   "pricing.note":
-    "No card is required to create a workspace. A paid plan starts after confirmation and invoicing. All listed prices and invoices are in Russian rubles (RUB).",
+    "No card is required to create a workspace. A paid plan starts after confirmation and invoicing.",
   "pricing.perMonth": "per month",
   "pricing.start.tagline": "For small businesses testing one AI workflow",
   "pricing.start.cta": "Choose Start",

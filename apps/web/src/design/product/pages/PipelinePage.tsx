@@ -8,6 +8,7 @@ import {
   Wallet,
   BarChart3,
   ArrowRight,
+  ChevronRight,
   Inbox,
   MoreHorizontal,
 } from "lucide-react";
@@ -139,13 +140,19 @@ const LeadCard = React.forwardRef<
       exit={{ opacity: 0, scale: 0.96 }}
       whileHover={{ y: -4 }}
       transition={{ type: "spring", stiffness: 320, damping: 28 }}
-      className="group cursor-pointer select-none"
-      onClick={() => go("conversation", { id: conversationId })}
+      className="group select-none"
       aria-busy={pending}
     >
-      <div className="rounded-2xl bg-zinc-900/70 border border-white/[0.06] p-4 hover:border-white/[0.12] hover:bg-zinc-900/80 transition-all duration-200">
+      <div className="relative rounded-2xl bg-zinc-900/70 border border-white/[0.06] p-4 hover:border-white/[0.12] hover:bg-zinc-900/80 transition-all duration-200">
+        <button
+          type="button"
+          aria-label={`${t("ops.inbox.openConversation")}: ${lead.name}`}
+          data-testid={`pipeline-open-${lead.id}`}
+          onClick={() => go("conversation", { id: conversationId })}
+          className="absolute inset-0 z-10 cursor-pointer rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+        />
         {/* Header row */}
-        <div className="flex items-start justify-between gap-2 mb-3">
+        <div className="pointer-events-none relative z-20 flex items-start justify-between gap-2 mb-3">
           <div className="flex items-center gap-2.5 min-w-0">
             <Avatar name={lead.name} size={34} />
             <div className="min-w-0">
@@ -153,7 +160,7 @@ const LeadCard = React.forwardRef<
               <p className="text-[11px] text-zinc-500 truncate mt-0.5">{lead.service}</p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="pointer-events-auto flex items-center gap-1.5 shrink-0">
             <TempPill t={lead.temp} />
             <Dropdown
               trigger={
@@ -161,9 +168,9 @@ const LeadCard = React.forwardRef<
                   onClick={(e) => e.stopPropagation()}
                   aria-label={t("ops.pipeline.leadActions", { name: lead.name })}
                   disabled={pending}
-                  className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.06] transition-all disabled:cursor-wait disabled:opacity-40"
+                  className="flex h-11 w-11 items-center justify-center rounded-xl text-zinc-500 transition-all hover:bg-white/[0.06] hover:text-zinc-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 disabled:cursor-wait disabled:opacity-40"
                 >
-                  <MoreHorizontal className="w-3.5 h-3.5" />
+                  <MoreHorizontal className="h-4 w-4" />
                 </button>
               }
             >
@@ -190,7 +197,7 @@ const LeadCard = React.forwardRef<
         </div>
 
         {/* Badges row */}
-        <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+        <div className="pointer-events-none relative z-20 flex items-center gap-1.5 mb-3 flex-wrap">
           <ChannelBadge id={lead.channel} />
           {lead.manager !== "—" && (
             <span className="text-[11px] text-zinc-500 bg-white/[0.04] rounded-full px-2 py-0.5 border border-white/[0.05]">
@@ -200,7 +207,7 @@ const LeadCard = React.forwardRef<
         </div>
 
         {/* Footer row */}
-        <div className="flex items-center justify-between gap-2">
+        <div className="pointer-events-none relative z-20 flex items-center justify-between gap-2">
           <div className="flex flex-col gap-0.5">
             <span className="text-sm font-bold text-emerald-400 tracking-tight">
               {lead.value > 0 ? formatCurrency(lead.value, lead.currency) : "—"}
@@ -219,7 +226,7 @@ const LeadCard = React.forwardRef<
                 aria-label={t("ops.pipeline.advanceLead", { name: lead.name })}
                 data-testid={`pipeline-advance-${lead.id}`}
                 disabled={pending}
-                className="flex items-center gap-1 rounded-xl bg-white/[0.05] hover:bg-emerald-500/15 border border-white/[0.06] hover:border-emerald-500/30 px-2.5 py-1.5 text-[11px] text-zinc-400 hover:text-emerald-400 transition-all duration-150 group/btn shrink-0 disabled:cursor-wait disabled:opacity-40"
+                className="pointer-events-auto flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-xl bg-white/[0.05] hover:bg-emerald-500/15 border border-white/[0.06] hover:border-emerald-500/30 px-2.5 py-1.5 text-[11px] text-zinc-400 hover:text-emerald-400 transition-all duration-150 group/btn shrink-0 disabled:cursor-wait disabled:opacity-40"
               >
                 <ArrowRight className="w-3 h-3 group-hover/btn:translate-x-0.5 transition-transform" />
               </button>
@@ -230,6 +237,60 @@ const LeadCard = React.forwardRef<
     </motion.div>
   );
 });
+
+function KanbanScroller({ children, label }: { children: React.ReactNode; label: string }) {
+  const viewportRef = React.useRef<HTMLDivElement>(null);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const updateOverflow = React.useCallback(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    setCanScrollRight(viewport.scrollLeft + viewport.clientWidth < viewport.scrollWidth - 2);
+  }, []);
+
+  React.useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    updateOverflow();
+    const observer = new ResizeObserver(updateOverflow);
+    observer.observe(viewport);
+    window.addEventListener("resize", updateOverflow);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateOverflow);
+    };
+  }, [children, updateOverflow]);
+
+  return (
+    <div className="relative min-w-0">
+      <div
+        ref={viewportRef}
+        role="region"
+        aria-label={label}
+        data-testid="pipeline-kanban-scroll"
+        onScroll={updateOverflow}
+        className="-mx-1 flex flex-col gap-4 overflow-x-visible px-1 pb-4 md:flex-row md:overflow-x-auto"
+        style={{
+          scrollbarWidth: "thin",
+          scrollbarColor: "rgba(255,255,255,0.18) transparent",
+        }}
+      >
+        {children}
+      </div>
+      {canScrollRight ? (
+        <div
+          aria-hidden="true"
+          data-testid="pipeline-scroll-cue"
+          className="pointer-events-none absolute inset-y-4 right-0 hidden w-12 items-center justify-end bg-gradient-to-l from-zinc-950 via-zinc-950/90 to-transparent pr-1 text-zinc-300 md:flex"
+        >
+          <span className="flex h-11 w-8 items-center justify-center rounded-l-xl border-y border-l border-white/10 bg-zinc-900/90 shadow-xl">
+            <ChevronRight className="h-5 w-5" />
+          </span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 /* ─────────────────────────────────────────────
    Column
@@ -651,7 +712,7 @@ export function PipelinePage() {
 
   if (!pipelineLoaded) {
     return (
-      <ProductLayout title={t("ops.pipeline.title")}>
+      <ProductLayout title={t("ops.pipeline.title")} mobileTitle={t("product.mobile.pipeline")}>
         {loadStatus === "loading" ? (
           <div className="space-y-6" data-testid="pipeline-loading">
             <div className="flex items-center justify-between gap-4">
@@ -680,7 +741,7 @@ export function PipelinePage() {
   }
 
   return (
-    <ProductLayout title={t("ops.pipeline.title")}>
+    <ProductLayout title={t("ops.pipeline.title")} mobileTitle={t("product.mobile.pipeline")}>
       <div className="flex flex-col gap-6 min-h-full">
         {loadStatus === "error" ? (
           <ResourceErrorState
@@ -717,7 +778,7 @@ export function PipelinePage() {
               <button
                 onClick={() => setView("kanban")}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all",
+                  "flex min-h-11 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all",
                   view === "kanban"
                     ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/25"
                     : "text-zinc-500 hover:text-zinc-300",
@@ -729,7 +790,7 @@ export function PipelinePage() {
               <button
                 onClick={() => setView("list")}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all",
+                  "flex min-h-11 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all",
                   view === "list"
                     ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/25"
                     : "text-zinc-500 hover:text-zinc-300",
@@ -791,30 +852,26 @@ export function PipelinePage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              /* Horizontal scroll on desktop; vertical stack on mobile */
-              className="flex flex-col md:flex-row gap-4 overflow-x-visible md:overflow-x-auto pb-4 -mx-1 px-1"
-              style={{
-                scrollbarWidth: "thin",
-                scrollbarColor: "rgba(255,255,255,0.08) transparent",
-              }}
             >
-              {stageOrder.map((stageId, i) => (
-                <motion.div
-                  key={stageId}
-                  initial={{ opacity: 0, x: 16 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.05, duration: 0.35 }}
-                >
-                  <KanbanColumn
-                    stageId={stageId}
-                    columnLeads={byStage[stageId]}
-                    onAdvance={(id) => void advanceStage(id)}
-                    onAction={(id, action) => void runLeadAction(id, action)}
-                    canManage={permissions.canManageLeads}
-                    pendingLeadIds={pendingLeadIds}
-                  />
-                </motion.div>
-              ))}
+              <KanbanScroller label={t("ops.pipeline.heading")}>
+                {stageOrder.map((stageId, i) => (
+                  <motion.div
+                    key={stageId}
+                    initial={{ opacity: 0, x: 16 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.05, duration: 0.35 }}
+                  >
+                    <KanbanColumn
+                      stageId={stageId}
+                      columnLeads={byStage[stageId]}
+                      onAdvance={(id) => void advanceStage(id)}
+                      onAction={(id, action) => void runLeadAction(id, action)}
+                      canManage={permissions.canManageLeads}
+                      pendingLeadIds={pendingLeadIds}
+                    />
+                  </motion.div>
+                ))}
+              </KanbanScroller>
             </motion.div>
           ) : (
             <motion.div

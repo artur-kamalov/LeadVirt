@@ -316,6 +316,34 @@ test("mobile product navigation exposes accessible touch targets", async ({ page
   expect(themeBox?.height).toBeGreaterThanOrEqual(44);
 });
 
+test("demo mobile header keeps a visible create-account action at narrow widths", async ({
+  context,
+  page,
+}) => {
+  await context.addCookies([
+    { name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" },
+  ]);
+
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(`${webBase}/demo`, { waitUntil: "domcontentloaded" });
+
+    const createAccount = page.getByTestId("product-demo-create-account");
+    await expect(createAccount).toBeVisible();
+    await expect(createAccount).toHaveAccessibleName("Create account");
+    await expect(createAccount.getByText("Create account", { exact: true })).toBeVisible();
+
+    const actionBox = await createAccount.boundingBox();
+    const titleBox = await page.getByRole("heading", { level: 1, name: "Overview" }).boundingBox();
+    expect(actionBox?.height).toBeGreaterThanOrEqual(44);
+    expect((actionBox?.x ?? 0) + (actionBox?.width ?? 0)).toBeLessThanOrEqual(width);
+    expect((titleBox?.x ?? 0) + (titleBox?.width ?? 0)).toBeLessThanOrEqual(actionBox?.x ?? 0);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
+  }
+});
+
 test("Inbox exposes truthful reply state and accessible filters", async (
   { context, page },
   testInfo,

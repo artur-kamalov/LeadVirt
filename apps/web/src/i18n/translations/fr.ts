@@ -81,9 +81,11 @@ export const fr: Record<BaseTranslationKey, string> = {
   "pricing.title": "Choisissez votre forfait",
   "pricing.description":
     "Commencez petit et évoluez au fur et à mesure de votre croissance. Pas de frais cachés ni de contrats longs.",
+  "pricing.currencyNotice":
+    "Tous les prix et factures sont indiqués en roubles russes (RUB).",
   "pricing.popular": "Populaires",
   "pricing.note":
-    "Aucune carte n’est requise pour créer un espace de travail. Un forfait payant est activé après confirmation et facturation. Tous les prix et factures sont indiqués en roubles russes (RUB).",
+    "Aucune carte n’est requise pour créer un espace de travail. Un forfait payant est activé après confirmation et facturation.",
   "pricing.perMonth": "par mois",
   "pricing.start.tagline": "Pour les petites entreprises testant un flux de travail d'IA",
   "pricing.start.cta": "Choisir Start",
