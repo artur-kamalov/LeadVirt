@@ -188,11 +188,17 @@ function formatMetricDelta(
 }
 
 function leadName(lead: DashboardRecentLead, locale: Locale, t: Translate) {
-  return localizeSeedText(lead.name, locale) || t("dashboard.fallback.client");
+  return (
+    localizeSeedText(lead.name, locale, lead.id.startsWith("demo-lead-")) ||
+    t("dashboard.fallback.client")
+  );
 }
 
 function leadService(lead: DashboardRecentLead, locale: Locale, t: Translate) {
-  return localizeSeedText(lead.interest, locale) || t("dashboard.fallback.lead");
+  return (
+    localizeSeedText(lead.interest, locale, lead.id.startsWith("demo-lead-")) ||
+    t("dashboard.fallback.lead")
+  );
 }
 
 function leadTime(lead: DashboardRecentLead, locale: Locale) {

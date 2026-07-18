@@ -5,11 +5,12 @@ import type {
   Lead as ApiLead,
   LeadStatus,
   LeadTemperature,
-  Message
+  Message,
 } from "@leadvirt/types";
 import type { ChatMessage, Lead } from "./types";
 import type { ChannelId, StageId } from "./shared";
 import { intlLocale, type Locale } from "@/i18n/config";
+import { localizeDemoSeedText } from "@/i18n/demo-seed-messages";
 
 export function channelIdFromType(channelType?: ChannelType | null): ChannelId {
   switch (channelType) {
@@ -35,7 +36,10 @@ export function channelIdFromType(channelType?: ChannelType | null): ChannelId {
   }
 }
 
-export function stageFromStatus(status?: LeadStatus | null, conversationStatus?: ConversationStatus | null): StageId {
+export function stageFromStatus(
+  status?: LeadStatus | null,
+  conversationStatus?: ConversationStatus | null,
+): StageId {
   switch (status) {
     case "NEW":
       return "new";
@@ -112,43 +116,19 @@ export function formatMessageTime(value?: string | null, locale: Locale = "en") 
   return date.toLocaleTimeString(intlLocale(locale), { hour: "2-digit", minute: "2-digit" });
 }
 
-export function localizeSeedText(value?: string | null, locale: Locale = "en") {
+export function localizeSeedText(
+  value?: string | null,
+  locale: Locale = "en",
+  useDemoSeed = false,
+) {
   if (!value) return "";
-  if (locale !== "ru") return value;
-
-  const exact: Record<string, string> = {
-    "Delivery Demo": "Тест доставки",
-    "LeadVirt Sample Lead": "Тестовый лид LeadVirt",
-    "LeadVirt Demo": "Демо LeadVirt",
-    "Webhook Demo Client": "Клиент из webhook-демо",
-    "Telegram bot": "Telegram-бот",
-    "Website widget": "Виджет сайта",
-    "Email campaign": "Email-кампания",
-    "Referral": "Рекомендация",
-    "Demo Owner": "Менеджер demo",
-    "Instagram ads": "Реклама Instagram",
-    "Instagram Direct": "Instagram Direct",
-    "VK messages": "Сообщения VK",
-    "Call tracking": "Коллтрекинг",
-    "Partner landing form": "Форма партнёрского лендинга",
-    "Testing Telegram delivery history in LeadVirt.ai": "Проверка доставки Telegram в LeadVirt.ai",
-    "Sample Webhook/API inbound message from the integrations page":
-      "Тестовое входящее сообщение Webhook/API со страницы интеграций",
-    "Sample Telegram inbound message from the integrations page":
-      "Тестовое входящее сообщение Telegram со страницы интеграций",
-    "I need pricing and an appointment from the webhook API": "Нужна цена и запись через webhook API",
-    "Thanks, I can qualify this request. Could you share the service, preferred timing, and contact details?":
-      "Спасибо, я квалифицирую заявку. Уточните услугу, удобное время и контактные данные.",
-    "I can help with that. What day and time would be convenient for the customer?":
-      "Помогу с этим. Какой день и время будут удобны клиенту?",
-    "I can bring a manager into this conversation and keep the lead context ready.":
-      "Я подключу менеджера и сохраню контекст лида.",
-  };
-
-  return exact[value] ?? value;
+  return useDemoSeed ? localizeDemoSeedText(value, locale) : value;
 }
 
-const knownSourceKeyByLabel: Record<string, "widget" | "telegramBot" | "integrations" | "partnerLanding"> = {
+const knownSourceKeyByLabel: Record<
+  string,
+  "widget" | "telegramBot" | "integrations" | "partnerLanding"
+> = {
   "Website widget": "widget",
   "Виджет сайта": "widget",
   "Telegram bot": "telegramBot",
@@ -197,10 +177,20 @@ const knownSourceLabels: Record<
   },
 };
 
-function localizeSource(value?: string | null, locale: Locale = "en") {
+function localizeSource(
+  value?: string | null,
+  locale: Locale = "en",
+  useDemoSeed = false,
+) {
   if (!value) return "";
   const sourceKey = knownSourceKeyByLabel[value];
-  return sourceKey ? knownSourceLabels[sourceKey][locale] : localizeSeedText(value, locale);
+  return sourceKey
+    ? knownSourceLabels[sourceKey][locale]
+    : localizeSeedText(value, locale, useDemoSeed);
+}
+
+function isDemoSeedTenant(tenantId?: string | null) {
+  return tenantId === "demo-tenant";
 }
 
 function currencyCode(value?: string | null) {
@@ -215,11 +205,31 @@ type LeadFallbacks = {
 };
 
 const leadFallbacks: Record<Locale, LeadFallbacks> = {
-  en: { client: "Customer", conversation: "Inbound conversation", interest: "Request not identified" },
-  es: { client: "Cliente", conversation: "Conversación entrante", interest: "Solicitud sin identificar" },
-  fr: { client: "Client", conversation: "Conversation entrante", interest: "Demande non identifiée" },
-  de: { client: "Kunde", conversation: "Eingehende Konversation", interest: "Anfrage nicht erkannt" },
-  pt: { client: "Cliente", conversation: "Conversa recebida", interest: "Solicitação não identificada" },
+  en: {
+    client: "Customer",
+    conversation: "Inbound conversation",
+    interest: "Request not identified",
+  },
+  es: {
+    client: "Cliente",
+    conversation: "Conversación entrante",
+    interest: "Solicitud sin identificar",
+  },
+  fr: {
+    client: "Client",
+    conversation: "Conversation entrante",
+    interest: "Demande non identifiée",
+  },
+  de: {
+    client: "Kunde",
+    conversation: "Eingehende Konversation",
+    interest: "Anfrage nicht erkannt",
+  },
+  pt: {
+    client: "Cliente",
+    conversation: "Conversa recebida",
+    interest: "Solicitação não identificada",
+  },
   ru: { client: "Клиент", conversation: "Входящий диалог", interest: "Запрос не определён" },
 };
 
@@ -231,21 +241,31 @@ export function leadFromConversation(
   const lead = conversation.lead;
   const channelType = lead?.channelType ?? conversation.channelType ?? conversation.channel?.type;
   const lastMessageAt = conversation.lastMessageAt ?? lead?.lastMessageAt ?? lead?.createdAt;
+  const useDemoSeed = isDemoSeedTenant(conversation.tenantId) || isDemoSeedTenant(lead?.tenantId);
 
   return {
     id: conversation.id,
     conversationId: conversation.id,
     ...(lead?.id ? { apiLeadId: lead.id } : {}),
-    name: localizeSeedText(lead?.name ?? conversation.subject, locale) || fallbacks.client,
+    name:
+      localizeSeedText(lead?.name ?? conversation.subject, locale, useDemoSeed) || fallbacks.client,
     channel: channelIdFromType(channelType),
     stage: stageFromStatus(lead?.status, conversation.status),
     temp: tempFromTemperature(lead?.temperature),
-    source: localizeSource(lead?.source ?? conversation.channel?.name ?? conversation.subject, locale) || "LeadVirt",
+    source:
+      localizeSource(
+        lead?.source ?? conversation.channel?.name ?? conversation.subject,
+        locale,
+        useDemoSeed,
+      ) ||
+      "LeadVirt",
     value: lead?.valueAmount ?? 0,
     currency: currencyCode(lead?.currency),
-    manager: lead?.assignedToName ?? "—",
-    service: localizeSeedText(lead?.interest, locale) || fallbacks.interest,
-    lastMessage: localizeSeedText(conversation.lastMessage ?? lead?.summary, locale) || fallbacks.conversation,
+    manager: localizeSeedText(lead?.assignedToName, locale, useDemoSeed) || "—",
+    service: localizeSeedText(lead?.interest, locale, useDemoSeed) || fallbacks.interest,
+    lastMessage:
+      localizeSeedText(conversation.lastMessage ?? lead?.summary, locale, useDemoSeed) ||
+      fallbacks.conversation,
     time: relativeTimeLabel(lastMessageAt, locale),
     unread: conversation.unreadCount ?? 0,
     ai: conversation.aiEnabled,
@@ -258,20 +278,22 @@ export function leadFromApiLead(
   locale: Locale = "en",
   fallbacks: LeadFallbacks = leadFallbacks[locale],
 ): Lead {
+  const useDemoSeed = isDemoSeedTenant(lead.tenantId);
   return {
     id: lead.id,
     apiLeadId: lead.id,
     ...(conversationId ? { conversationId } : {}),
-    name: localizeSeedText(lead.name, locale) || fallbacks.client,
+    name: localizeSeedText(lead.name, locale, useDemoSeed) || fallbacks.client,
     channel: channelIdFromType(lead.channelType),
     stage: stageFromStatus(lead.status),
     temp: tempFromTemperature(lead.temperature),
-    source: localizeSource(lead.source, locale) || "LeadVirt",
+    source: localizeSource(lead.source, locale, useDemoSeed) || "LeadVirt",
     value: lead.valueAmount ?? 0,
     currency: currencyCode(lead.currency),
-    manager: lead.assignedToName ?? "—",
-    service: localizeSeedText(lead.interest, locale) || fallbacks.interest,
-    lastMessage: localizeSeedText(lead.summary ?? lead.interest, locale) || fallbacks.conversation,
+    manager: localizeSeedText(lead.assignedToName, locale, useDemoSeed) || "—",
+    service: localizeSeedText(lead.interest, locale, useDemoSeed) || fallbacks.interest,
+    lastMessage:
+      localizeSeedText(lead.summary ?? lead.interest, locale, useDemoSeed) || fallbacks.conversation,
     time: relativeTimeLabel(lead.lastMessageAt ?? lead.createdAt, locale),
     unread: 0,
     ai: true,
@@ -295,11 +317,12 @@ export function statusFromStage(stage: StageId): LeadStatus {
   }
 }
 
-function chatMessageFromApi(message: Message, locale: Locale): ChatMessage {
+function chatMessageFromApi(message: Message, locale: Locale, useDemoSeed: boolean): ChatMessage {
   return {
     id: message.id,
-    from: message.senderType === "AI" ? "ai" : message.senderType === "CUSTOMER" ? "client" : "manager",
-    text: localizeSeedText(message.text, locale) || "",
+    from:
+      message.senderType === "AI" ? "ai" : message.senderType === "CUSTOMER" ? "client" : "manager",
+    text: localizeSeedText(message.text, locale, useDemoSeed) || "",
     time: formatMessageTime(message.createdAt, locale),
     attachments: message.attachments?.map((attachment) => ({
       id: attachment.id,
@@ -311,16 +334,24 @@ function chatMessageFromApi(message: Message, locale: Locale): ChatMessage {
   };
 }
 
-export function messagesFromConversation(conversation: ConversationDetail, locale: Locale = "en"): ChatMessage[] {
+export function messagesFromConversation(
+  conversation: ConversationDetail,
+  locale: Locale = "en",
+): ChatMessage[] {
+  const useDemoSeed = isDemoSeedTenant(conversation.tenantId);
   const messages = conversation.messages
-    .map((message) => chatMessageFromApi(message, locale))
+    .map((message) => chatMessageFromApi(message, locale, useDemoSeed))
     .filter((message) => message.text.trim().length > 0 || (message.attachments?.length ?? 0) > 0);
 
   if (messages.length > 0) {
     return messages;
   }
 
-  const fallbackText = localizeSeedText(conversation.lastMessage ?? conversation.lead?.summary, locale);
+  const fallbackText = localizeSeedText(
+    conversation.lastMessage ?? conversation.lead?.summary,
+    locale,
+    useDemoSeed,
+  );
   if (!fallbackText) {
     return [];
   }

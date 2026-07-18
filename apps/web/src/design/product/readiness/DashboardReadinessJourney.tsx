@@ -21,6 +21,7 @@ import { Button } from "../../components/ui/Button";
 import { cn } from "../../lib/utils";
 import { Card } from "../shared";
 import { Skeleton } from "../ui";
+import { useNav } from "../nav";
 import {
   deriveDashboardReadiness,
   type DashboardReadinessDetail,
@@ -115,6 +116,7 @@ export function DashboardReadinessJourney({
   onRetry: () => void;
 }) {
   const { t } = useI18n();
+  const { mode } = useNav();
 
   if (!snapshot && isLoading) {
     return (
@@ -173,6 +175,10 @@ export function DashboardReadinessJourney({
   const primaryLabel = model.primaryStepId
     ? t(actionKeys[model.primaryStepId])
     : t("dashboard.readiness.action.ready");
+  const primaryHref =
+    mode === "demo"
+      ? model.primaryHref.replace(/^\/app(?=\/|$)/, "/demo")
+      : model.primaryHref;
 
   return (
     <Card
@@ -271,7 +277,7 @@ export function DashboardReadinessJourney({
             className="mt-5 w-full justify-center sm:w-auto lg:w-full"
             data-testid="dashboard-readiness-primary"
           >
-            <Link href={model.primaryHref}>
+            <Link href={primaryHref}>
               {primaryLabel}
               <Rocket className="h-4 w-4" />
             </Link>

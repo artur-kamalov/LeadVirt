@@ -31,7 +31,8 @@ import {
   UserRoundCheck,
 } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
-import type { TranslationKey, TranslationValues } from "@/i18n/messages";
+import { messages, type TranslationKey, type TranslationValues } from "@/i18n/messages";
+import { supportedLocales } from "@/i18n/config";
 import { useProductPermissions } from "../CurrentUser";
 import { ResourceErrorState } from "../ResourceErrorState";
 
@@ -260,6 +261,26 @@ function blockTemplates(t?: Translate) {
 
 function freshInitialBlocks(t?: Translate) {
   return blockTemplates(t).filter((block) => initialBlockTypes.has(block.type));
+}
+
+function isSystemTranslation(value: string, key: TranslationKey) {
+  return supportedLocales.some((locale) => messages[locale][key] === value);
+}
+
+function localizeBlockLabels(block: WorkflowBlock, t: Translate): WorkflowBlock {
+  const definition = INITIAL_BLOCK_DEFINITIONS.find((item) => item.type === block.type);
+  if (!definition) return block;
+
+  const title = isSystemTranslation(block.title, definition.titleKey)
+    ? t(definition.titleKey)
+    : block.title;
+  const subtitle = isSystemTranslation(block.subtitle, definition.subtitleKey)
+    ? t(definition.subtitleKey)
+    : block.subtitle;
+
+  return title === block.title && subtitle === block.subtitle
+    ? block
+    : { ...block, title, subtitle };
 }
 
 function isExecutableBlock(block: Pick<WorkflowBlock, "type">) {
@@ -1030,6 +1051,7 @@ function BlockNode({
       transition={{ duration: 0.25, ease: "easeOut" }}
     >
       <div
+        data-testid={`automation-block-${block.type}`}
         onClick={onClick}
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
@@ -1160,7 +1182,11 @@ export function AutomationPage() {
     })
   );
 
-  const selectedBlock = blocks.find((b) => b.id === selectedId) ?? blocks[0];
+  const localizedBlocks = useMemo(
+    () => blocks.map((block) => localizeBlockLabels(block, t)),
+    [blocks, t],
+  );
+  const selectedBlock = localizedBlocks.find((b) => b.id === selectedId) ?? localizedBlocks[0];
   const activeWorkflow = workflows[activeScenario] ?? null;
   const activeWorkflowRestored = Boolean(activeWorkflow && restoredWorkflowIds.has(activeWorkflow.id));
   const scenarioTabs = Array.from(
@@ -1183,7 +1209,7 @@ export function AutomationPage() {
     [activeWorkflow, blocks, scenarioActive, scenarioName]
   );
   const hasUnsavedChanges = currentDraftSnapshot !== savedDraftSnapshot;
-  const unsupportedBlocks = blocks.filter((block) => !isExecutableBlock(block));
+  const unsupportedBlocks = localizedBlocks.filter((block) => !isExecutableBlock(block));
   const enabledTriggerCount = blocks.filter(
     (block) => block.type === "trigger" && block.enabled,
   ).length;
@@ -1709,7 +1735,7 @@ export function AutomationPage() {
           <div className="pr-1 lg:overflow-y-auto scrollbar-thin">
             <div className="max-w-lg mx-auto pb-8">
               <AnimatePresence mode="popLayout">
-                {blocks.map((block, index) => (
+                {localizedBlocks.map((block, index) => (
                   <div key={block.id}>
                     <BlockNode
                       block={block}

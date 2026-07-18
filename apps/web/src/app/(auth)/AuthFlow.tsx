@@ -28,6 +28,7 @@ import { BrandMark } from "@/design/components/BrandMark";
 import { LanguageSwitcher } from "@/design/components/LanguageSwitcher";
 import { BrandWordmark } from "@/design/components/BrandWordmark";
 import { Button } from "@/design/components/ui/Button";
+import { plans } from "@/design/product/plans";
 import { useI18n } from "@/i18n/I18nProvider";
 import type { Locale } from "@/i18n/config";
 import type { TranslationKey } from "@/i18n/messages";
@@ -317,7 +318,7 @@ function OtpCodeInput({
 }
 
 export function AuthFlow({ mode, intent }: { mode: AuthMode; intent?: AcquisitionIntent }) {
-  const { locale, t } = useI18n();
+  const { formatCurrency, locale, t } = useI18n();
   const router = useRouter();
   const copyKeys = modeCopyKeys[mode];
   const copy = {
@@ -341,6 +342,16 @@ export function AuthFlow({ mode, intent }: { mode: AuthMode; intent?: Acquisitio
   const [error, setError] = React.useState("");
   const emailOtpConfigRequestRef = React.useRef(0);
   const acquisition = resolveAcquisitionIntent(intent);
+  const selectedPlan = acquisition.plan
+    ? (plans.find((plan) => plan.id === acquisition.plan) ?? null)
+    : null;
+  const selectedPlanPrice = selectedPlan
+    ? selectedPlan.id === "corporate"
+      ? t("pricing.corporate.price", {
+          price: formatCurrency(selectedPlan.priceMonthlyRub),
+        })
+      : formatCurrency(selectedPlan.priceMonthlyRub)
+    : null;
 
   const loadEmailOtpConfig = React.useCallback(async () => {
     const requestId = emailOtpConfigRequestRef.current + 1;
@@ -525,6 +536,29 @@ export function AuthFlow({ mode, intent }: { mode: AuthMode; intent?: Acquisitio
                   <ShieldCheck className="h-5 w-5 text-emerald-400" />
                 </div>
               </div>
+
+              {selectedPlan ? (
+                <div
+                  className="mb-4 flex min-w-0 items-center justify-between gap-3 rounded-md border border-emerald-400/20 bg-emerald-400/[0.06] px-3 py-2.5"
+                  data-testid="auth-selected-plan"
+                >
+                  <div className="min-w-0">
+                    <p className="text-xs text-zinc-500">{t("auth.plan.selected")}</p>
+                    <p className="truncate text-sm font-semibold text-zinc-100">
+                      {selectedPlan.name}
+                    </p>
+                    <p className="text-xs text-zinc-400">
+                      {selectedPlanPrice} {t("pricing.perMonth")}
+                    </p>
+                  </div>
+                  <Link
+                    href="/#pricing"
+                    className="shrink-0 rounded-md px-2 py-2 text-xs font-semibold text-emerald-300 transition-colors hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
+                  >
+                    {t("auth.plan.change")}
+                  </Link>
+                </div>
+              ) : null}
 
               <div className="space-y-4">
                 <div

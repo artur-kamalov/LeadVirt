@@ -175,6 +175,78 @@ async function mockInboxConversations(page: Page) {
   });
 }
 
+function liveSeedCollisionConversation() {
+  return {
+    id: "conversation-live-seed-collision",
+    tenantId: "tenant-clinic",
+    leadId: "lead-live-seed-collision",
+    channel: {
+      id: "channel-website",
+      tenantId: "tenant-clinic",
+      type: "WEBSITE",
+      status: "ACTIVE",
+      name: "Website widget",
+    },
+    channelType: "WEBSITE",
+    status: "OPEN",
+    subject: "Пользовательский диалог",
+    lastMessageAt: "2026-06-27T10:00:00.000Z",
+    aiEnabled: true,
+    handoffRequested: false,
+    lead: {
+      id: "lead-live-seed-collision",
+      tenantId: "tenant-clinic",
+      name: "Мария Белова",
+      phone: "+79990000000",
+      email: "maria@example.com",
+      companyName: null,
+      source: "Website widget",
+      channelType: "WEBSITE",
+      status: "NEW",
+      temperature: "WARM",
+      valueAmount: 0,
+      currency: "RUB",
+      interest: "Консультация",
+      summary: "Пользовательский текст",
+      assignedToUserId: "manager-live",
+      assignedToName: "Мария, администратор",
+      lastMessageAt: "2026-06-27T10:00:00.000Z",
+      createdAt: "2026-06-27T09:00:00.000Z",
+    },
+    lastMessage: "Да, забронируйте. Телефон +7 999 123-45-67.",
+    unreadCount: 1,
+    messages: [
+      {
+        id: "message-live-seed-collision",
+        tenantId: "tenant-clinic",
+        conversationId: "conversation-live-seed-collision",
+        direction: "INBOUND",
+        senderType: "CUSTOMER",
+        text: "Да, забронируйте. Телефон +7 999 123-45-67.",
+        status: "RECEIVED",
+        createdAt: "2026-06-27T10:00:00.000Z",
+        attachments: [],
+      },
+    ],
+    events: [],
+  };
+}
+
+async function mockLiveSeedCollisionInbox(page: Page) {
+  const conversation = liveSeedCollisionConversation();
+  await page.route(/\/api\/inbox\/conversations(?:\?.*)?$/, async (route) => {
+    await route.fulfill({
+      json: {
+        data: [conversation],
+        pagination: { page: 1, limit: 50, total: 1, hasMore: false },
+      },
+    });
+  });
+  await page.route(/\/api\/conversations\/conversation-live-seed-collision$/, async (route) => {
+    await route.fulfill({ json: { data: conversation } });
+  });
+}
+
 test("product shell renders tenant and user identity from API", async ({ page }) => {
   await useRussianOperationalUi(page);
   const calls = await mockProductIdentity(page);
@@ -190,13 +262,39 @@ test("product shell renders tenant and user identity from API", async ({ page })
   await expect(page.locator('[data-testid="language-switcher"]:visible')).toHaveCount(1);
 });
 
-test("mobile product navigation exposes accessible touch targets", async ({ page }) => {
+test("mobile product navigation exposes accessible touch targets", async ({ page }, testInfo) => {
   await useRussianOperationalUi(page);
   await mockProductIdentity(page);
   await mockDashboardSummary(page);
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${webBase}/app`, { waitUntil: "domcontentloaded" });
+
+  const bottomNavigation = page.getByTestId("product-mobile-bottom-navigation");
+  await expect(bottomNavigation).toBeVisible();
+  await expect(bottomNavigation.getByRole("link", { name: "Обзор" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  await expect(bottomNavigation.getByRole("link", { name: "Настройки" })).toBeVisible();
+  await expect(bottomNavigation.getByRole("link", { name: "Ещё" })).toHaveCount(0);
+
+  const bottomLinks = bottomNavigation.getByRole("link");
+  for (let index = 0; index < (await bottomLinks.count()); index += 1) {
+    const box = await bottomLinks.nth(index).boundingBox();
+    expect(box?.height).toBeGreaterThanOrEqual(44);
+  }
+
+  for (const controlName of ["Переключить тему", "Уведомления"]) {
+    const control = page.getByRole("button", { name: controlName });
+    const box = await control.boundingBox();
+    expect(box?.width).toBeGreaterThanOrEqual(44);
+    expect(box?.height).toBeGreaterThanOrEqual(44);
+  }
+  await page.screenshot({
+    animations: "disabled",
+    path: testInfo.outputPath("product-navigation-mobile.png"),
+  });
 
   const trigger = page.getByTestId("product-mobile-menu-trigger");
   await expect(trigger).toBeVisible();
@@ -211,6 +309,109 @@ test("mobile product navigation exposes accessible touch targets", async ({ page
   const closeBox = await close.boundingBox();
   expect(closeBox?.width).toBeGreaterThanOrEqual(44);
   expect(closeBox?.height).toBeGreaterThanOrEqual(44);
+});
+
+test("Inbox exposes truthful reply state and accessible filters", async (
+  { context, page },
+  testInfo,
+) => {
+  await context.addCookies([
+    { name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" },
+  ]);
+  await mockProductIdentity(page);
+  await mockDashboardSummary(page);
+  await mockInboxConversations(page);
+
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(`${webBase}/app/inbox`, { waitUntil: "domcontentloaded" });
+
+  const desktopNavigation = page.locator("aside").first().getByRole("navigation", {
+    name: "Navigation",
+  });
+  await expect(desktopNavigation.getByRole("link", { name: "Inbox" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+
+  const channelFilters = page.getByRole("group", { name: "Filter by channel" });
+  const statusFilters = page.getByRole("group", { name: "Filter by status" });
+  const allChannels = channelFilters.getByRole("button", { name: "All channels" });
+  const allStatuses = statusFilters.getByRole("button", { name: "All statuses" });
+  await expect(allChannels).toHaveAttribute("aria-pressed", "true");
+  await expect(allStatuses).toHaveAttribute("aria-pressed", "true");
+
+  for (const filter of [allChannels, allStatuses]) {
+    const box = await filter.boundingBox();
+    expect(box?.height).toBeGreaterThanOrEqual(44);
+  }
+
+  const firstConversation = page.getByTestId("inbox-conversation-conversation-api-search");
+  await expect(firstConversation).toHaveAttribute("aria-current", "true");
+  await expect(firstConversation.locator("button")).toHaveCount(0);
+  await expect(firstConversation.getByTestId("inbox-needs-reply")).toHaveText("Needs reply");
+  await expect(firstConversation.getByTestId("inbox-needs-reply")).not.toContainText("1");
+  await page.screenshot({
+    animations: "disabled",
+    path: testInfo.outputPath("inbox-ux-desktop.png"),
+  });
+
+  const telegram = channelFilters.getByRole("button", { name: "Telegram" });
+  await telegram.click();
+  await expect(telegram).toHaveAttribute("aria-pressed", "true");
+  await expect(allChannels).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByTestId("inbox-lead-summary")).toContainText("Other Customer");
+  await expect(page.getByTestId("inbox-lead-summary")).not.toContainText("API Lead");
+
+  const search = page.getByLabel("Search conversations");
+  await search.fill("API Lead");
+  const clearSearch = page.getByRole("button", { name: "Clear search" });
+  const clearBox = await clearSearch.boundingBox();
+  expect(clearBox?.width).toBeGreaterThanOrEqual(44);
+  expect(clearBox?.height).toBeGreaterThanOrEqual(44);
+  await clearSearch.click();
+  await expect(search).toHaveValue("");
+
+  await page.goto(`${webBase}/app/inbox/conversation-api-search`, {
+    waitUntil: "domcontentloaded",
+  });
+  await expect(desktopNavigation.getByRole("link", { name: "Inbox" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(
+    page
+      .getByTestId("product-mobile-bottom-navigation")
+      .getByRole("link", { name: "Inbox" }),
+  ).toHaveAttribute("aria-current", "page");
+});
+
+test("live workspace preserves customer content that matches demo seed text", async ({
+  context,
+  page,
+}) => {
+  await context.addCookies([
+    { name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" },
+  ]);
+  await mockProductIdentity(page);
+  await mockDashboardSummary(page);
+  await mockLiveSeedCollisionInbox(page);
+
+  await page.goto(`${webBase}/app/inbox`, { waitUntil: "domcontentloaded" });
+  await expect(page.getByText("Мария Белова", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Консультация", { exact: true })).toBeVisible();
+  await expect(page.getByText("Мария, администратор", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Да, забронируйте. Телефон +7 999 123-45-67.", { exact: true }).first(),
+  ).toBeVisible();
+  await expect(page.getByText("Maria Belova", { exact: true })).toHaveCount(0);
+
+  await page.goto(`${webBase}/app/inbox/conversation-live-seed-collision`, {
+    waitUntil: "domcontentloaded",
+  });
+  await expect(
+    page.getByText("Да, забронируйте. Телефон +7 999 123-45-67.", { exact: true }),
+  ).toBeVisible();
 });
 
 test("product shell distinguishes failed reads from empty workspace state", async ({

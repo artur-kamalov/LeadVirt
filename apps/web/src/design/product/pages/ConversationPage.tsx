@@ -207,12 +207,28 @@ function eventIconAndColor(type: string): Pick<TimelineItem, "icon" | "color"> {
 }
 
 function localizeEventTitle(event: LeadEvent, t: Translate) {
+  const typeLabels: Record<string, TranslationKey> = {
+    "lead.created": "ops.conversation.eventLeadCreated",
+    "lead.updated": "ops.conversation.eventLeadUpdated",
+    conversation_started: "ops.conversation.eventConversationStarted",
+    telegram_message_received: "ops.conversation.eventInboundReceived",
+    webhook_message_received: "ops.conversation.eventInboundReceived",
+    widget_message_received: "ops.conversation.eventInboundReceived",
+    "ai.reply": "ops.conversation.eventAiPrepared",
+    telegram_ai_reply_queued: "ops.conversation.eventAiQueued",
+    webhook_ai_reply_queued: "ops.conversation.eventAiQueued",
+    widget_ai_reply_queued: "ops.conversation.eventAiQueued",
+    ai_reply_generated: "ops.conversation.eventAiGenerated",
+    message_sent: "ops.conversation.eventMessage",
+    "crm.sent": "ops.conversation.eventCrm",
+    sent_to_crm: "ops.conversation.eventCrm",
+  };
   const labels: Record<string, TranslationKey> = {
     "Message sent": "ops.conversation.eventMessage",
     "AI reply queued": "ops.conversation.eventAiQueued",
     "Lead sent to CRM": "ops.conversation.eventCrm",
   };
-  const key = labels[event.title];
+  const key = typeLabels[event.type] ?? labels[event.title];
   return key ? t(key) : event.title;
 }
 

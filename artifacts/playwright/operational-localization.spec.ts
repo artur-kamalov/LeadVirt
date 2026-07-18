@@ -214,6 +214,9 @@ test("Inbox, Conversation, and Pipeline render all six operational locales", asy
     await selectLocale(page, locale);
     await expect(page.getByText(messages[locale]["ops.inbox.title"], { exact: true }).first()).toBeVisible();
     await expect(page.getByLabel(messages[locale]["ops.inbox.searchLabel"])).toBeVisible();
+    await expect(page.getByTestId("inbox-needs-reply")).toHaveText(
+      messages[locale]["ops.inbox.awaitingReply"],
+    );
     await expect(page.getByRole("button", { name: messages[locale]["ops.common.toCrm"], exact: true })).toBeVisible();
     await expect(page.getByText(expectedRelativeTime(locale), { exact: true }).first()).toBeVisible();
     await expect(page.getByText(messages[locale]["ops.common.service"], { exact: true })).toBeVisible();

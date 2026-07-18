@@ -27,7 +27,12 @@ const en = {
   "ops.inbox.searchLabel": "Search conversations",
   "ops.inbox.searchPlaceholder": "Search by name or message...",
   "ops.inbox.conversations": "{count} conversations",
-  "ops.inbox.needReply": "{count} need a reply",
+  "ops.inbox.needReply": "Needs reply: {count}",
+  "ops.inbox.awaitingReply": "Needs reply",
+  "ops.inbox.channelFilters": "Filter by channel",
+  "ops.inbox.statusFilters": "Filter by status",
+  "ops.inbox.clearSearch": "Clear search",
+  "ops.inbox.conversationList": "Conversations",
   "ops.inbox.noResults": "Nothing found",
   "ops.inbox.empty": "No conversations yet",
   "ops.inbox.noResultsDetail": "No conversations match the selected filters or search.",
@@ -106,6 +111,12 @@ const en = {
   "ops.conversation.eventMessage": "Message sent",
   "ops.conversation.eventAiQueued": "AI reply queued",
   "ops.conversation.eventCrm": "Lead sent to CRM",
+  "ops.conversation.eventLeadCreated": "Lead created",
+  "ops.conversation.eventLeadUpdated": "Lead updated",
+  "ops.conversation.eventConversationStarted": "Conversation started",
+  "ops.conversation.eventInboundReceived": "Customer message received",
+  "ops.conversation.eventAiPrepared": "AI prepared a reply",
+  "ops.conversation.eventAiGenerated": "AI reply ready",
   "ops.conversation.transcriptId": "Conversation ID",
   "ops.conversation.transcriptLead": "Lead",
   "ops.conversation.transcriptService": "Customer request",
@@ -115,7 +126,7 @@ const en = {
   "ops.conversation.demo1": "Hello! I would like coloring and a haircut. Is Friday after 5 PM available?",
   "ops.conversation.demo2": "Hello! Friday at 6 PM is available with Alina. To estimate the price: is your hair shoulder-length or longer?",
   "ops.conversation.demo3": "Shoulder-length. I want a warm blonde without heavy bleaching.",
-  "ops.conversation.demo4": "The estimate is RUB 8,000-10,000 and about three hours. Shall I book Friday at 6 PM?",
+  "ops.conversation.demo4": "The estimate is RUB 14,000-16,000 and about three hours. Shall I book Friday at 6 PM?",
   "ops.conversation.demo5": "Yes, please book it. Phone: +7 999 123-45-67.",
   "ops.conversation.demo6": "Done: Friday at 6 PM is booked, the lead is created, and the manager has the service, budget, and phone details.",
   "ops.conversation.demoFollowup": "Thank you! I will clarify the details, suggest the nearest time, and save the lead for the manager.",
@@ -151,11 +162,17 @@ const en = {
 
 type OperationalTranslationKey = keyof typeof en;
 
-const ru: Record<OperationalTranslationKey, string> = {
+const ruTranslated: Record<OperationalTranslationKey, string> = {
   "ops.common.actions": "Действия", "ops.common.channel": "Канал", "ops.common.manager": "Менеджер", "ops.common.source": "Источник", "ops.common.service": "Запрос клиента", "ops.common.value": "Сумма", "ops.common.apiLeadOnly": "Действие доступно только для API-лида", "ops.common.actionFailed": "Не удалось выполнить действие", "ops.common.taskCreated": "Задача создана", "ops.common.taskFailed": "Не удалось создать задачу", "ops.common.crmSent": "Лид отправлен в CRM", "ops.common.crmFailed": "Не удалось отправить лида в CRM", "ops.common.createTask": "Создать задачу", "ops.common.creating": "Создаём...", "ops.common.sending": "Отправляем...", "ops.common.toCrm": "В CRM", "ops.common.bookAppointment": "Записать на приём", "ops.common.qualified": "Отметить квалифицированным", "ops.common.bookingFallback": "Запись",
-  "ops.inbox.title": "Входящие", "ops.inbox.allChannels": "Все каналы", "ops.inbox.allStatuses": "Все статусы", "ops.inbox.open": "Открыть", "ops.inbox.openConversation": "Открыть диалог", "ops.inbox.lastMessage": "Последнее сообщение", "ops.inbox.searchLabel": "Поиск в диалогах", "ops.inbox.searchPlaceholder": "Поиск по имени или сообщению...", "ops.inbox.conversations": "Диалогов: {count}", "ops.inbox.needReply": "Требуют ответа: {count}", "ops.inbox.noResults": "Ничего не найдено", "ops.inbox.empty": "Диалогов пока нет", "ops.inbox.noResultsDetail": "Нет диалогов, соответствующих выбранным фильтрам или поисковому запросу.", "ops.inbox.emptyDetail": "Когда клиенты напишут в подключённые каналы, новые диалоги появятся здесь.", "ops.inbox.loadFailed": "Не удалось загрузить диалоги. Обновите страницу или войдите снова.", "ops.inbox.loading": "Загружаем диалоги...", "ops.inbox.resetFilters": "Сбросить фильтры", "ops.inbox.noneSelected": "Нет выбранного диалога", "ops.inbox.noneSelectedDetail": "Выберите диалог из списка или дождитесь нового входящего обращения.", "ops.inbox.taskTitle": "Связаться с {name}",
-  "ops.conversation.title": "Диалог", "ops.conversation.back": "Назад во входящие", "ops.conversation.loadingTitle": "Загружаем диалог", "ops.conversation.notFound": "Диалог не найден", "ops.conversation.loadingDetail": "Проверяем обращение в базе workspace.", "ops.conversation.notFoundDetail": "Откройте диалог из списка входящих. В рабочем пространстве показываются только реальные обращения из вашей базы.", "ops.conversation.leadInfo": "Информация о лиде", "ops.conversation.status": "Статус", "ops.conversation.temperature": "Температура", "ops.conversation.timeline": "Таймлайн", "ops.conversation.sendToCrm": "Отправить в CRM", "ops.conversation.modeHandoff": "Передано менеджеру", "ops.conversation.modeClosed": "Диалог закрыт", "ops.conversation.modeAiOff": "AI выключен", "ops.conversation.modeAi": "AI ведёт диалог", "ops.conversation.menuLabel": "Действия с диалогом", "ops.conversation.handoff": "Передать менеджеру", "ops.conversation.handingOff": "Передаём...", "ops.conversation.aiDraft": "AI-подсказка", "ops.conversation.aiDrafting": "Готовим AI-подсказку...", "ops.conversation.export": "Экспорт переписки", "ops.conversation.open": "Открыть диалог", "ops.conversation.opening": "Открываем...", "ops.conversation.close": "Закрыть диалог", "ops.conversation.closing": "Закрываем...", "ops.conversation.demoPlaying": "Live demo: клиент и AI общаются сейчас", "ops.conversation.demoReady": "Live demo диалога готов к повтору", "ops.conversation.skip": "Пропустить", "ops.conversation.replay": "Повторить demo", "ops.conversation.loading": "Загрузка диалога...", "ops.conversation.removeFile": "Удалить файл", "ops.conversation.attachFile": "Прикрепить файл", "ops.conversation.placeholder": "Написать сообщение...", "ops.conversation.openEmoji": "Открыть эмодзи", "ops.conversation.addEmoji": "Добавить {emoji}", "ops.conversation.send": "Отправить сообщение", "ops.conversation.attachTypeError": "Можно прикрепить PNG, JPG, PDF или TXT", "ops.conversation.attachSizeError": "Файл должен быть до 60 КБ", "ops.conversation.attachSuccess": "Файл прикреплён", "ops.conversation.attachReadError": "Не удалось прочитать файл", "ops.conversation.messageSent": "Сообщение отправлено", "ops.conversation.messageFailed": "Не удалось отправить сообщение", "ops.conversation.exportReady": "Экспорт переписки готов", "ops.conversation.apiOnly": "Действие доступно для API-диалога", "ops.conversation.aiDraftReady": "AI-подсказка готова", "ops.conversation.aiDraftHandoff": "Проверьте текст: AI рекомендует менеджера.", "ops.conversation.aiDraftEdit": "Можно отредактировать и отправить.", "ops.conversation.aiDraftFailed": "Не удалось подготовить AI-подсказку", "ops.conversation.handoffDone": "Диалог передан менеджеру", "ops.conversation.closedDone": "Диалог закрыт", "ops.conversation.openedDone": "Диалог открыт", "ops.conversation.actionFailed": "Действие с диалогом не выполнено", "ops.conversation.appointmentCreated": "Запись создана", "ops.conversation.leadQualified": "Лид квалифицирован", "ops.conversation.taskTitle": "Связаться с лидом из диалога", "ops.conversation.senderClient": "Клиент", "ops.conversation.senderManager": "Менеджер", "ops.conversation.typingClient": "Клиент печатает...", "ops.conversation.typingAi": "AI отвечает...", "ops.conversation.typingManager": "Менеджер печатает...", "ops.conversation.quickService": "Уточнить услугу", "ops.conversation.quickTime": "Предложить время", "ops.conversation.quickPrice": "Отправить прайс", "ops.conversation.quickConfirm": "Подтвердить запись", "ops.conversation.quickHandoff": "Передать менеджеру", "ops.conversation.eventMessage": "Сообщение отправлено", "ops.conversation.eventAiQueued": "AI-ответ поставлен в очередь", "ops.conversation.eventCrm": "Лид отправлен в CRM", "ops.conversation.transcriptId": "ID диалога", "ops.conversation.transcriptLead": "Лид", "ops.conversation.transcriptService": "Запрос клиента", "ops.conversation.transcriptSource": "Источник", "ops.conversation.transcriptStatus": "Статус", "ops.conversation.transcriptMessages": "Сообщения", "ops.conversation.demo1": "Здравствуйте! Хочу окрашивание и стрижку. В пятницу после 17:00 есть свободное время?", "ops.conversation.demo2": "Здравствуйте! Есть пятница 18:00 у мастера Алины. Чтобы точнее сориентировать по цене: волосы до плеч или длиннее?", "ops.conversation.demo3": "До плеч. Хочу тёплый блонд без сильного осветления.", "ops.conversation.demo4": "Тогда ориентир 8 000-10 000 ₽ и около 3 часов. Забронировать пятницу 18:00?", "ops.conversation.demo5": "Да, забронируйте. Телефон +7 999 123-45-67.", "ops.conversation.demo6": "Готово: закрепила пятницу 18:00, создала лид и передала менеджеру карточку с услугой, бюджетом и телефоном.", "ops.conversation.demoFollowup": "Спасибо! Я уточню детали, предложу ближайшее время и сохраню лид для менеджера.",
+  "ops.inbox.title": "Входящие", "ops.inbox.allChannels": "Все каналы", "ops.inbox.allStatuses": "Все статусы", "ops.inbox.open": "Открыть", "ops.inbox.openConversation": "Открыть диалог", "ops.inbox.lastMessage": "Последнее сообщение", "ops.inbox.searchLabel": "Поиск в диалогах", "ops.inbox.searchPlaceholder": "Поиск по имени или сообщению...", "ops.inbox.conversations": "Диалогов: {count}", "ops.inbox.needReply": "Требуют ответа: {count}", "ops.inbox.awaitingReply": "Ждёт ответа", "ops.inbox.channelFilters": "Фильтр по каналу", "ops.inbox.statusFilters": "Фильтр по статусу", "ops.inbox.clearSearch": "Очистить поиск", "ops.inbox.conversationList": "Диалоги", "ops.inbox.noResults": "Ничего не найдено", "ops.inbox.empty": "Диалогов пока нет", "ops.inbox.noResultsDetail": "Нет диалогов, соответствующих выбранным фильтрам или поисковому запросу.", "ops.inbox.emptyDetail": "Когда клиенты напишут в подключённые каналы, новые диалоги появятся здесь.", "ops.inbox.loadFailed": "Не удалось загрузить диалоги. Обновите страницу или войдите снова.", "ops.inbox.loading": "Загружаем диалоги...", "ops.inbox.resetFilters": "Сбросить фильтры", "ops.inbox.noneSelected": "Нет выбранного диалога", "ops.inbox.noneSelectedDetail": "Выберите диалог из списка или дождитесь нового входящего обращения.", "ops.inbox.taskTitle": "Связаться с {name}",
+  "ops.conversation.title": "Диалог", "ops.conversation.back": "Назад во входящие", "ops.conversation.loadingTitle": "Загружаем диалог", "ops.conversation.notFound": "Диалог не найден", "ops.conversation.loadingDetail": "Проверяем обращение в базе workspace.", "ops.conversation.notFoundDetail": "Откройте диалог из списка входящих. В рабочем пространстве показываются только реальные обращения из вашей базы.", "ops.conversation.leadInfo": "Информация о лиде", "ops.conversation.status": "Статус", "ops.conversation.temperature": "Температура", "ops.conversation.timeline": "Таймлайн", "ops.conversation.sendToCrm": "Отправить в CRM", "ops.conversation.modeHandoff": "Передано менеджеру", "ops.conversation.modeClosed": "Диалог закрыт", "ops.conversation.modeAiOff": "AI выключен", "ops.conversation.modeAi": "AI ведёт диалог", "ops.conversation.menuLabel": "Действия с диалогом", "ops.conversation.handoff": "Передать менеджеру", "ops.conversation.handingOff": "Передаём...", "ops.conversation.aiDraft": "AI-подсказка", "ops.conversation.aiDrafting": "Готовим AI-подсказку...", "ops.conversation.export": "Экспорт переписки", "ops.conversation.open": "Открыть диалог", "ops.conversation.opening": "Открываем...", "ops.conversation.close": "Закрыть диалог", "ops.conversation.closing": "Закрываем...", "ops.conversation.demoPlaying": "Live demo: клиент и AI общаются сейчас", "ops.conversation.demoReady": "Live demo диалога готов к повтору", "ops.conversation.skip": "Пропустить", "ops.conversation.replay": "Повторить demo", "ops.conversation.loading": "Загрузка диалога...", "ops.conversation.removeFile": "Удалить файл", "ops.conversation.attachFile": "Прикрепить файл", "ops.conversation.placeholder": "Написать сообщение...", "ops.conversation.openEmoji": "Открыть эмодзи", "ops.conversation.addEmoji": "Добавить {emoji}", "ops.conversation.send": "Отправить сообщение", "ops.conversation.attachTypeError": "Можно прикрепить PNG, JPG, PDF или TXT", "ops.conversation.attachSizeError": "Файл должен быть до 60 КБ", "ops.conversation.attachSuccess": "Файл прикреплён", "ops.conversation.attachReadError": "Не удалось прочитать файл", "ops.conversation.messageSent": "Сообщение отправлено", "ops.conversation.messageFailed": "Не удалось отправить сообщение", "ops.conversation.exportReady": "Экспорт переписки готов", "ops.conversation.apiOnly": "Действие доступно для API-диалога", "ops.conversation.aiDraftReady": "AI-подсказка готова", "ops.conversation.aiDraftHandoff": "Проверьте текст: AI рекомендует менеджера.", "ops.conversation.aiDraftEdit": "Можно отредактировать и отправить.", "ops.conversation.aiDraftFailed": "Не удалось подготовить AI-подсказку", "ops.conversation.handoffDone": "Диалог передан менеджеру", "ops.conversation.closedDone": "Диалог закрыт", "ops.conversation.openedDone": "Диалог открыт", "ops.conversation.actionFailed": "Действие с диалогом не выполнено", "ops.conversation.appointmentCreated": "Запись создана", "ops.conversation.leadQualified": "Лид квалифицирован", "ops.conversation.taskTitle": "Связаться с лидом из диалога", "ops.conversation.senderClient": "Клиент", "ops.conversation.senderManager": "Менеджер", "ops.conversation.typingClient": "Клиент печатает...", "ops.conversation.typingAi": "AI отвечает...", "ops.conversation.typingManager": "Менеджер печатает...", "ops.conversation.quickService": "Уточнить услугу", "ops.conversation.quickTime": "Предложить время", "ops.conversation.quickPrice": "Отправить прайс", "ops.conversation.quickConfirm": "Подтвердить запись", "ops.conversation.quickHandoff": "Передать менеджеру", "ops.conversation.eventMessage": "Сообщение отправлено", "ops.conversation.eventAiQueued": "AI-ответ поставлен в очередь", "ops.conversation.eventCrm": "Лид отправлен в CRM", "ops.conversation.eventLeadCreated": "Лид создан", "ops.conversation.eventLeadUpdated": "Лид обновлён", "ops.conversation.eventConversationStarted": "Диалог начат", "ops.conversation.eventInboundReceived": "Сообщение клиента получено", "ops.conversation.eventAiPrepared": "AI подготовил ответ", "ops.conversation.eventAiGenerated": "Ответ AI готов", "ops.conversation.transcriptId": "ID диалога", "ops.conversation.transcriptLead": "Лид", "ops.conversation.transcriptService": "Запрос клиента", "ops.conversation.transcriptSource": "Источник", "ops.conversation.transcriptStatus": "Статус", "ops.conversation.transcriptMessages": "Сообщения", "ops.conversation.demo1": "Здравствуйте! Хочу окрашивание и стрижку. В пятницу после 17:00 есть свободное время?", "ops.conversation.demo2": "Здравствуйте! Есть пятница 18:00 у мастера Алины. Чтобы точнее сориентировать по цене: волосы до плеч или длиннее?", "ops.conversation.demo3": "До плеч. Хочу тёплый блонд без сильного осветления.", "ops.conversation.demo4": "Тогда ориентир 8 000-10 000 ₽ и около 3 часов. Забронировать пятницу 18:00?", "ops.conversation.demo5": "Да, забронируйте. Телефон +7 999 123-45-67.", "ops.conversation.demo6": "Готово: закрепила пятницу 18:00, создала лид и передала менеджеру карточку с услугой, бюджетом и телефоном.", "ops.conversation.demoFollowup": "Спасибо! Я уточню детали, предложу ближайшее время и сохраню лид для менеджера.",
   "ops.pipeline.title": "Воронка / CRM", "ops.pipeline.heading": "Воронка продаж", "ops.pipeline.count": "Лидов: {count}", "ops.pipeline.loading": "загружаем данные", "ops.pipeline.synced": "синхронизировано с API", "ops.pipeline.loadFailed": "не удалось загрузить данные", "ops.pipeline.kanban": "Канбан", "ops.pipeline.list": "Список", "ops.pipeline.total": "Всего лидов", "ops.pipeline.value": "Сумма воронки", "ops.pipeline.conversion": "Конверсия", "ops.pipeline.average": "Средний чек", "ops.pipeline.distribution": "Распределение по этапам", "ops.pipeline.noLeads": "Нет лидов", "ops.pipeline.lead": "Лид", "ops.pipeline.stage": "Этап", "ops.pipeline.temperature": "Температура", "ops.pipeline.leadActions": "Действия лида: {name}", "ops.pipeline.advance": "Переместить на следующий этап", "ops.pipeline.advanceLead": "Переместить лид: {name}", "ops.pipeline.close": "Закрыть лид", "ops.pipeline.moved": "Лид перемещён: {stage}", "ops.pipeline.moveFailed": "Не удалось обновить этап лида", "ops.pipeline.actionDone": "Действие выполнено", "ops.pipeline.leadQualified": "Лид квалифицирован", "ops.pipeline.appointmentCreated": "Запись создана", "ops.pipeline.leadClosed": "Лид закрыт", "ops.pipeline.taskTitle": "Связаться с лидом из воронки",
+};
+
+const ru: Record<OperationalTranslationKey, string> = {
+  ...ruTranslated,
+  "ops.conversation.demo4":
+    "Тогда ориентир 14 000-16 000 ₽ и около 3 часов. Забронировать пятницу 18:00?",
 };
 
 const esTranslated = translateOperational({
@@ -239,7 +256,7 @@ const esTranslated = translateOperational({
   "ops.conversation.demo1": "¡Hola! Quiero coloración y corte. ¿Hay disponibilidad el viernes después de las 17:00?",
   "ops.conversation.demo2": "¡Hola! Alina está disponible el viernes a las 18:00. Para estimar el precio: ¿el cabello llega a los hombros o es más largo?",
   "ops.conversation.demo3": "Hasta los hombros. Quiero un rubio cálido sin decoloración intensa.",
-  "ops.conversation.demo4": "El precio estimado es de 8.000 a 10.000 RUB y unas tres horas. ¿Reservo el viernes a las 18:00?",
+  "ops.conversation.demo4": "El precio estimado es de 14.000 a 16.000 RUB y unas tres horas. ¿Reservo el viernes a las 18:00?",
   "ops.conversation.demo5": "Sí, resérvalo. Teléfono: +7 999 123-45-67.",
   "ops.conversation.demo6": "Listo: viernes a las 18:00 reservado, lead creado y datos enviados al responsable.",
   "ops.conversation.demoFollowup": "¡Gracias! Aclararé los detalles, propondré el horario más cercano y guardaré el lead para el responsable.",
@@ -258,6 +275,18 @@ const es: Record<OperationalTranslationKey, string> = {
   ...esTranslated,
   "ops.common.service": "Solicitud del cliente",
   "ops.conversation.transcriptService": "Solicitud del cliente",
+  "ops.inbox.awaitingReply": "Requiere respuesta",
+  "ops.inbox.needReply": "Requieren respuesta: {count}",
+  "ops.inbox.channelFilters": "Filtrar por canal",
+  "ops.inbox.statusFilters": "Filtrar por estado",
+  "ops.inbox.clearSearch": "Borrar búsqueda",
+  "ops.inbox.conversationList": "Conversaciones",
+  "ops.conversation.eventLeadCreated": "Lead creado",
+  "ops.conversation.eventLeadUpdated": "Lead actualizado",
+  "ops.conversation.eventConversationStarted": "Conversación iniciada",
+  "ops.conversation.eventInboundReceived": "Mensaje del cliente recibido",
+  "ops.conversation.eventAiPrepared": "La IA preparó una respuesta",
+  "ops.conversation.eventAiGenerated": "Respuesta de IA lista",
 };
 
 const frTranslated = translateOperational({
@@ -341,7 +370,7 @@ const frTranslated = translateOperational({
   "ops.conversation.demo1": "Bonjour ! Je souhaite une coloration et une coupe. Avez-vous une place vendredi après 17 h ?",
   "ops.conversation.demo2": "Bonjour ! Alina est disponible vendredi à 18 h. Pour estimer le prix : vos cheveux arrivent-ils aux épaules ou sont-ils plus longs ?",
   "ops.conversation.demo3": "Aux épaules. Je souhaite un blond chaud sans forte décoloration.",
-  "ops.conversation.demo4": "Comptez 8 000 à 10 000 RUB et environ trois heures. Je réserve vendredi à 18 h ?",
+  "ops.conversation.demo4": "Comptez 14 000 à 16 000 RUB et environ trois heures. Je réserve vendredi à 18 h ?",
   "ops.conversation.demo5": "Oui, merci. Téléphone : +7 999 123-45-67.",
   "ops.conversation.demo6": "C’est fait : vendredi à 18 h est réservé, le prospect est créé et le responsable a reçu les informations.",
   "ops.conversation.demoFollowup": "Merci ! Je vais préciser les détails, proposer le prochain créneau et enregistrer le prospect pour le responsable.",
@@ -360,6 +389,18 @@ const fr: Record<OperationalTranslationKey, string> = {
   ...frTranslated,
   "ops.common.service": "Demande du client",
   "ops.conversation.transcriptService": "Demande du client",
+  "ops.inbox.awaitingReply": "Réponse requise",
+  "ops.inbox.needReply": "Réponses requises : {count}",
+  "ops.inbox.channelFilters": "Filtrer par canal",
+  "ops.inbox.statusFilters": "Filtrer par statut",
+  "ops.inbox.clearSearch": "Effacer la recherche",
+  "ops.inbox.conversationList": "Conversations",
+  "ops.conversation.eventLeadCreated": "Prospect créé",
+  "ops.conversation.eventLeadUpdated": "Prospect mis à jour",
+  "ops.conversation.eventConversationStarted": "Conversation démarrée",
+  "ops.conversation.eventInboundReceived": "Message du client reçu",
+  "ops.conversation.eventAiPrepared": "L’IA a préparé une réponse",
+  "ops.conversation.eventAiGenerated": "Réponse de l’IA prête",
 };
 
 const deTranslated = translateOperational({
@@ -443,7 +484,7 @@ const deTranslated = translateOperational({
   "ops.conversation.demo1": "Hallo! Ich möchte Färben und Schneiden. Ist Freitag nach 17 Uhr etwas frei?",
   "ops.conversation.demo2": "Hallo! Alina hat Freitag um 18 Uhr Zeit. Zur Preiseinschätzung: Sind die Haare schulterlang oder länger?",
   "ops.conversation.demo3": "Schulterlang. Ich möchte warmes Blond ohne starke Aufhellung.",
-  "ops.conversation.demo4": "Die Schätzung liegt bei 8.000 bis 10.000 RUB und etwa drei Stunden. Soll ich Freitag um 18 Uhr buchen?",
+  "ops.conversation.demo4": "Die Schätzung liegt bei 14.000 bis 16.000 RUB und etwa drei Stunden. Soll ich Freitag um 18 Uhr buchen?",
   "ops.conversation.demo5": "Ja, bitte buchen. Telefon: +7 999 123-45-67.",
   "ops.conversation.demo6": "Erledigt: Freitag um 18 Uhr ist gebucht, der Lead wurde erstellt und der Manager hat alle Angaben.",
   "ops.conversation.demoFollowup": "Danke! Ich kläre die Details, schlage den nächsten Termin vor und speichere den Lead für den Manager.",
@@ -462,6 +503,18 @@ const de: Record<OperationalTranslationKey, string> = {
   ...deTranslated,
   "ops.common.service": "Kundenanfrage",
   "ops.conversation.transcriptService": "Kundenanfrage",
+  "ops.inbox.awaitingReply": "Antwort nötig",
+  "ops.inbox.needReply": "Antwort erforderlich: {count}",
+  "ops.inbox.channelFilters": "Nach Kanal filtern",
+  "ops.inbox.statusFilters": "Nach Status filtern",
+  "ops.inbox.clearSearch": "Suche löschen",
+  "ops.inbox.conversationList": "Konversationen",
+  "ops.conversation.eventLeadCreated": "Lead erstellt",
+  "ops.conversation.eventLeadUpdated": "Lead aktualisiert",
+  "ops.conversation.eventConversationStarted": "Konversation gestartet",
+  "ops.conversation.eventInboundReceived": "Kundennachricht empfangen",
+  "ops.conversation.eventAiPrepared": "KI hat eine Antwort vorbereitet",
+  "ops.conversation.eventAiGenerated": "KI-Antwort ist bereit",
 };
 
 const ptTranslated = translateOperational({
@@ -545,7 +598,7 @@ const ptTranslated = translateOperational({
   "ops.conversation.demo1": "Olá! Quero coloração e corte. Há horário na sexta-feira depois das 17h?",
   "ops.conversation.demo2": "Olá! Alina está disponível na sexta às 18h. Para estimar o preço: o cabelo está na altura dos ombros ou é mais longo?",
   "ops.conversation.demo3": "Na altura dos ombros. Quero um loiro quente sem descoloração intensa.",
-  "ops.conversation.demo4": "A estimativa é de RUB 8.000 a 10.000 e cerca de três horas. Posso agendar sexta às 18h?",
+  "ops.conversation.demo4": "A estimativa é de RUB 14.000 a 16.000 e cerca de três horas. Posso agendar sexta às 18h?",
   "ops.conversation.demo5": "Sim, pode agendar. Telefone: +7 999 123-45-67.",
   "ops.conversation.demo6": "Pronto: sexta às 18h está agendada, o lead foi criado e o responsável recebeu os dados.",
   "ops.conversation.demoFollowup": "Obrigado! Vou confirmar os detalhes, sugerir o próximo horário e salvar o lead para o responsável.",
@@ -564,6 +617,18 @@ const pt: Record<OperationalTranslationKey, string> = {
   ...ptTranslated,
   "ops.common.service": "Solicitação do cliente",
   "ops.conversation.transcriptService": "Solicitação do cliente",
+  "ops.inbox.awaitingReply": "Precisa de resposta",
+  "ops.inbox.needReply": "Precisam de resposta: {count}",
+  "ops.inbox.channelFilters": "Filtrar por canal",
+  "ops.inbox.statusFilters": "Filtrar por status",
+  "ops.inbox.clearSearch": "Limpar pesquisa",
+  "ops.inbox.conversationList": "Conversas",
+  "ops.conversation.eventLeadCreated": "Lead criado",
+  "ops.conversation.eventLeadUpdated": "Lead atualizado",
+  "ops.conversation.eventConversationStarted": "Conversa iniciada",
+  "ops.conversation.eventInboundReceived": "Mensagem do cliente recebida",
+  "ops.conversation.eventAiPrepared": "A IA preparou uma resposta",
+  "ops.conversation.eventAiGenerated": "Resposta da IA pronta",
 };
 
 function translateOperational(overrides: Partial<Record<OperationalTranslationKey, string>>) {

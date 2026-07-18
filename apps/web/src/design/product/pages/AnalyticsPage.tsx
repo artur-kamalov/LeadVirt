@@ -26,6 +26,7 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import { ProductLayout } from "../ProductLayout";
+import { useProductMode } from "../ProductMode";
 import { Card, SectionTitle, ChannelBadge, channels, type ChannelId } from "../shared";
 import { Button } from "../../components/ui/Button";
 import { cn } from "../../lib/utils";
@@ -36,7 +37,11 @@ import { useApiResource } from "../useApiResource";
 import { ResourceErrorState } from "../ResourceErrorState";
 import { Skeleton } from "../ui";
 import { useI18n } from "@/i18n/I18nProvider";
-import { analyticsInsightLabel } from "@/i18n/api-labels";
+import {
+  analyticsInsightLabel,
+  demoAnalyticsScenarioLabel,
+  demoAnalyticsWeekdayLabel,
+} from "@/i18n/api-labels";
 import type { Locale } from "@/i18n/config";
 import type { TranslationKey, TranslationValues } from "@/i18n/messages";
 
@@ -288,17 +293,25 @@ function channelPerformanceFromOverview(overview: AnalyticsOverview): ChannelPer
     .sort((left, right) => right.leads - left.leads);
 }
 
-function leadsTrendFromOverview(overview: AnalyticsOverview): LeadTrend[] {
+function leadsTrendFromOverview(
+  overview: AnalyticsOverview,
+  locale: Locale,
+  localizeDemo: boolean,
+): LeadTrend[] {
   return overview.leadsOverTime.map((item) => ({
-    day: item.name,
+    day: localizeDemo ? demoAnalyticsWeekdayLabel(item.name, locale) : item.name,
     leads: item.leads,
     booked: item.booked,
   }));
 }
 
-function scenarioConversionFromOverview(overview: AnalyticsOverview): ScenarioConversion[] {
+function scenarioConversionFromOverview(
+  overview: AnalyticsOverview,
+  locale: Locale,
+  localizeDemo: boolean,
+): ScenarioConversion[] {
   return overview.conversionByScenario.map((item) => ({
-    name: item.scenario,
+    name: localizeDemo ? demoAnalyticsScenarioLabel(item.scenario, locale) : item.scenario,
     value: Math.round(item.conversionRate),
   }));
 }
@@ -363,6 +376,7 @@ function aiRecommendationsFromOverview(overview: AnalyticsOverview, locale: Loca
 /* ------------------------------------------------------------------ */
 export function AnalyticsPage() {
   const { formatDate, formatNumber, locale, localeTag, t } = useI18n();
+  const { demo } = useProductMode();
   const formatCompactCurrency = (value: number) =>
     new Intl.NumberFormat(localeTag, {
       style: "currency",
@@ -414,9 +428,9 @@ export function AnalyticsPage() {
 
   const displayKpis = kpisFromOverview(overview, t, formatNumber, formatCompactCurrency);
   const analyticsChannels = channelPerformanceFromOverview(overview);
-  const scenarioData = scenarioConversionFromOverview(overview);
+  const scenarioData = scenarioConversionFromOverview(overview, locale, demo);
   const responseData = responseSummaryFromOverview(overview, t);
-  const leadsTrend = leadsTrendFromOverview(overview);
+  const leadsTrend = leadsTrendFromOverview(overview, locale, demo);
   const recommendations = aiRecommendationsFromOverview(
     overview,
     locale,

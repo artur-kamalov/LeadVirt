@@ -1,5 +1,29 @@
 # Decision Log
 
+## 2026-07-18: Keep Live Customer Content Verbatim
+
+Decision: Locale switching may translate only system labels and records carrying the reserved demo identity. Names, requests, messages, manager-entered values, and exported transcripts from a live workspace remain exactly as stored.
+
+Context: The six-locale demo catalog is intentionally based on exact fixture phrases. Applying it through shared API adapters without a demo boundary could silently translate a real customer message that happened to match a common fixture value such as `Consultation`.
+
+Consequences:
+
+- Demo seed localization is gated by reserved demo tenant or entity identity.
+- Stable event types, activity codes, and explicit system source labels remain locale-aware in every workspace.
+- Unknown or customer-authored content is never inferred, translated, or rewritten by the UI.
+
+## 2026-07-18: Describe Only The Available Pilot
+
+Decision: Public acquisition copy describes the current self-service pilot: Telegram and website widget intake, answers from published Knowledge, Inbox and lead capture, operator handoff, analytics, and explicit Webhook delivery. It does not promise provider-backed bookings, reminders, inventory, order status, estimates, or direct CRM completion until those boundaries exist.
+
+Context: The primary landing copy had been made truthful, but the hero status chips and industry examples still implied unavailable downstream actions. Demo readiness also linked guests into the protected app, and selected pricing intent remained invisible during signup.
+
+Consequences:
+
+- Hero and industry examples end in a captured request, Inbox review, operator handoff, or Webhook handoff instead of fabricated completion.
+- Demo readiness actions retain `/demo` routing and never redirect a guest to login.
+- Signup visibly confirms the selected plan and provides a direct way to change it before authentication.
+
 ## 2026-07-18: Keep Business Information Canonical
 
 Decision: Business Information in Knowledge is the only editor for business identity, type, description, and timezone. Settings shows those fields read-only and edits only workspace logo and contact details.

@@ -9,7 +9,7 @@ import {
   Database,
   ClipboardList,
   Filter,
-  ChevronRight,
+  X,
 } from "lucide-react";
 import { ProductLayout } from "../ProductLayout";
 import { Card, Avatar, ChannelBadge, StatusPill, TempPill, channels, stages } from "../shared";
@@ -108,9 +108,11 @@ function ChannelChip({
   if (id === "all") {
     return (
       <button
+        type="button"
+        aria-pressed={active}
         onClick={onClick}
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all border",
+          "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
           active
             ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300"
             : "bg-white/5 border-white/5 text-zinc-400 hover:text-zinc-200 hover:bg-white/8",
@@ -124,9 +126,11 @@ function ChannelChip({
   const Icon = ch.icon;
   return (
     <button
+      type="button"
+      aria-pressed={active}
       onClick={onClick}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all border",
+        "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
         active
           ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300"
           : "bg-white/5 border-white/5 text-zinc-400 hover:text-zinc-200 hover:bg-white/8",
@@ -154,9 +158,11 @@ function StageChip({
   const label = id === "all" ? t("ops.inbox.allStatuses") : t(stages[id].labelKey);
   return (
     <button
+      type="button"
+      aria-pressed={active}
       onClick={onClick}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all border whitespace-nowrap",
+        "inline-flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
         active
           ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300"
           : "bg-white/5 border-white/5 text-zinc-400 hover:text-zinc-200 hover:bg-white/8",
@@ -177,10 +183,9 @@ const LeadRow = React.forwardRef<
     lead: Lead;
     selected: boolean;
     onSelect: () => void;
-    onOpen: () => void;
     index: number;
   }
->(function LeadRow({ lead, selected, onSelect, onOpen, index }, ref) {
+>(function LeadRow({ lead, selected, onSelect, index }, ref) {
   const { t } = useI18n();
   const ch = channels[lead.channel];
   const ChIcon = ch.icon;
@@ -188,21 +193,17 @@ const LeadRow = React.forwardRef<
   return (
     <motion.div
       ref={ref}
+      role="listitem"
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: index * 0.04, ease: "easeOut" }}
       layout
     >
-      <div
-        role="button"
-        tabIndex={0}
+      <button
+        type="button"
+        aria-current={selected ? "true" : undefined}
+        data-testid={`inbox-conversation-${lead.id}`}
         onClick={onSelect}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            onSelect();
-          }
-        }}
         className={cn(
           "w-full text-left group relative flex items-start gap-3 px-4 py-3.5 rounded-2xl border transition-all cursor-pointer",
           selected
@@ -214,6 +215,7 @@ const LeadRow = React.forwardRef<
         <div className="relative shrink-0 mt-0.5">
           <Avatar name={lead.name} size={40} />
           <span
+            aria-hidden="true"
             className={cn(
               "absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-zinc-950 flex items-center justify-center",
               ch.bg,
@@ -228,11 +230,6 @@ const LeadRow = React.forwardRef<
           <div className="flex items-center justify-between gap-2 mb-1">
             <span className="text-sm font-semibold text-zinc-100 truncate">{lead.name}</span>
             <div className="flex items-center gap-1.5 shrink-0">
-              {lead.unread > 0 && (
-                <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-emerald-500 text-[10px] font-bold text-zinc-950 flex items-center justify-center shadow-[0_0_10px_rgba(52,211,153,0.5)]">
-                  {lead.unread}
-                </span>
-              )}
               <span className="text-[11px] text-zinc-500">{lead.time}</span>
             </div>
           </div>
@@ -240,6 +237,15 @@ const LeadRow = React.forwardRef<
           <p className="text-xs text-zinc-400 truncate mb-2 leading-snug">{lead.lastMessage}</p>
 
           <div className="flex items-center gap-1.5 flex-wrap">
+            {needsReply(lead) ? (
+              <span
+                className="inline-flex items-center gap-1 rounded-full border border-amber-400/25 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold text-amber-300"
+                data-testid="inbox-needs-reply"
+              >
+                <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-amber-300" />
+                {t("ops.inbox.awaitingReply")}
+              </span>
+            ) : null}
             <StatusPill stage={lead.stage} />
             <TempPill t={lead.temp} />
             {lead.ai && (
@@ -251,18 +257,7 @@ const LeadRow = React.forwardRef<
           </div>
         </div>
 
-        {/* Open affordance on desktop hover */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpen();
-          }}
-          className="hidden lg:flex shrink-0 opacity-0 group-hover:opacity-100 transition-opacity items-center gap-1 self-center text-[11px] text-emerald-400 font-medium hover:text-emerald-300"
-        >
-          {t("ops.inbox.open")}
-          <ChevronRight className="w-3.5 h-3.5" />
-        </button>
-      </div>
+      </button>
     </motion.div>
   );
 });
@@ -333,6 +328,7 @@ function LeadSummary({ lead }: { lead: Lead }) {
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
       className="h-full flex flex-col gap-4 overflow-y-auto pr-0.5"
+      data-testid="inbox-lead-summary"
     >
       {/* Profile card */}
       <Card className="p-5">
@@ -434,18 +430,6 @@ export function InboxPage({ initialSearch = "" }: { initialSearch?: string }) {
     setSearch(initialSearch);
   }, [initialSearch]);
 
-  React.useEffect(() => {
-    if (inboxLeads.length === 0) {
-      if (selectedId) setSelectedId("");
-      return;
-    }
-
-    if (!inboxLeads.some((lead) => lead.id === selectedId)) {
-      setSelectedId(inboxLeads[0]?.id ?? "");
-    }
-  }, [inboxLeads, selectedId]);
-
-  const selectedLead = inboxLeads.find((l) => l.id === selectedId) ?? inboxLeads[0] ?? null;
   const hasActiveFilters =
     channelFilter !== "all" || stageFilter !== "all" || search.trim().length > 0;
 
@@ -463,6 +447,19 @@ export function InboxPage({ initialSearch = "" }: { initialSearch?: string }) {
     });
   }, [channelFilter, inboxLeads, stageFilter, search]);
 
+  React.useEffect(() => {
+    if (filtered.length === 0) {
+      if (selectedId) setSelectedId("");
+      return;
+    }
+
+    if (!filtered.some((lead) => lead.id === selectedId)) {
+      setSelectedId(filtered[0]?.id ?? "");
+    }
+  }, [filtered, selectedId]);
+
+  const selectedLead = filtered.find((lead) => lead.id === selectedId) ?? filtered[0] ?? null;
+
   const needsReplyCount = filtered.filter(needsReply).length;
 
   const channelIds = Object.keys(channels) as ChannelId[];
@@ -478,7 +475,7 @@ export function InboxPage({ initialSearch = "" }: { initialSearch?: string }) {
             {/* Filter bar */}
             <div className="shrink-0 px-4 lg:px-6 pt-5 pb-3 space-y-3 border-b border-white/5 bg-zinc-950/95">
               {/* Search */}
-              <div className="flex items-center gap-2 rounded-xl bg-white/5 border border-white/5 px-3 h-9 focus-within:border-emerald-500/30 focus-within:bg-emerald-500/5 transition-all">
+              <div className="flex min-h-11 items-center gap-2 rounded-xl border border-white/5 bg-white/5 pl-3 focus-within:border-emerald-500/30 focus-within:bg-emerald-500/5 transition-all">
                 <Search className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
                 <input
                   aria-label={t("ops.inbox.searchLabel")}
@@ -489,16 +486,22 @@ export function InboxPage({ initialSearch = "" }: { initialSearch?: string }) {
                 />
                 {search && (
                   <button
+                    type="button"
+                    aria-label={t("ops.inbox.clearSearch")}
                     onClick={() => setSearch("")}
-                    className="text-zinc-500 hover:text-zinc-300 text-xs"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:text-zinc-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
                   >
-                    ×
+                    <X aria-hidden="true" className="h-4 w-4" />
                   </button>
                 )}
               </div>
 
               {/* Channel chips */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+              <div
+                role="group"
+                aria-label={t("ops.inbox.channelFilters")}
+                className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none"
+              >
                 <ChannelChip
                   id="all"
                   active={channelFilter === "all"}
@@ -515,7 +518,11 @@ export function InboxPage({ initialSearch = "" }: { initialSearch?: string }) {
               </div>
 
               {/* Stage chips */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+              <div
+                role="group"
+                aria-label={t("ops.inbox.statusFilters")}
+                className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none"
+              >
                 <StageChip
                   id="all"
                   active={stageFilter === "all"}
@@ -532,7 +539,7 @@ export function InboxPage({ initialSearch = "" }: { initialSearch?: string }) {
               </div>
 
               {/* Summary */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2" role="status" aria-live="polite">
                 <Filter className="w-3.5 h-3.5 text-zinc-600" />
                 <span className="text-xs text-zinc-500">
                   {!apiLoaded
@@ -543,7 +550,7 @@ export function InboxPage({ initialSearch = "" }: { initialSearch?: string }) {
                   {apiLoaded && needsReplyCount > 0 ? (
                     <>
                       {" · "}
-                      <span className="text-emerald-400 font-medium">
+                      <span className="font-medium text-amber-300">
                         {t("ops.inbox.needReply", { count: needsReplyCount })}
                       </span>
                     </>
@@ -559,7 +566,13 @@ export function InboxPage({ initialSearch = "" }: { initialSearch?: string }) {
             ) : null}
 
             {/* Lead list */}
-            <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
+            <div
+              aria-label={
+                apiLoaded && filtered.length > 0 ? t("ops.inbox.conversationList") : undefined
+              }
+              className="flex-1 space-y-1 overflow-y-auto px-3 py-3"
+              role={apiLoaded && filtered.length > 0 ? "list" : undefined}
+            >
               <AnimatePresence mode="popLayout">
                 {!apiLoaded && apiRefreshing && !apiError ? (
                   <div className="space-y-2" data-testid="inbox-loading">
@@ -621,7 +634,6 @@ export function InboxPage({ initialSearch = "" }: { initialSearch?: string }) {
                           go("conversation", { id: lead.id });
                         }
                       }}
-                      onOpen={() => go("conversation", { id: lead.id })}
                     />
                   ))
                 )}

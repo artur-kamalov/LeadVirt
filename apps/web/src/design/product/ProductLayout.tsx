@@ -84,10 +84,10 @@ const navItems: { id: Route; labelKey: TranslationKey; icon: LucideIcon }[] = [
 
 const mobileNav: { id: Route; labelKey: TranslationKey; icon: LucideIcon }[] = [
   { id: "dashboard", labelKey: "product.nav.dashboard", icon: LayoutDashboard },
-  { id: "inbox", labelKey: "product.mobile.chats", icon: Inbox },
+  { id: "inbox", labelKey: "product.nav.inbox", icon: Inbox },
   { id: "pipeline", labelKey: "product.mobile.pipeline", icon: KanbanSquare },
   { id: "analytics", labelKey: "product.nav.analytics", icon: BarChart3 },
-  { id: "settings", labelKey: "product.mobile.more", icon: Settings },
+  { id: "settings", labelKey: "product.nav.settings", icon: Settings },
 ];
 
 const productTitleKeys: Record<string, TranslationKey> = {
@@ -304,11 +304,12 @@ function NavLink({
   return (
     <Link
       href={hrefForRoute(item.id, {}, mode)}
+      aria-current={active ? "page" : undefined}
       onClick={() => {
         onClick?.();
       }}
       className={cn(
-        "group relative flex w-full min-w-0 items-center gap-3 overflow-hidden rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+        "group relative flex min-h-11 w-full min-w-0 items-center gap-3 overflow-hidden rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
         active ? "text-zinc-50" : "text-zinc-400 hover:text-zinc-100 hover:bg-white/5",
       )}
     >
@@ -356,6 +357,8 @@ export function ProductLayout({
     t,
   );
   const tenantDisplayName = identity.tenantName ?? t("product.account.label");
+  const activeNavigationRoute =
+    route === "conversation" ? "inbox" : route === "billing" ? "settings" : route;
 
   React.useEffect(() => {
     if (
@@ -429,7 +432,10 @@ export function ProductLayout({
         <BrandWordmark className="truncate text-lg" />
       </Link>
 
-      <nav className="min-w-0 flex-1 space-y-1 overflow-y-auto overflow-x-hidden px-3">
+      <nav
+        aria-label={t("product.menu.navigation")}
+        className="min-w-0 flex-1 space-y-1 overflow-y-auto overflow-x-hidden px-3"
+      >
         {navItems
           .filter(
             (item) => item.id !== "knowledge" || demo || permissions.canViewKnowledgeWorkspace,
@@ -438,7 +444,7 @@ export function ProductLayout({
             <NavLink
               key={item.id}
               item={item}
-              active={route === item.id || (route === "billing" && item.id === "settings")}
+              active={activeNavigationRoute === item.id}
               mode={mode}
               onClick={() => {
                 setMobileOpen(false);
@@ -669,7 +675,7 @@ export function ProductLayout({
                   <button
                     onClick={toggle}
                     aria-label={t("product.theme.toggle")}
-                    className="w-10 h-10 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-zinc-400 hover:text-emerald-400 transition-colors"
+                    className="flex h-11 w-11 items-center justify-center rounded-full border border-white/5 bg-white/5 text-zinc-400 transition-colors hover:text-emerald-400"
                   >
                     <AnimatePresence mode="wait" initial={false}>
                       {theme === "dark" ? (
@@ -702,7 +708,7 @@ export function ProductLayout({
                   trigger={
                     <button
                       aria-label={t("product.notifications.label")}
-                      className="relative w-10 h-10 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-zinc-400 hover:text-zinc-100 transition-colors"
+                      className="relative flex h-11 w-11 items-center justify-center rounded-full border border-white/5 bg-white/5 text-zinc-400 transition-colors hover:text-zinc-100"
                     >
                       <Bell className="w-5 h-5" />
                     </button>
@@ -771,14 +777,16 @@ export function ProductLayout({
                     {t("product.notifications.openAll")}
                   </Link>
                 </Dropdown>
-                <Button size="sm" className="hidden sm:inline-flex" asChild>
-                  <Link
-                    href={hrefForRoute("inbox", {}, mode)}
-                    data-testid="product-topbar-open-inbox"
-                  >
-                    <Inbox className="w-4 h-4 mr-1.5" /> {t("product.openInbox")}
-                  </Link>
-                </Button>
+                {route !== "inbox" ? (
+                  <Button size="sm" className="hidden sm:inline-flex" asChild>
+                    <Link
+                      href={hrefForRoute("inbox", {}, mode)}
+                      data-testid="product-topbar-open-inbox"
+                    >
+                      <Inbox className="w-4 h-4 mr-1.5" /> {t("product.openInbox")}
+                    </Link>
+                  </Button>
+                ) : null}
               </div>
             </div>
           </header>
@@ -794,17 +802,22 @@ export function ProductLayout({
         </div>
 
         {/* Mobile bottom nav */}
-        <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-white/5 bg-zinc-950">
+        <nav
+          aria-label={t("product.menu.navigation")}
+          className="fixed inset-x-0 bottom-0 z-40 border-t border-white/5 bg-zinc-950 lg:hidden"
+          data-testid="product-mobile-bottom-navigation"
+        >
           <div className="grid grid-cols-5 h-16">
             {mobileNav.map((item) => {
               const Icon = item.icon;
-              const active = route === item.id || (route === "billing" && item.id === "settings");
+              const active = activeNavigationRoute === item.id;
               return (
                 <Link
                   key={item.id}
                   href={hrefForRoute(item.id, {}, mode)}
+                  aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors",
+                    "flex min-h-11 flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors",
                     active ? "text-emerald-400" : "text-zinc-500",
                   )}
                 >
@@ -826,7 +839,7 @@ export function BackButton({ to, label }: { to: Route; label: string }) {
   return (
     <Link
       href={hrefForRoute(to, {}, mode)}
-      className="inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-zinc-100 transition-colors mb-4"
+      className="mb-4 inline-flex min-h-11 items-center gap-1.5 text-sm text-zinc-400 transition-colors hover:text-zinc-100"
     >
       <ChevronLeft className="w-4 h-4" /> {label}
     </Link>
