@@ -202,7 +202,10 @@ export function KnowledgeOverview({
 
   return (
     <div className="space-y-6" data-testid="knowledge-overview">
-      <section className="grid gap-px overflow-hidden rounded-lg border border-white/10 bg-white/10 sm:grid-cols-2 xl:grid-cols-4">
+      <section
+        className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-white/10 bg-white/10 xl:grid-cols-4"
+        data-testid="knowledge-overview-metrics"
+      >
         <Metric
           label={t("knowledge.overview.metric.facts")}
           value={formatNumber(overview.counts.facts)}

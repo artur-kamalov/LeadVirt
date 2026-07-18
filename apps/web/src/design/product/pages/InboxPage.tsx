@@ -592,7 +592,7 @@ export function InboxPage({ initialSearch = "" }: { initialSearch?: string }) {
                     className="py-10"
                   >
                     <EmptyState
-                      icon={Search}
+                      icon={hasActiveFilters ? Search : MessageSquare}
                       title={hasActiveFilters ? t("ops.inbox.noResults") : t("ops.inbox.empty")}
                       description={
                         hasActiveFilters
@@ -615,6 +615,10 @@ export function InboxPage({ initialSearch = "" }: { initialSearch?: string }) {
                             }}
                           >
                             {t("ops.inbox.resetFilters")}
+                          </Button>
+                        ) : apiLoaded ? (
+                          <Button size="sm" onClick={() => go("integrations")}>
+                            {t("dashboard.readiness.action.channel")}
                           </Button>
                         ) : undefined
                       }

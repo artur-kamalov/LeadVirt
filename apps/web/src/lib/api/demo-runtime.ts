@@ -626,10 +626,10 @@ function buildInitialState(): DemoState {
       currentRole: "OWNER",
       passwordChangeRequired: false,
       twoFactor: {
-        enabled: true,
+        enabled: false,
         setupPending: false,
-        confirmedAt: iso(7200),
-        recoveryCodesRemaining: 8,
+        confirmedAt: null,
+        recoveryCodesRemaining: 0,
       },
       sessions: [
         {

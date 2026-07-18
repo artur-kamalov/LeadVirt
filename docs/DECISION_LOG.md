@@ -1,5 +1,17 @@
 # Decision Log
 
+## 2026-07-18: Keep Mobile Setup Paths Explicit
+
+Decision: On compact screens, multi-section settings use one labeled selector that always exposes the active section. First-run product surfaces show the next setup action before diagnostics or explanatory empty states.
+
+Context: Deep-linked Settings sections could be active outside an invisible horizontal tab strip, an empty Inbox had no route to channel setup, and Integrations placed readiness diagnostics before the cards needed to resolve them.
+
+Consequences:
+
+- Desktop navigation remains unchanged while mobile Settings avoids hidden active tabs.
+- Empty Inbox state links directly to Integrations.
+- Integration setup cards precede readiness diagnostics, and compact Knowledge metrics use a stable two-column grid.
+
 ## 2026-07-18: Keep Live Customer Content Verbatim
 
 Decision: Locale switching may translate only system labels and records carrying the reserved demo identity. Names, requests, messages, manager-entered values, and exported transcripts from a live workspace remain exactly as stored.

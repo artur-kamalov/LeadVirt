@@ -106,7 +106,7 @@ test("integrations page starts empty when API returns no tenant integrations", a
     await route.fulfill({ json: { data: [] } });
   });
 
-  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${webBase}/app/integrations`, { waitUntil: "networkidle" });
 
   await expect(page.getByTestId("integrations-stat-connected")).toContainText(/^0/);
@@ -118,6 +118,12 @@ test("integrations page starts empty when API returns no tenant integrations", a
   await expect(page.getByTestId("integration-card-amocrm")).not.toBeVisible();
   await expect(page.getByTestId("pilot-readiness-panel").locator("code")).toHaveCount(0);
   await expect(page.getByTestId("integrations-planned")).not.toHaveAttribute("open", "");
+
+  const webhookCard = await page.getByTestId("integration-card-webhook").boundingBox();
+  const readinessPanel = await page.getByTestId("pilot-readiness-panel").boundingBox();
+  expect(webhookCard).not.toBeNull();
+  expect(readinessPanel).not.toBeNull();
+  expect(webhookCard!.y).toBeLessThan(readinessPanel!.y);
 });
 
 test("integration resource failures retry instead of appearing disconnected", async ({ page }) => {

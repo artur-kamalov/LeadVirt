@@ -844,12 +844,13 @@ test("email-code account gets passwordless security guidance without infrastruct
   await expect(page.getByRole("main").getByRole("button", { name: /API ключи/ })).toHaveCount(0);
   expect(apiKeyListRequests).toBe(0);
 
-  const settingsTabs = page.locator('nav[aria-label="Настройки"] button');
-  await expect(settingsTabs.first()).toBeVisible();
-  const smallestTarget = await settingsTabs.evaluateAll((buttons) =>
-    Math.min(...buttons.map((button) => button.getBoundingClientRect().height)),
-  );
-  expect(smallestTarget).toBeGreaterThanOrEqual(44);
+  const sectionSelector = page
+    .getByTestId("settings-mobile-section-selector")
+    .getByRole("combobox", { name: "Настройки" });
+  await expect(sectionSelector).toBeVisible();
+  await expect(sectionSelector).toContainText("Безопасность");
+  const sectionSelectorBox = await sectionSelector.boundingBox();
+  expect(sectionSelectorBox?.height).toBeGreaterThanOrEqual(44);
 });
 
 test("email-code session keeps password and authenticator controls for a password account", async ({

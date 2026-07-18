@@ -4281,34 +4281,31 @@ export function SettingsPage({
         title={title ?? t(initialTab === "billing" ? "settings.billingTitle" : "settings.title")}
       >
         <div className="flex flex-col lg:flex-row gap-6 items-start">
-          {/* ── Vertical tab nav (desktop) / Horizontal chips (mobile) ── */}
+          {/* ── Settings navigation ── */}
 
-          {/* Mobile horizontal scrollable chips */}
+          {/* Mobile section selector */}
           <nav
             aria-label={t("settings.title")}
-            className="scrollbar-none -mx-1 w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain px-1 pb-1 lg:hidden"
+            className="w-full lg:hidden"
+            data-testid="settings-mobile-section-selector"
           >
-            <div className="flex min-w-max gap-2">
-              {visibleTabs.map((tab) => {
+            <BrandSelect
+              ariaLabel={t("settings.title")}
+              value={activeTab}
+              onValueChange={(value) => setActiveTab(value as TabId)}
+              options={visibleTabs.map((tab) => {
                 const Icon = tab.icon;
-                const active = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={cn(
-                      "flex min-h-11 snap-start items-center gap-2 whitespace-nowrap rounded-2xl border px-4 py-2.5 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400",
-                      active
-                        ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300 shadow-[0_0_16px_rgba(52,211,153,0.1)]"
-                        : "bg-white/[0.03] border-white/5 text-zinc-400 hover:text-zinc-200 hover:bg-white/5",
-                    )}
-                  >
-                    <Icon className="w-4 h-4 shrink-0" />
-                    {t(tab.labelKey)}
-                  </button>
-                );
+                return {
+                  value: tab.id,
+                  label: (
+                    <span className="flex min-w-0 items-center gap-2">
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span className="truncate">{t(tab.labelKey)}</span>
+                    </span>
+                  ),
+                };
               })}
-            </div>
+            />
           </nav>
 
           {/* Desktop vertical nav */}

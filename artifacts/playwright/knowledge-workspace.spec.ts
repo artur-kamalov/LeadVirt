@@ -1333,6 +1333,13 @@ test("Knowledge workspace has no page overflow on mobile", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto(`${webBase}/app/knowledge?view=overview`, { waitUntil: "domcontentloaded" });
   await expect(page.getByTestId("knowledge-overview")).toBeVisible();
+  const metricColumns = await page
+    .getByTestId("knowledge-overview-metrics")
+    .evaluate(
+      (element) =>
+        window.getComputedStyle(element).gridTemplateColumns.split(" ").filter(Boolean).length,
+    );
+  expect(metricColumns).toBe(2);
   await expectNoHorizontalPageOverflow(page);
   await page.screenshot({
     path: "artifacts/screenshots/knowledge-overview-mobile.png",

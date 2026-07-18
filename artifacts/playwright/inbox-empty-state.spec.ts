@@ -37,6 +37,9 @@ test("inbox shows a real empty state when the API returns zero conversations", a
   await expect(page.getByText("No conversations yet")).toBeVisible();
   await expect(page.getByText("No conversation selected")).toBeVisible();
   await expect(page.getByText("Anna Sokolova")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Connect a channel" }).click();
+  await expect(page).toHaveURL(/\/app\/integrations$/u);
 });
 
 test("inbox shows a retryable load error before the true empty state", async ({ page }) => {

@@ -1877,15 +1877,6 @@ export function IntegrationsPage() {
           ))}
         </motion.div>
 
-        <PilotReadinessPanel
-          accounts={accounts}
-          channels={channels}
-          pendingId={pendingId}
-          canTest={permissions.canTestIntegrations}
-          onSendSample={(id) => void sendSample(id)}
-          onTestConnection={(id) => void testConnection(id)}
-        />
-
         {/* Category filter */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -1929,6 +1920,15 @@ export function IntegrationsPage() {
             />
           ))}
         </div>
+
+        <PilotReadinessPanel
+          accounts={accounts}
+          channels={channels}
+          pendingId={pendingId}
+          canTest={permissions.canTestIntegrations}
+          onSendSample={(id) => void sendSample(id)}
+          onTestConnection={(id) => void testConnection(id)}
+        />
 
         <details
           className="group/planned rounded-lg border border-white/10 bg-white/[0.02]"

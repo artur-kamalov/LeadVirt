@@ -47,6 +47,13 @@ test("interactive demo routes use local browser data only", async ({ page }) => 
     await expect(page.locator("main")).not.toBeEmpty({ timeout: 20_000 });
   }
 
+  await page.goto(`${webBase}/demo/settings?tab=security`, { waitUntil: "domcontentloaded" });
+  const twoFactorCard = page.getByTestId("settings-two-factor-card");
+  await expect(twoFactorCard).toContainText("Off");
+  await expect(twoFactorCard).toContainText("Inactive");
+  await expect(twoFactorCard).not.toContainText("Active");
+
+  await page.goto(`${webBase}/demo/settings`, { waitUntil: "domcontentloaded" });
   const businessProfileLink = page.getByTestId("settings-business-profile-link");
   await expect(businessProfileLink).toHaveAttribute("href", "/demo/knowledge?view=business");
   await businessProfileLink.click();
