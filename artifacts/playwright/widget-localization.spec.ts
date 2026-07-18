@@ -146,6 +146,12 @@ test("widget demo follows the browser locale across all supported languages", as
       locale.code,
     );
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(locale.demoTitle);
+    const widget = page.getByTestId("leadvirt-widget");
+    await expect(widget).toHaveAttribute("data-widget-locale", locale.code);
+    await page.getByRole("button", { name: locale.open }).click();
+    await expect(page.getByRole("button", { name: locale.close })).toBeVisible();
+    await expect(page.getByPlaceholder(locale.placeholder)).toBeVisible();
+    await expect(page.getByText(locale.secure, { exact: true })).toBeVisible();
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true);

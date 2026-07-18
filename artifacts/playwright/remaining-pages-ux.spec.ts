@@ -9,6 +9,32 @@ async function expectTouchTarget(locator: Locator) {
   expect(box!.height).toBeGreaterThanOrEqual(43.5);
 }
 
+test("demo analytics collapses the unsupported recommendations surface", async ({
+  context,
+  page,
+}) => {
+  await context.addCookies([
+    { name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" },
+  ]);
+
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 1440, height: 900 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.goto(`${webBase}/demo/analytics`, { waitUntil: "domcontentloaded" });
+
+    await expect(page.getByTestId("analytics-recommendations-section")).toHaveCount(0);
+    await expect(page.getByTestId("analytics-recommendations-empty")).toHaveCount(0);
+    await expect(page.getByText("AI recommendations", { exact: true })).toHaveCount(0);
+    await expect(page.getByTestId("analytics-best-channels-section")).toBeVisible();
+    await expect(page.getByTestId("analytics-channel-distribution-chart")).toBeVisible();
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
+  }
+});
+
 test("analytics mobile controls and charts expose truthful accessible evidence", async ({
   context,
   page,
@@ -18,10 +44,6 @@ test("analytics mobile controls and charts expose truthful accessible evidence",
   ]);
   await page.setViewportSize({ width: 320, height: 800 });
   await page.goto(`${webBase}/demo/analytics`, { waitUntil: "domcontentloaded" });
-
-  await expect(page.getByTestId("analytics-recommendations-empty")).toHaveText(
-    "No recommendations available for this period.",
-  );
   for (const name of ["7 days", "30 days", "Quarter", "Export"]) {
     await expectTouchTarget(page.getByRole("button", { name, exact: true }));
   }
@@ -46,9 +68,14 @@ test("analytics mobile controls and charts expose truthful accessible evidence",
     expect(box?.width).toBeGreaterThan(0);
     expect(box?.height).toBeGreaterThan(0);
   }
-  expect(
-    await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
-  ).toBe(true);
+  await expect(
+    page
+      .getByTestId("analytics-channel-distribution-chart")
+      .locator('[aria-hidden="true"] [tabindex]:not([tabindex="-1"])'),
+  ).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
 
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`${webBase}/demo/analytics`, { waitUntil: "domcontentloaded" });
@@ -91,9 +118,9 @@ test("pipeline cards, touch controls, mobile title, and desktop overflow cue rem
   const board = page.getByTestId("pipeline-kanban-scroll");
   await expect.poll(() => board.evaluate((node) => node.scrollWidth > node.clientWidth)).toBe(true);
   await expect(page.getByTestId("pipeline-scroll-cue")).toBeVisible();
-  expect(
-    await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
-  ).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
 });
 
 test("billing, settings, and automation expose clear mobile affordances", async ({
@@ -126,9 +153,9 @@ test("billing, settings, and automation expose clear mobile affordances", async 
   await page.goto(`${webBase}/demo/automations`, { waitUntil: "domcontentloaded" });
   const scenarioTabs = page.getByTestId("automation-scenario-tabs");
   await expect(scenarioTabs).toBeVisible({ timeout: 30_000 });
-  await expect.poll(() => scenarioTabs.evaluate((node) => node.scrollWidth > node.clientWidth)).toBe(
-    true,
-  );
+  await expect
+    .poll(() => scenarioTabs.evaluate((node) => node.scrollWidth > node.clientWidth))
+    .toBe(true);
   const next = page.getByTestId("automation-scenario-tabs-next");
   await expect(next).toBeVisible();
   await expectTouchTarget(next);
@@ -140,14 +167,16 @@ test("billing, settings, and automation expose clear mobile affordances", async 
   expect(await tabs.count()).toBeGreaterThanOrEqual(3);
   const lastTab = tabs.nth(2);
   await lastTab.click();
-  await expect.poll(async () => {
-    const tabBox = await lastTab.boundingBox();
-    const viewportBox = await scenarioTabs.boundingBox();
-    return Boolean(
-      tabBox &&
+  await expect
+    .poll(async () => {
+      const tabBox = await lastTab.boundingBox();
+      const viewportBox = await scenarioTabs.boundingBox();
+      return Boolean(
+        tabBox &&
         viewportBox &&
         tabBox.x >= viewportBox.x - 1 &&
         tabBox.x + tabBox.width <= viewportBox.x + viewportBox.width + 1,
-    );
-  }).toBe(true);
+      );
+    })
+    .toBe(true);
 });

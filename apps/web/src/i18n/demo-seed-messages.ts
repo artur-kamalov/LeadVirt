@@ -1,4 +1,4 @@
-import type { BusinessProfileData } from "@leadvirt/types";
+import type { BusinessProfileData, WidgetConfig } from "@leadvirt/types";
 import { supportedLocales, type Locale } from "./config";
 
 type DemoSeedTranslations = Record<Locale, string>;
@@ -50,6 +50,62 @@ const demoSeedTranslations: readonly DemoSeedTranslations[] = [
     "Studio Sommer",
     "Estúdio Verão",
     "Студия Лето",
+  ),
+  seed(
+    "AI receptionist is online",
+    "Recepcionista de IA disponible",
+    "Réceptionniste IA disponible",
+    "KI-Rezeption ist erreichbar",
+    "Atendente de IA disponível",
+    "AI-администратор на связи",
+  ),
+  seed(
+    "Hello! I can share prices, collect your preferred time, and pass your request to a manager.",
+    "¡Hola! Puedo informarte de los precios, anotar el horario que prefieres y enviar tu solicitud a un responsable.",
+    "Bonjour ! Je peux vous indiquer les tarifs, noter l’horaire qui vous convient et transmettre votre demande à un responsable.",
+    "Hallo! Ich nenne Ihnen die Preise, nehme Ihre Wunschzeit auf und leite Ihre Anfrage an einen Mitarbeiter weiter.",
+    "Olá! Posso informar os preços, anotar o horário de sua preferência e encaminhar sua solicitação a um responsável.",
+    "Здравствуйте! Подскажу цены, соберу удобное время и передам заявку менеджеру.",
+  ),
+  seed(
+    "I'd like to submit a request",
+    "Quiero enviar una solicitud",
+    "Je souhaite envoyer une demande",
+    "Ich möchte eine Anfrage senden",
+    "Quero enviar uma solicitação",
+    "Хочу оставить заявку",
+  ),
+  seed(
+    "How much does coloring cost?",
+    "¿Cuánto cuesta una coloración?",
+    "Combien coûte une coloration ?",
+    "Was kostet eine Haarfärbung?",
+    "Quanto custa uma coloração?",
+    "Сколько стоит окрашивание?",
+  ),
+  seed(
+    "Connect me with a manager",
+    "Quiero hablar con un responsable",
+    "Je souhaite parler à un responsable",
+    "Mit einem Mitarbeiter sprechen",
+    "Quero falar com um responsável",
+    "Позовите менеджера",
+  ),
+  seed(
+    "By sending this message, you agree to the processing of your request.",
+    "Al enviar este mensaje, aceptas el tratamiento de tu solicitud.",
+    "En envoyant ce message, vous acceptez le traitement de votre demande.",
+    "Mit dem Senden stimmen Sie der Verarbeitung Ihrer Anfrage zu.",
+    "Ao enviar esta mensagem, você concorda com o processamento da sua solicitação.",
+    "Нажимая отправить, вы соглашаетесь на обработку заявки.",
+  ),
+  seed(
+    "Thank you! I'll confirm the service and preferred time, then pass your request to a manager for confirmation.",
+    "¡Gracias! Confirmaré el servicio y el horario que prefieres, y luego enviaré tu solicitud a un responsable para que la confirme.",
+    "Merci ! Je vais confirmer la prestation et l’horaire souhaité, puis transmettre votre demande à un responsable pour confirmation.",
+    "Vielen Dank! Ich kläre die Leistung und Ihre Wunschzeit und leite die Anfrage dann zur Bestätigung an einen Mitarbeiter weiter.",
+    "Obrigado! Vou confirmar o serviço e o horário de sua preferência e encaminhar a solicitação a um responsável para confirmação.",
+    "Спасибо! Уточню услугу и удобное время, затем передам заявку менеджеру для подтверждения.",
   ),
   seed(
     "Beauty studio in the city center: coloring, haircuts, styling, and treatments.",
@@ -610,6 +666,21 @@ for (const translations of demoSeedTranslations) {
 
 export function localizeDemoSeedText(value: string, locale: Locale) {
   return demoSeedByText.get(value)?.[locale] ?? value;
+}
+
+export function localizeDemoWidgetConfig(config: WidgetConfig, locale: Locale): WidgetConfig {
+  const localized = (value: string) => localizeDemoSeedText(value, locale);
+  return {
+    ...config,
+    locale,
+    tenantName: localized(config.tenantName),
+    businessName: localized(config.businessName),
+    title: localized(config.title),
+    subtitle: localized(config.subtitle),
+    welcomeMessage: localized(config.welcomeMessage),
+    suggestedReplies: config.suggestedReplies.map(localized),
+    consentText: config.consentText ? localized(config.consentText) : undefined,
+  };
 }
 
 export function localizeDemoBusinessProfile(

@@ -76,6 +76,23 @@ test("public pricing uses the shared RUB catalog without wrapping the corporate 
   ).toBe(true);
 });
 
+test("public pricing CTAs stay touch-friendly on mobile and desktop", async ({ page }) => {
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.goto(`${webBase}/#pricing`, { waitUntil: "domcontentloaded" });
+
+    for (const plan of ["start", "pro", "business", "corporate"]) {
+      const cta = page.getByTestId(`pricing-cta-${plan}`);
+      await expect(cta).toBeVisible();
+      const box = await cta.boundingBox();
+      expect(box, `${plan} CTA at ${width}px`).not.toBeNull();
+      expect(Math.round(box!.height), `${plan} CTA height at ${width}px`).toBeGreaterThanOrEqual(
+        44,
+      );
+    }
+  }
+});
+
 test("landing describes the current pilot in all locales without mobile overflow", async ({
   context,
   page,
@@ -98,8 +115,7 @@ test("landing describes the current pilot in all locales without mobile overflow
       handoff: "Запрошена передача оператору",
       inbox: "Сохранено во входящих",
       currency: "Все цены и счета указаны в российских рублях (RUB).",
-      beauty:
-        "Ответы об услугах, ценах и графике с сохранением запросов на визит для команды.",
+      beauty: "Ответы об услугах, ценах и графике с сохранением запросов на визит для команды.",
     },
     es: {
       badge: "Piloto: Telegram y widget web",
@@ -451,7 +467,7 @@ test("mobile footer keeps the main next actions reachable", async ({ context, pa
     expect(box).not.toBeNull();
     expect(box!.height).toBeGreaterThanOrEqual(44);
   }
-  expect(
-    await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
-  ).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
 });

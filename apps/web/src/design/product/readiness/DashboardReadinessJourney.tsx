@@ -260,6 +260,10 @@ export function DashboardReadinessJourney({
             <div
               className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]"
               role="progressbar"
+              aria-label={t("dashboard.readiness.progress", {
+                completed: model.completedCount,
+                total: model.steps.length,
+              })}
               aria-valuemin={0}
               aria-valuemax={model.steps.length}
               aria-valuenow={model.completedCount}

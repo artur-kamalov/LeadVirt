@@ -494,14 +494,15 @@ export function InboxPage({ initialSearch = "" }: { initialSearch?: string }) {
             {/* Filter bar */}
             <div className="shrink-0 px-4 lg:px-6 pt-5 pb-3 space-y-3 border-b border-white/5 bg-zinc-950/95">
               {/* Search */}
-              <div className="flex min-h-11 items-center gap-2 rounded-xl border border-white/5 bg-white/5 pl-3 focus-within:border-emerald-500/30 focus-within:bg-emerald-500/5 transition-all">
+              <div className="flex h-11 items-center gap-2 rounded-xl border border-white/5 bg-white/5 pl-3 transition-all focus-within:border-emerald-500/30 focus-within:bg-emerald-500/5">
                 <Search className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
                 <input
                   aria-label={t("ops.inbox.searchLabel")}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder={t("ops.inbox.searchPlaceholder")}
-                  className="flex-1 bg-transparent text-sm outline-none placeholder:text-zinc-600 text-zinc-100"
+                  data-testid="inbox-search-input"
+                  className="h-full min-w-0 flex-1 bg-transparent text-sm text-zinc-100 outline-none placeholder:text-zinc-500"
                 />
                 {search && (
                   <button

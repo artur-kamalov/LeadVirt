@@ -105,7 +105,7 @@ import {
 import { useI18n } from "@/i18n/I18nProvider";
 import { localizeDemoSeedText } from "@/i18n/demo-seed-messages";
 import type { TranslationKey } from "@/i18n/messages";
-import { useCurrentUser, useProductPermissions } from "../CurrentUser";
+import { useOptionalCurrentUser, useProductPermissions } from "../CurrentUser";
 import { useProductMode } from "../ProductMode";
 import { ResourceErrorState } from "../ResourceErrorState";
 
@@ -408,9 +408,7 @@ const billingPlanCopy: Record<
   },
   CORPORATE: {
     tagline: "pricing.corporate.tagline",
-    features: [
-      "pricing.feature.customLimits",
-    ],
+    features: ["pricing.feature.customLimits"],
   },
 };
 
@@ -548,8 +546,8 @@ function ProfileTab() {
   const normalizedWebsite = website.trim() || null;
   const contactsDirty = Boolean(
     account &&
-      (normalizedPhone !== (account.phone?.trim() || null) ||
-        normalizedWebsite !== (account.website?.trim() || null)),
+    (normalizedPhone !== (account.phone?.trim() || null) ||
+      normalizedWebsite !== (account.website?.trim() || null)),
   );
 
   const handleSave = async () => {
@@ -639,210 +637,216 @@ function ProfileTab() {
           permissions.canManageAccount ? "settings-profile-editor" : "settings-profile-read-only"
         }
       >
-      <SectionHeader
-        title={t("settings.profile.title")}
-        description={t("settings.profile.description")}
-      />
+        <SectionHeader
+          title={t("settings.profile.title")}
+          description={t("settings.profile.description")}
+        />
 
-      <div
-        className="min-w-0 space-y-4 border-y border-white/10 py-5"
-        data-testid="settings-business-profile-summary"
-      >
-        <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex min-w-0 items-start gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10 text-emerald-400">
-              <Building2 className="h-4 w-4" />
+        <div
+          className="min-w-0 space-y-4 border-y border-white/10 py-5"
+          data-testid="settings-business-profile-summary"
+        >
+          <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10 text-emerald-400">
+                <Building2 className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-zinc-200">
+                  {t("businessProfile.settingsCta.title")}
+                </p>
+                <p className="mt-1 max-w-2xl text-xs text-zinc-500">
+                  {t("businessProfile.settingsCta.description")}
+                </p>
+              </div>
+            </div>
+            <Button asChild size="sm" variant="outline" className="min-h-11 shrink-0">
+              <Link
+                href={demo ? "/demo/knowledge?view=business" : "/app/knowledge?view=business"}
+                data-testid="settings-business-profile-link"
+              >
+                {t("businessProfile.settingsCta.action")}
+                <ExternalLink className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </div>
+
+          <dl className="grid min-w-0 gap-x-5 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="min-w-0">
+              <dt className="text-[11px] font-medium uppercase tracking-wider text-zinc-600">
+                {t("settings.profile.name")}
+              </dt>
+              <dd
+                className="mt-1 break-words text-sm font-medium text-zinc-200"
+                data-testid="settings-business-profile-name"
+              >
+                {businessName || "—"}
+              </dd>
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-medium text-zinc-200">
-                {t("businessProfile.settingsCta.title")}
-              </p>
-              <p className="mt-1 max-w-2xl text-xs text-zinc-500">
-                {t("businessProfile.settingsCta.description")}
-              </p>
+              <dt className="text-[11px] font-medium uppercase tracking-wider text-zinc-600">
+                {t("settings.profile.industry")}
+              </dt>
+              <dd
+                className="mt-1 break-words text-sm text-zinc-300"
+                data-testid="settings-business-profile-type"
+              >
+                {businessTypeLabel(account?.tenant.businessType, i18n)}
+              </dd>
             </div>
-          </div>
-          <Button asChild size="sm" variant="outline" className="shrink-0">
-            <Link
-              href={demo ? "/demo/knowledge?view=business" : "/app/knowledge?view=business"}
-              data-testid="settings-business-profile-link"
-            >
-              {t("businessProfile.settingsCta.action")}
-              <ExternalLink className="h-3.5 w-3.5" />
-            </Link>
-          </Button>
+            <div className="min-w-0">
+              <dt className="text-[11px] font-medium uppercase tracking-wider text-zinc-600">
+                {t("settings.profile.timezone")}
+              </dt>
+              <dd
+                className="mt-1 break-words text-sm text-zinc-300"
+                data-testid="settings-business-profile-timezone"
+              >
+                {account?.timezone || "—"}
+              </dd>
+            </div>
+            <div className="min-w-0 sm:col-span-2 lg:col-span-3">
+              <dt className="text-[11px] font-medium uppercase tracking-wider text-zinc-600">
+                {t("settings.profile.about")}
+              </dt>
+              <dd
+                className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-zinc-400"
+                data-testid="settings-business-profile-description"
+              >
+                {businessDescription || "—"}
+              </dd>
+            </div>
+          </dl>
         </div>
 
-        <dl className="grid min-w-0 gap-x-5 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="min-w-0">
-            <dt className="text-[11px] font-medium uppercase tracking-wider text-zinc-600">
-              {t("settings.profile.name")}
-            </dt>
-            <dd
-              className="mt-1 break-words text-sm font-medium text-zinc-200"
-              data-testid="settings-business-profile-name"
-            >
-              {businessName || "—"}
-            </dd>
-          </div>
-          <div className="min-w-0">
-            <dt className="text-[11px] font-medium uppercase tracking-wider text-zinc-600">
-              {t("settings.profile.industry")}
-            </dt>
-            <dd
-              className="mt-1 break-words text-sm text-zinc-300"
-              data-testid="settings-business-profile-type"
-            >
-              {businessTypeLabel(account?.tenant.businessType, i18n)}
-            </dd>
-          </div>
-          <div className="min-w-0">
-            <dt className="text-[11px] font-medium uppercase tracking-wider text-zinc-600">
-              {t("settings.profile.timezone")}
-            </dt>
-            <dd
-              className="mt-1 break-words text-sm text-zinc-300"
-              data-testid="settings-business-profile-timezone"
-            >
-              {account?.timezone || "—"}
-            </dd>
-          </div>
-          <div className="min-w-0 sm:col-span-2 lg:col-span-3">
-            <dt className="text-[11px] font-medium uppercase tracking-wider text-zinc-600">
-              {t("settings.profile.about")}
-            </dt>
-            <dd
-              className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-zinc-400"
-              data-testid="settings-business-profile-description"
-            >
-              {businessDescription || "—"}
-            </dd>
-          </div>
-        </dl>
-      </div>
-
-      <Card className="p-6">
-        <div className="flex items-center gap-5">
-          {logoDataUrl ? (
-            <img
-              src={logoDataUrl}
-              alt=""
-              data-testid="settings-logo-preview"
-              className="h-16 w-16 rounded-full border border-white/10 object-cover"
-            />
-          ) : (
-            <Avatar name={businessName ?? ""} size={64} />
-          )}
-          <div>
-            <p className="text-sm font-semibold text-zinc-200 mb-1">{t("settings.profile.logo")}</p>
-            <p className="text-xs text-zinc-500 mb-3">{t("settings.profile.logoHint")}</p>
-            <input
-              ref={logoInputRef}
-              type="file"
-              accept="image/png,image/jpeg"
-              className="hidden"
-              data-testid="settings-logo-input"
-              onChange={(event) => void handleLogoSelected(event)}
-            />
-            <div className="flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                data-testid="settings-logo-upload"
-                disabled={logoUploading || !account}
-                onClick={() => logoInputRef.current?.click()}
-              >
-                <Upload className="w-3.5 h-3.5 mr-1.5" />
-                {logoUploading ? t("settings.profile.uploading") : t("settings.profile.upload")}
-              </Button>
-              {logoDataUrl ? (
+        <Card className="p-6">
+          <div className="flex items-center gap-5">
+            {logoDataUrl ? (
+              <img
+                src={logoDataUrl}
+                alt=""
+                data-testid="settings-logo-preview"
+                className="h-16 w-16 rounded-full border border-white/10 object-cover"
+              />
+            ) : (
+              <Avatar name={businessName ?? ""} size={64} />
+            )}
+            <div>
+              <p className="text-sm font-semibold text-zinc-200 mb-1">
+                {t("settings.profile.logo")}
+              </p>
+              <p className="text-xs text-zinc-500 mb-3">{t("settings.profile.logoHint")}</p>
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/png,image/jpeg"
+                className="hidden"
+                data-testid="settings-logo-input"
+                onChange={(event) => void handleLogoSelected(event)}
+              />
+              <div className="flex flex-wrap gap-2">
                 <Button
                   size="sm"
-                  variant="ghost"
-                  data-testid="settings-logo-remove"
-                  disabled={logoUploading}
-                  onClick={() => void saveLogo(null)}
+                  variant="outline"
+                  className="min-h-11"
+                  data-testid="settings-logo-upload"
+                  disabled={logoUploading || !account}
+                  onClick={() => logoInputRef.current?.click()}
                 >
-                  {t("settings.common.delete")}
+                  <Upload className="w-3.5 h-3.5 mr-1.5" />
+                  {logoUploading ? t("settings.profile.uploading") : t("settings.profile.upload")}
                 </Button>
-              ) : null}
+                {logoDataUrl ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="min-h-11"
+                    data-testid="settings-logo-remove"
+                    disabled={logoUploading}
+                    onClick={() => void saveLogo(null)}
+                  >
+                    {t("settings.common.delete")}
+                  </Button>
+                ) : null}
+              </div>
             </div>
           </div>
-        </div>
-      </Card>
+        </Card>
 
-      <Card className="space-y-5 p-6">
-        <div>
-          <h3 className="text-sm font-semibold text-zinc-200">
-            {t("settings.profile.contactsTitle")}
-          </h3>
-          <p className="mt-1 text-xs text-zinc-500">{t("settings.profile.contactsDescription")}</p>
-        </div>
+        <Card className="space-y-5 p-6">
+          <div>
+            <h3 className="text-sm font-semibold text-zinc-200">
+              {t("settings.profile.contactsTitle")}
+            </h3>
+            <p className="mt-1 text-xs text-zinc-500">
+              {t("settings.profile.contactsDescription")}
+            </p>
+          </div>
 
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <Field label={t("settings.profile.email")} hint={t("settings.profile.emailHint")}>
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <Field label={t("settings.profile.email")} hint={t("settings.profile.emailHint")}>
+              <Input
+                data-testid="settings-account-email"
+                type="email"
+                value={account?.owner.email ?? ""}
+                readOnly
+                placeholder={t("settings.profile.emailPlaceholder")}
+              />
+            </Field>
+
+            <Field label={t("settings.profile.phone")}>
+              <Input
+                data-testid="settings-profile-phone"
+                type="tel"
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
+                placeholder={t("settings.profile.phonePlaceholder")}
+              />
+            </Field>
+          </div>
+
+          <Field label={t("settings.profile.website")}>
             <Input
-              data-testid="settings-account-email"
-              type="email"
-              value={account?.owner.email ?? ""}
-              readOnly
-              placeholder={t("settings.profile.emailPlaceholder")}
+              data-testid="settings-profile-website"
+              type="url"
+              value={website}
+              onChange={(event) => setWebsite(event.target.value)}
+              placeholder="https://"
             />
           </Field>
 
-          <Field label={t("settings.profile.phone")}>
-            <Input
-              data-testid="settings-profile-phone"
-              type="tel"
-              value={phone}
-              onChange={(event) => setPhone(event.target.value)}
-              placeholder={t("settings.profile.phonePlaceholder")}
-            />
-          </Field>
-        </div>
-
-        <Field label={t("settings.profile.website")}>
-          <Input
-            data-testid="settings-profile-website"
-            type="url"
-            value={website}
-            onChange={(event) => setWebsite(event.target.value)}
-            placeholder="https://"
-          />
-        </Field>
-
-        <div className="flex justify-end pt-2">
-          <Button
-            data-testid="settings-contact-save"
-            onClick={() => void handleSave()}
-            disabled={saving || !account || !contactsDirty}
-            className="gap-2"
-          >
-            <AnimatePresence mode="wait" initial={false}>
-              {saved ? (
-                <motion.span
-                  key="saved"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  className="flex items-center gap-2"
-                >
-                  <Check className="w-4 h-4" /> {t("settings.common.saved")}
-                </motion.span>
-              ) : (
-                <motion.span
-                  key="save"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                >
-                  {saving ? t("settings.common.saving") : t("settings.common.save")}
-                </motion.span>
-              )}
-            </AnimatePresence>
-          </Button>
-        </div>
-      </Card>
+          <div className="flex justify-end pt-2">
+            <Button
+              data-testid="settings-contact-save"
+              onClick={() => void handleSave()}
+              disabled={saving || !account || !contactsDirty}
+              className="min-h-11 gap-2"
+            >
+              <AnimatePresence mode="wait" initial={false}>
+                {saved ? (
+                  <motion.span
+                    key="saved"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    className="flex items-center gap-2"
+                  >
+                    <Check className="w-4 h-4" /> {t("settings.common.saved")}
+                  </motion.span>
+                ) : (
+                  <motion.span
+                    key="save"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                  >
+                    {saving ? t("settings.common.saving") : t("settings.common.save")}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </Button>
+          </div>
+        </Card>
       </fieldset>
     </>
   );
@@ -852,7 +856,7 @@ function TeamTab() {
   const i18n = useI18n();
   const { t } = i18n;
   const { team, setTeam } = useSettingsApi();
-  const currentUser = useCurrentUser();
+  const currentUser = useOptionalCurrentUser();
   const permissions = useProductPermissions();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
@@ -870,7 +874,7 @@ function TeamTab() {
     name: membership.user.name ?? membership.user.email,
     email: membership.user.email,
     userId: membership.user.id,
-    isSelf: membership.user.id === currentUser.id,
+    isSelf: membership.user.id === currentUser?.id,
     role: roleLabel(membership.role, i18n),
     roleCode: membership.role,
     roleColor: roleColor(membership.role),
@@ -889,7 +893,9 @@ function TeamTab() {
       return;
     }
     if (
-      team.some((membership) => membership.id === memberId && membership.user.id === currentUser.id)
+      team.some(
+        (membership) => membership.id === memberId && membership.user.id === currentUser?.id,
+      )
     ) {
       return;
     }
@@ -947,7 +953,7 @@ function TeamTab() {
     if (!deleteTarget || !team) return;
     if (
       team.some(
-        (membership) => membership.id === deleteTarget.id && membership.user.id === currentUser.id,
+        (membership) => membership.id === deleteTarget.id && membership.user.id === currentUser?.id,
       )
     ) {
       return;
@@ -1043,7 +1049,7 @@ function TeamTab() {
                   <button
                     aria-label={t("settings.team.manage", { name: member.name })}
                     disabled={savingMemberId !== null || savingInvite}
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 hover:text-zinc-200 hover:bg-white/5 transition-colors disabled:opacity-50"
+                    className="flex h-11 w-11 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-white/5 hover:text-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 disabled:opacity-50"
                   >
                     <MoreHorizontal className="w-4 h-4" />
                   </button>
@@ -1243,27 +1249,34 @@ function stringFromRecord(source: Record<string, unknown>, key: string, fallback
   return typeof value === "string" ? value : fallback;
 }
 
-function widgetFormFromChannel(channel: Channel | null): WidgetSettingsForm {
+function widgetFormFromChannel(
+  channel: Channel | null,
+  localize: (value: string) => string = (value) => value,
+): WidgetSettingsForm {
   const settings = asRecord(channel?.settings);
   const widget = isRecord(settings.widget) ? asRecord(settings.widget) : settings;
   const suggestedReplies = Array.isArray(widget.suggestedReplies)
-    ? widget.suggestedReplies.filter((item): item is string => typeof item === "string")
+    ? widget.suggestedReplies
+        .filter((item): item is string => typeof item === "string")
+        .map(localize)
     : defaultWidgetSettings.suggestedRepliesText.split("\n");
 
   return {
-    title: stringFromRecord(widget, "title", defaultWidgetSettings.title),
-    subtitle: stringFromRecord(widget, "subtitle", defaultWidgetSettings.subtitle),
-    businessName: stringFromRecord(widget, "businessName", defaultWidgetSettings.businessName),
-    welcomeMessage: stringFromRecord(
-      widget,
-      "welcomeMessage",
-      defaultWidgetSettings.welcomeMessage,
+    title: localize(stringFromRecord(widget, "title", defaultWidgetSettings.title)),
+    subtitle: localize(stringFromRecord(widget, "subtitle", defaultWidgetSettings.subtitle)),
+    businessName: localize(
+      stringFromRecord(widget, "businessName", defaultWidgetSettings.businessName),
+    ),
+    welcomeMessage: localize(
+      stringFromRecord(widget, "welcomeMessage", defaultWidgetSettings.welcomeMessage),
     ),
     primaryColor: stringFromRecord(widget, "primaryColor", defaultWidgetSettings.primaryColor),
     accentColor: stringFromRecord(widget, "accentColor", defaultWidgetSettings.accentColor),
     position: widget.position === "bottom-left" ? "bottom-left" : "bottom-right",
     suggestedRepliesText: suggestedReplies.join("\n"),
-    consentText: stringFromRecord(widget, "consentText", defaultWidgetSettings.consentText),
+    consentText: localize(
+      stringFromRecord(widget, "consentText", defaultWidgetSettings.consentText),
+    ),
     poweredBy: stringFromRecord(widget, "poweredBy", defaultWidgetSettings.poweredBy),
   };
 }
@@ -1344,6 +1357,7 @@ function channelStatusClass(status: ChannelStatus) {
 function ChannelsTab() {
   const i18n = useI18n();
   const { t } = i18n;
+  const { demo } = useProductMode();
   const permissions = useProductPermissions();
   const [apiChannels, setApiChannels] = useState<Channel[] | null>(null);
   const [channelsLoadState, setChannelsLoadState] = useState<"loading" | "success" | "error">(
@@ -1496,7 +1510,12 @@ function ChannelsTab() {
       return;
     }
     setSelectedWidgetChannel(channel);
-    setWidgetForm(widgetFormFromChannel(channel));
+    setWidgetForm(
+      widgetFormFromChannel(
+        channel,
+        demo ? (value) => localizeDemoSeedText(value, i18n.locale) : undefined,
+      ),
+    );
     setWidgetModalOpen(true);
   };
 
@@ -1834,6 +1853,10 @@ function ChannelsTab() {
           {channelEntries.map(([id, ch]) => {
             const channel = channelForDesignId(id);
             const channelLabel = ch.labelKey ? t(ch.labelKey) : ch.label;
+            const channelName =
+              demo && channel?.name
+                ? localizeDemoSeedText(channel.name, i18n.locale)
+                : (channel?.name ?? channelLabel);
             const Icon = ch.icon;
             const isProviderManaged = id === "telegram";
             const isSettingsManaged = id === "website" || id === "webhook";
@@ -1862,9 +1885,7 @@ function ChannelsTab() {
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-zinc-100">
-                      {channel?.name ?? channelLabel}
-                    </p>
+                    <p className="text-sm font-semibold text-zinc-100">{channelName}</p>
                     <p className="text-xs text-zinc-500">
                       {channel ? (
                         <span className={channelStatusClass(channel.status)}>
@@ -1886,11 +1907,12 @@ function ChannelsTab() {
 
                   {isProviderManaged ? (
                     <Link
-                      href="/app/integrations"
+                      href={demo ? "/demo/integrations" : "/app/integrations"}
                       aria-label={t("settings.channels.manageIntegrationNamed", {
-                        name: channelLabel,
+                        name: channelName,
                       })}
-                      className="mr-1 inline-flex min-h-8 shrink-0 items-center gap-1 text-xs text-zinc-400 transition-colors hover:text-emerald-400 sm:mr-2"
+                      data-testid={`settings-manage-integration-${id}`}
+                      className="mr-1 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1 rounded-md px-2 text-xs text-zinc-400 transition-colors hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 sm:mr-2"
                     >
                       <span className="sr-only sm:not-sr-only">
                         {t("settings.channels.manageIntegration")}
@@ -1919,7 +1941,7 @@ function ChannelsTab() {
                             void createWorkspaceChannel(id);
                           }
                         }}
-                        className="mr-1 inline-flex h-8 w-8 shrink-0 items-center justify-center text-zinc-400 transition-colors hover:text-emerald-400 disabled:cursor-not-allowed disabled:opacity-40 sm:mr-2 sm:h-auto sm:w-auto sm:gap-1 sm:text-xs"
+                        className="mr-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-zinc-400 transition-colors hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 disabled:cursor-not-allowed disabled:opacity-40 sm:mr-2 sm:w-auto sm:gap-1 sm:px-2 sm:text-xs"
                       >
                         <span className="sr-only sm:not-sr-only">
                           {t("settings.channels.configure")}
@@ -2749,16 +2771,24 @@ function BillingTab() {
     const generation = ++billingGeneration.current;
     setBillingLoading(true);
     try {
-      const [billingPlans, subscription, selection, usage, paymentMethod, invoices] = await Promise.all([
-        listBillingPlans(),
-        getCurrentSubscription(),
-        getBillingPlanSelection(),
-        getBillingUsage(),
-        getBillingPaymentMethod(),
-        listBillingInvoices(),
-      ]);
+      const [billingPlans, subscription, selection, usage, paymentMethod, invoices] =
+        await Promise.all([
+          listBillingPlans(),
+          getCurrentSubscription(),
+          getBillingPlanSelection(),
+          getBillingUsage(),
+          getBillingPaymentMethod(),
+          listBillingInvoices(),
+        ]);
       if (billingGeneration.current !== generation) return;
-      setBillingData({ plans: billingPlans, subscription, selection, usage, paymentMethod, invoices });
+      setBillingData({
+        plans: billingPlans,
+        subscription,
+        selection,
+        usage,
+        paymentMethod,
+        invoices,
+      });
       setBillingError(false);
     } catch {
       if (billingGeneration.current === generation) setBillingError(true);
@@ -2957,9 +2987,9 @@ function BillingTab() {
       ? t("settings.billing.requestSent")
       : !canRequestBillingContact
         ? t("settings.billing.choosePlanFirst")
-      : manualInvoice
-        ? t("settings.billing.requestChange")
-        : paymentMethod.nextActionLabel;
+        : manualInvoice
+          ? t("settings.billing.requestChange")
+          : paymentMethod.nextActionLabel;
   const paymentMethodStatusLabel = paymentMethodChangeRequested
     ? t("settings.billing.requestSent")
     : t("settings.billing.manual");
@@ -3051,7 +3081,7 @@ function BillingTab() {
             <div className="text-right">
               <p className="text-3xl font-bold text-zinc-50 tracking-tight">{currentPrice}</p>
               {activePlan ? (
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-zinc-400">
                   {activePlan.priceMonthlyRub === null
                     ? t("settings.billing.byAgreement")
                     : t("settings.billing.perMonth")}
@@ -3072,7 +3102,7 @@ function BillingTab() {
                     <span>{item.label}</span>
                     <span className="text-zinc-300 font-medium">
                       {formatNumber(item.used)}{" "}
-                      <span className="text-zinc-500">
+                      <span className="text-zinc-400">
                         /{" "}
                         {item.total !== null
                           ? formatNumber(item.total)
@@ -3132,7 +3162,10 @@ function BillingTab() {
       </div>
 
       {billingData?.selection ? (
-        <Card className="border-amber-500/25 bg-amber-500/5 p-5" data-testid="billing-plan-selection">
+        <Card
+          className="border-amber-500/25 bg-amber-500/5 p-5"
+          data-testid="billing-plan-selection"
+        >
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-2xl">
               <Pill className="mb-3 bg-amber-500/15 text-amber-200">
@@ -3163,7 +3196,7 @@ function BillingTab() {
             {displayPlans.length === 0 ? (
               <div className="md:col-span-2 flex flex-col items-center gap-3 py-8 text-center">
                 <p className="text-sm font-medium text-zinc-200">{t("settings.billing.noPlans")}</p>
-                <p className="max-w-md text-xs text-zinc-500">
+                <p className="max-w-md text-xs text-zinc-400">
                   {t("settings.billing.noPlansDescription")}
                 </p>
                 <div className="flex flex-wrap justify-center gap-2">
@@ -3207,11 +3240,11 @@ function BillingTab() {
                   )}
                   <div>
                     <p className="text-sm font-bold text-zinc-100">{plan.name}</p>
-                    <p className="text-xs text-zinc-500 mt-0.5">{plan.tagline}</p>
+                    <p className="text-xs text-zinc-400 mt-0.5">{plan.tagline}</p>
                   </div>
                   <div>
                     <span className="text-xl font-bold text-zinc-50">{plan.price}</span>
-                    <span className="text-xs text-zinc-500 ml-1">{plan.priceNote}</span>
+                    <span className="text-xs text-zinc-400 ml-1">{plan.priceNote}</span>
                   </div>
                   <ul className="space-y-1.5">
                     {plan.features.slice(0, 4).map((f) => (
@@ -3221,7 +3254,7 @@ function BillingTab() {
                       </li>
                     ))}
                     {plan.features.length > 4 && (
-                      <li className="text-xs text-zinc-600">
+                      <li className="text-xs text-zinc-400">
                         {t("settings.billing.more", { count: plan.features.length - 4 })}
                       </li>
                     )}
@@ -3241,11 +3274,11 @@ function BillingTab() {
                         ? t("settings.billing.current")
                         : selected
                           ? t("settings.billing.activationPending")
-                        : requested
-                          ? t("settings.billing.continueWithPlan")
-                        : planCode
-                          ? t("settings.billing.choose")
-                          : t("settings.common.unavailable")}
+                          : requested
+                            ? t("settings.billing.continueWithPlan")
+                            : planCode
+                              ? t("settings.billing.choose")
+                              : t("settings.common.unavailable")}
                   </Button>
                 </div>
               );
@@ -3286,7 +3319,7 @@ function BillingTab() {
                   {paymentMethodStatusLabel}
                 </Pill>
               </div>
-              <p className="text-xs text-zinc-500">{paymentMethodDescription}</p>
+              <p className="text-xs text-zinc-400">{paymentMethodDescription}</p>
             </div>
           </div>
           {permissions.canManageBilling ? (
@@ -3314,7 +3347,7 @@ function BillingTab() {
         </p>
         <div className="space-y-2">
           {invoices.length === 0 ? (
-            <p className="py-4 text-sm text-zinc-500">{t("settings.billing.noPayments")}</p>
+            <p className="py-4 text-sm text-zinc-400">{t("settings.billing.noPayments")}</p>
           ) : null}
           {invoices.map((inv) => (
             <div
@@ -3323,7 +3356,7 @@ function BillingTab() {
             >
               <div>
                 <p className="text-sm text-zinc-200 font-medium">{inv.date}</p>
-                <p className="text-xs text-zinc-500">{inv.plan}</p>
+                <p className="text-xs text-zinc-400">{inv.plan}</p>
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-sm font-semibold text-zinc-100">{inv.amount}</span>
@@ -3628,7 +3661,7 @@ function SecurityTab() {
             key={item.label}
             className="rounded-2xl border border-white/5 bg-white/[0.03] px-4 py-3"
           >
-            <p className="text-xs text-zinc-500">{item.label}</p>
+            <p className="text-xs text-zinc-400">{item.label}</p>
             <p className="mt-1 text-sm font-semibold text-zinc-100">{item.value}</p>
           </div>
         ))}
@@ -3642,72 +3675,74 @@ function SecurityTab() {
             security?.passwordChangeRequired && "border-amber-500/30 bg-amber-500/5",
           )}
         >
-        {security?.passwordChangeRequired && (
-          <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3">
-            <p className="text-sm font-semibold text-amber-200">
-              {t("settings.security.temporaryWarning")}
-            </p>
-            <p className="mt-1 text-xs text-amber-100/70">
-              {t("settings.security.temporaryWarningDesc")}
-            </p>
-          </div>
-        )}
-        <p className="text-sm font-bold text-zinc-200 tracking-tight">
-          {t("settings.security.changePassword")}
-        </p>
-        <Field label={t("settings.security.currentPassword")}>
-          <div className="relative">
-            <Input
-              type={showPass ? "text" : "password"}
-              placeholder="••••••••"
-              className="pr-10"
-              value={currentPassword}
-              onChange={(event) => setCurrentPassword(event.target.value)}
-              aria-label={t("settings.security.currentPassword")}
-            />
-            <Tip
-              content={
-                showPass ? t("settings.security.hidePassword") : t("settings.security.showPassword")
-              }
-            >
-              <button
-                type="button"
-                onClick={() => setShowPass(!showPass)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+          {security?.passwordChangeRequired && (
+            <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3">
+              <p className="text-sm font-semibold text-amber-200">
+                {t("settings.security.temporaryWarning")}
+              </p>
+              <p className="mt-1 text-xs text-amber-100/70">
+                {t("settings.security.temporaryWarningDesc")}
+              </p>
+            </div>
+          )}
+          <p className="text-sm font-bold text-zinc-200 tracking-tight">
+            {t("settings.security.changePassword")}
+          </p>
+          <Field label={t("settings.security.currentPassword")}>
+            <div className="relative">
+              <Input
+                type={showPass ? "text" : "password"}
+                placeholder="••••••••"
+                className="pr-10"
+                value={currentPassword}
+                onChange={(event) => setCurrentPassword(event.target.value)}
+                aria-label={t("settings.security.currentPassword")}
+              />
+              <Tip
+                content={
+                  showPass
+                    ? t("settings.security.hidePassword")
+                    : t("settings.security.showPassword")
+                }
               >
-                {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </Tip>
+                <button
+                  type="button"
+                  onClick={() => setShowPass(!showPass)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+                >
+                  {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </Tip>
+            </div>
+          </Field>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <Field label={t("settings.security.newPassword")}>
+              <Input
+                type="password"
+                placeholder="••••••••"
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                aria-label={t("settings.security.newPassword")}
+              />
+            </Field>
+            <Field label={t("settings.security.repeatPassword")}>
+              <Input
+                type="password"
+                placeholder="••••••••"
+                value={repeatPassword}
+                onChange={(event) => setRepeatPassword(event.target.value)}
+                aria-label={t("settings.security.repeatPassword")}
+              />
+            </Field>
           </div>
-        </Field>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-          <Field label={t("settings.security.newPassword")}>
-            <Input
-              type="password"
-              placeholder="••••••••"
-              value={newPassword}
-              onChange={(event) => setNewPassword(event.target.value)}
-              aria-label={t("settings.security.newPassword")}
-            />
-          </Field>
-          <Field label={t("settings.security.repeatPassword")}>
-            <Input
-              type="password"
-              placeholder="••••••••"
-              value={repeatPassword}
-              onChange={(event) => setRepeatPassword(event.target.value)}
-              aria-label={t("settings.security.repeatPassword")}
-            />
-          </Field>
-        </div>
-        <div className="flex justify-end">
-          <Button
-            onClick={() => void handlePasswordChange()}
-            disabled={passwordSaving || !currentPassword || !newPassword || !repeatPassword}
-          >
-            {t("settings.security.updatePassword")}
-          </Button>
-        </div>
+          <div className="flex justify-end">
+            <Button
+              onClick={() => void handlePasswordChange()}
+              disabled={passwordSaving || !currentPassword || !newPassword || !repeatPassword}
+            >
+              {t("settings.security.updatePassword")}
+            </Button>
+          </div>
         </Card>
       ) : (
         <Card className="p-5" data-testid="settings-passwordless-note">
@@ -3731,7 +3766,7 @@ function SecurityTab() {
             <p className="text-sm font-semibold text-zinc-100">
               {t("settings.security.twoFactor")}
             </p>
-            <p className="text-xs text-zinc-500 mt-0.5">{t("settings.security.twoFactorDesc")}</p>
+            <p className="text-xs text-zinc-400 mt-0.5">{t("settings.security.twoFactorDesc")}</p>
           </div>
           <Pill
             className={
@@ -3750,19 +3785,19 @@ function SecurityTab() {
 
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-2xl border border-white/5 bg-white/[0.03] px-4 py-3">
-            <p className="text-xs text-zinc-500">{t("settings.security.status")}</p>
+            <p className="text-xs text-zinc-400">{t("settings.security.status")}</p>
             <p className="mt-1 text-sm font-semibold text-zinc-100">
               {twoFactor.enabled ? t("settings.security.active") : t("settings.security.inactive")}
             </p>
           </div>
           <div className="rounded-2xl border border-white/5 bg-white/[0.03] px-4 py-3">
-            <p className="text-xs text-zinc-500">{t("settings.security.recoveryCodes")}</p>
+            <p className="text-xs text-zinc-400">{t("settings.security.recoveryCodes")}</p>
             <p className="mt-1 text-sm font-semibold text-zinc-100">
               {twoFactor.recoveryCodesRemaining}
             </p>
           </div>
           <div className="rounded-2xl border border-white/5 bg-white/[0.03] px-4 py-3">
-            <p className="text-xs text-zinc-500">{t("settings.security.confirmed")}</p>
+            <p className="text-xs text-zinc-400">{t("settings.security.confirmed")}</p>
             <p className="mt-1 text-sm font-semibold text-zinc-100">
               {twoFactor.confirmedAt
                 ? i18n.formatDate(twoFactor.confirmedAt, {
@@ -3959,7 +3994,7 @@ function SecurityTab() {
                       </Pill>
                     )}
                   </div>
-                  <p className="text-xs text-zinc-500">{presentation.time}</p>
+                  <p className="text-xs text-zinc-400">{presentation.time}</p>
                 </div>
                 {!s.current && (
                   <Tip content={t("settings.security.endSession")}>

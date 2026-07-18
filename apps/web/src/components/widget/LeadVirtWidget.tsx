@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import type { WidgetConfig, WidgetConversationMessage } from "@leadvirt/types";
 import type { Locale } from "@/i18n/config";
+import { localizeDemoSeedText, localizeDemoWidgetConfig } from "@/i18n/demo-seed-messages";
 import { useI18n } from "@/i18n/I18nProvider";
 import {
   normalizeWidgetLocale,
@@ -37,6 +38,7 @@ export interface LeadVirtWidgetProps {
   publicKey: string;
   defaultOpen?: boolean;
   embedded?: boolean;
+  demoLocale?: Locale;
 }
 
 function createSessionId(publicKey: string) {
@@ -92,7 +94,7 @@ function MessageBubble({
         <div
           className={cn(
             "mt-1 flex justify-end text-[10px]",
-            fromCustomer ? "text-zinc-900/60" : "text-zinc-500",
+            fromCustomer ? "text-zinc-900/60" : "text-zinc-400",
           )}
         >
           {message.pending ? (
@@ -137,6 +139,7 @@ export function LeadVirtWidget({
   publicKey,
   defaultOpen = false,
   embedded = false,
+  demoLocale,
 }: LeadVirtWidgetProps) {
   const { locale: browserLocale } = useI18n();
   const prefersReducedMotion = useReducedMotion();
@@ -149,7 +152,8 @@ export function LeadVirtWidget({
   const [sending, setSending] = useState(false);
   const [errorKey, setErrorKey] = useState<WidgetMessageKey | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
-  const widgetLocale = config ? normalizeWidgetLocale(config.locale) : browserLocale;
+  const widgetLocale =
+    demoLocale ?? (config ? normalizeWidgetLocale(config.locale) : browserLocale);
 
   useEffect(() => {
     let cancelled = false;
@@ -158,8 +162,11 @@ export function LeadVirtWidget({
     void getWidgetConfig(publicKey)
       .then((result) => {
         if (cancelled) return;
-        setConfig(result);
-        setMessages((current) => (current.length > 0 ? current : [welcomeMessage(result)]));
+        const nextConfig = demoLocale ? localizeDemoWidgetConfig(result, demoLocale) : result;
+        setConfig(nextConfig);
+        setMessages((current) =>
+          demoLocale || current.length === 0 ? [welcomeMessage(nextConfig)] : current,
+        );
       })
       .catch(() => {
         if (!cancelled) setErrorKey("widget.error.load");
@@ -170,7 +177,7 @@ export function LeadVirtWidget({
     return () => {
       cancelled = true;
     };
-  }, [publicKey]);
+  }, [demoLocale, publicKey]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -251,7 +258,15 @@ export function LeadVirtWidget({
         ...(referrer ? { referrer } : {}),
         ...(userAgent ? { userAgent } : {}),
       });
-      setMessages(response.messages);
+      setMessages(
+        demoLocale
+          ? response.messages.map((message) =>
+              message.senderType !== "CUSTOMER" && message.text
+                ? { ...message, text: localizeDemoSeedText(message.text, demoLocale) }
+                : message,
+            )
+          : response.messages,
+      );
     } catch {
       setErrorKey("widget.error.send");
       setMessages((current) =>
@@ -326,7 +341,7 @@ export function LeadVirtWidget({
                   type="button"
                   aria-label={widgetMessage(widgetLocale, "widget.chat.close")}
                   onClick={() => setOpen(false)}
-                  className="rounded-lg p-2 text-zinc-400 transition hover:bg-white/10 hover:text-zinc-50"
+                  className="flex h-11 w-11 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-white/10 hover:text-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -335,7 +350,7 @@ export function LeadVirtWidget({
 
             <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
               {loading ? (
-                <div className="flex h-full items-center justify-center text-sm text-zinc-500">
+                <div className="flex h-full items-center justify-center text-sm text-zinc-400">
                   <Loader2 className="mr-2 h-4 w-4 animate-spin text-emerald-300" />
                   {widgetMessage(widgetLocale, "widget.chat.loading")}
                 </div>
@@ -369,7 +384,7 @@ export function LeadVirtWidget({
                       type="button"
                       disabled={sending || loading}
                       onClick={() => void submitMessage(reply)}
-                      className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-zinc-300 transition hover:border-emerald-400/40 hover:text-emerald-100 disabled:opacity-50"
+                      className="min-h-11 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-zinc-300 transition hover:border-emerald-400/40 hover:text-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 disabled:opacity-50"
                     >
                       {reply}
                     </button>
@@ -384,7 +399,7 @@ export function LeadVirtWidget({
                   rows={1}
                   maxLength={4000}
                   placeholder={widgetMessage(widgetLocale, "widget.chat.placeholder")}
-                  className="max-h-28 min-h-11 flex-1 resize-none rounded-xl border border-white/10 bg-white/[0.04] px-3 py-3 text-sm leading-5 text-zinc-50 outline-none transition placeholder:text-zinc-600 focus:border-emerald-400/50"
+                  className="max-h-28 min-h-11 flex-1 resize-none rounded-xl border border-white/10 bg-white/[0.04] px-3 py-3 text-sm leading-5 text-zinc-50 outline-none transition placeholder:text-zinc-500 focus:border-emerald-400/50"
                   disabled={loading || !config}
                 />
                 <button
@@ -404,13 +419,13 @@ export function LeadVirtWidget({
               {config?.consentText ? (
                 <p
                   data-testid="widget-consent"
-                  className="mt-2 break-words text-[11px] leading-4 text-zinc-500"
+                  className="mt-2 break-words text-[11px] leading-4 text-zinc-400"
                 >
                   {config.consentText}
                 </p>
               ) : null}
 
-              <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-zinc-600">
+              <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-zinc-400">
                 <span className="flex items-center gap-1.5">
                   <CheckCircle2 className="h-3 w-3 text-emerald-400" />
                   {widgetMessage(widgetLocale, "widget.chat.secure")}

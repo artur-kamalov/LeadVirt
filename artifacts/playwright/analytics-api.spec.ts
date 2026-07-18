@@ -65,6 +65,11 @@ const emptyOverview = {
   },
 };
 
+async function expectNoRecommendationsSurface(page: Page) {
+  await expect(page.getByTestId("analytics-recommendations-section")).toHaveCount(0);
+  await expect(page.getByTestId("analytics-recommendations-empty")).toHaveCount(0);
+}
+
 test("analytics page keeps response time at zero for empty workspaces", async ({ page }) => {
   test.setTimeout(90_000);
   await page.route("**/api/analytics/overview*", async (route) => {
@@ -83,7 +88,7 @@ test("analytics page keeps response time at zero for empty workspaces", async ({
   await expect(page.getByTestId("analytics-channels-empty")).toBeVisible();
   await expect(page.getByTestId("analytics-scenarios-empty")).toBeVisible();
   await expect(page.getByTestId("analytics-best-channels-empty")).toBeVisible();
-  await expect(page.getByTestId("analytics-recommendations-empty")).toBeVisible();
+  await expectNoRecommendationsSurface(page);
   await page.screenshot({ path: "artifacts/playwright/analytics-empty-state.png", fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect
@@ -114,7 +119,7 @@ test("analytics page renders API overview data", async ({ page }) => {
   await expect.poll(() => requestedPeriods).toContain("30d");
   await expect(page.getByText("Playwright сценарий").first()).toBeVisible();
   await expect(page.getByText("Playwright insight from analytics API")).toHaveCount(0);
-  await expect(page.getByTestId("analytics-recommendations-empty")).toBeVisible();
+  await expectNoRecommendationsSurface(page);
   await expect(page.getByText(/987.*тыс.*₽/)).toBeVisible();
 
   await page.getByRole("button", { name: "7 дней" }).click();
@@ -135,7 +140,39 @@ test("analytics page renders API overview data", async ({ page }) => {
   expect(csv).toMatch(/987.*тыс.*₽/);
 });
 
-test("analytics API does not invent recommendations without measured evidence", async ({ page }) => {
+test("analytics shows the recommendations section only for measured insight codes", async ({
+  context,
+  page,
+}) => {
+  await context.addCookies([
+    { name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" },
+  ]);
+  await page.route("**/api/analytics/overview*", async (route) => {
+    await route.fulfill({
+      json: {
+        data: {
+          ...overview.data,
+          aiInsightCodes: ["CHANNEL_VALUE"],
+        },
+      },
+    });
+  });
+
+  await page.goto(`${webBase}/app/analytics`, { waitUntil: "domcontentloaded" });
+  await selectLocale(page, "en");
+
+  await expect(page.getByTestId("analytics-recommendations-section")).toBeVisible();
+  await expect(
+    page.getByText("Website widget and Telegram generated the most qualified leads this week.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(page.getByTestId("analytics-recommendations-empty")).toHaveCount(0);
+});
+
+test("analytics API does not invent recommendations without measured evidence", async ({
+  page,
+}) => {
   const response = await page.request.get(`${apiBase}/analytics/overview?period=30d`);
   expect(response.ok()).toBeTruthy();
   const payload = (await response.json()) as {
@@ -171,7 +208,7 @@ test("analytics blocks export on load failure and retries without fake KPIs", as
   await error.getByRole("button").click();
   await expect(error).toBeHidden();
   await expect(page.getByText("Playwright insight from analytics API")).toHaveCount(0);
-  await expect(page.getByTestId("analytics-recommendations-empty")).toBeVisible();
+  await expectNoRecommendationsSurface(page);
   expect(requests).toBeGreaterThanOrEqual(2);
 });
 
@@ -209,7 +246,7 @@ test("analytics keeps the last successful period truthful when a new period fail
 
   await page.goto(`${webBase}/app/analytics`);
   await expect(page.getByText("Playwright insight from analytics API")).toHaveCount(0);
-  await expect(page.getByTestId("analytics-recommendations-empty")).toBeVisible();
+  await expectNoRecommendationsSurface(page);
   await selectLocale(page, "en");
 
   await page.getByRole("button", { name: "7 days" }).click();
@@ -236,7 +273,7 @@ test("analytics keeps the last successful period truthful when a new period fail
   await page.getByTestId("analytics-refresh-error").getByRole("button").click();
   await expect(page.getByTestId("analytics-refresh-error")).toBeHidden();
   await expect(page.getByText("Recovered seven-day insight")).toHaveCount(0);
-  await expect(page.getByTestId("analytics-recommendations-empty")).toBeVisible();
+  await expectNoRecommendationsSurface(page);
   await expect(page.getByRole("button", { name: "7 days" })).toHaveAttribute(
     "aria-pressed",
     "true",

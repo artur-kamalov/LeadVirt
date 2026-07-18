@@ -48,7 +48,7 @@ export default function WidgetDemoPage() {
                 key={labelKey}
                 className="min-w-0 rounded-lg border border-white/10 bg-white/[0.035] p-4"
               >
-                <p className="text-xs text-zinc-500">{t(labelKey)}</p>
+                <p className="text-xs text-zinc-400">{t(labelKey)}</p>
                 <p className="mt-1 break-words text-sm font-semibold text-zinc-100">
                   {t(valueKey)}
                 </p>
@@ -63,7 +63,7 @@ export default function WidgetDemoPage() {
               <span className="h-3 w-3 rounded-full bg-rose-400" />
               <span className="h-3 w-3 rounded-full bg-amber-300" />
               <span className="h-3 w-3 rounded-full bg-emerald-300" />
-              <span className="ml-3 text-xs text-zinc-500">studio-leto.local</span>
+              <span className="ml-3 text-xs text-zinc-400">studio-leto.local</span>
             </div>
           </div>
           <div className="grid gap-6 p-6">
@@ -93,7 +93,7 @@ export default function WidgetDemoPage() {
           </div>
         </div>
       </section>
-      <LeadVirtWidget publicKey={publicKey} />
+      <LeadVirtWidget publicKey={publicKey} demoLocale={locale} />
     </main>
   );
 }

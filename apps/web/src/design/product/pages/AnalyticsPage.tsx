@@ -149,7 +149,7 @@ function EmptyAnalyticsSection({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-start pt-8 text-sm text-zinc-500 sm:justify-center sm:pt-0",
+        "flex flex-col items-center justify-start pt-8 text-sm text-zinc-400 sm:justify-center sm:pt-0",
         className,
       )}
       data-testid={testId}
@@ -384,7 +384,9 @@ const aiRecommendationStyles = [
 ];
 
 function aiRecommendationsFromOverview(overview: AnalyticsOverview, locale: Locale, sub = "") {
-  const insights = (overview.aiInsightCodes ?? []).map((code) => analyticsInsightLabel(code, locale));
+  const insights = (overview.aiInsightCodes ?? []).map((code) =>
+    analyticsInsightLabel(code, locale),
+  );
   if (insights.length === 0) return [];
 
   return insights.map((insight, index) => {
@@ -482,8 +484,8 @@ export function AnalyticsPage() {
     .map((item) => `${item.name}: ${formatNumber(item.value)}%`)
     .join("; ")}`;
   const responseChartLabel = `${t("suite.analytics.aiResponse")}. ${responseData
-    .map((item) =>
-      `${item.label}: ${t("suite.analytics.seconds", { count: formatNumber(item.sec) })}`,
+    .map(
+      (item) => `${item.label}: ${t("suite.analytics.seconds", { count: formatNumber(item.sec) })}`,
     )
     .join("; ")}`;
   const trendChartLabel = `${demo ? t("suite.analytics.leads") : t("suite.analytics.leadsBookings")}. ${leadsTrend
@@ -610,7 +612,7 @@ export function AnalyticsPage() {
                   >
                     {kpi.value}
                   </div>
-                  <div className="text-xs text-zinc-500 mt-1">{kpi.label}</div>
+                  <div className="text-xs text-zinc-400 mt-1">{kpi.label}</div>
                 </Card>
               </motion.div>
             );
@@ -638,33 +640,37 @@ export function AnalyticsPage() {
                       layout="vertical"
                       margin={{ left: 8, right: 12, top: 0, bottom: 0 }}
                     >
-                    <CartesianGrid key="grid" horizontal={false} stroke="rgba(255,255,255,0.04)" />
-                    <XAxis
-                      key="x"
-                      type="number"
-                      tick={{ fill: "#71717a", fontSize: 11 }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      key="y"
-                      type="category"
-                      dataKey="name"
-                      tick={{ fill: "#71717a", fontSize: 12 }}
-                      axisLine={false}
-                      tickLine={false}
-                      width={76}
-                    />
-                    <Tooltip
-                      content={<DarkTooltip />}
-                      cursor={{ fill: "rgba(255,255,255,0.03)" }}
-                    />
-                    <Bar
-                      dataKey="leads"
-                      name={t("suite.analytics.leads")}
-                      radius={[0, 6, 6, 0]}
-                      fill="#34d399"
-                    />
+                      <CartesianGrid
+                        key="grid"
+                        horizontal={false}
+                        stroke="rgba(255,255,255,0.04)"
+                      />
+                      <XAxis
+                        key="x"
+                        type="number"
+                        tick={{ fill: "#71717a", fontSize: 11 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        key="y"
+                        type="category"
+                        dataKey="name"
+                        tick={{ fill: "#71717a", fontSize: 12 }}
+                        axisLine={false}
+                        tickLine={false}
+                        width={76}
+                      />
+                      <Tooltip
+                        content={<DarkTooltip />}
+                        cursor={{ fill: "rgba(255,255,255,0.03)" }}
+                      />
+                      <Bar
+                        dataKey="leads"
+                        name={t("suite.analytics.leads")}
+                        radius={[0, 6, 6, 0]}
+                        fill="#34d399"
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 </AccessibleChart>
@@ -685,38 +691,44 @@ export function AnalyticsPage() {
               {scenarioData.length > 0 ? (
                 <AccessibleChart label={scenarioChartLabel} testId="analytics-scenario-chart">
                   <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={scenarioData} margin={{ left: 0, right: 12, top: 0, bottom: 40 }}>
-                    <CartesianGrid key="grid" vertical={false} stroke="rgba(255,255,255,0.04)" />
-                    <XAxis
-                      key="x"
-                      dataKey="name"
-                      tick={{ fill: "#71717a", fontSize: 10 }}
-                      axisLine={false}
-                      tickLine={false}
-                      angle={-22}
-                      textAnchor="end"
-                      interval={0}
-                    />
-                    <YAxis
-                      key="y"
-                      tick={{ fill: "#71717a", fontSize: 11 }}
-                      axisLine={false}
-                      tickLine={false}
-                      unit="%"
-                    />
-                    <Tooltip
-                      content={<DarkTooltip unit="%" />}
-                      cursor={{ fill: "rgba(255,255,255,0.03)" }}
-                    />
-                    <Bar
-                      dataKey="value"
-                      name={t("suite.analytics.conversion")}
-                      radius={[6, 6, 0, 0]}
+                    <BarChart
+                      data={scenarioData}
+                      margin={{ left: 0, right: 12, top: 0, bottom: 40 }}
                     >
-                      {scenarioData.map((_, i) => (
-                        <Cell key={i} fill={["#818cf8", "#22d3ee", "#a78bfa", "#f59e0b"][i % 4]} />
-                      ))}
-                    </Bar>
+                      <CartesianGrid key="grid" vertical={false} stroke="rgba(255,255,255,0.04)" />
+                      <XAxis
+                        key="x"
+                        dataKey="name"
+                        tick={{ fill: "#71717a", fontSize: 10 }}
+                        axisLine={false}
+                        tickLine={false}
+                        angle={-22}
+                        textAnchor="end"
+                        interval={0}
+                      />
+                      <YAxis
+                        key="y"
+                        tick={{ fill: "#71717a", fontSize: 11 }}
+                        axisLine={false}
+                        tickLine={false}
+                        unit="%"
+                      />
+                      <Tooltip
+                        content={<DarkTooltip unit="%" />}
+                        cursor={{ fill: "rgba(255,255,255,0.03)" }}
+                      />
+                      <Bar
+                        dataKey="value"
+                        name={t("suite.analytics.conversion")}
+                        radius={[6, 6, 0, 0]}
+                      >
+                        {scenarioData.map((_, i) => (
+                          <Cell
+                            key={i}
+                            fill={["#818cf8", "#22d3ee", "#a78bfa", "#f59e0b"][i % 4]}
+                          />
+                        ))}
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </AccessibleChart>
@@ -740,35 +752,35 @@ export function AnalyticsPage() {
               <AccessibleChart label={responseChartLabel} testId="analytics-response-chart-graphic">
                 <ResponsiveContainer width="100%" height={260}>
                   <BarChart data={responseData} margin={{ left: 0, right: 12, top: 4, bottom: 0 }}>
-                  <CartesianGrid key="grid" stroke="rgba(255,255,255,0.04)" />
-                  <XAxis
-                    key="x"
-                    dataKey="label"
-                    tick={{ fill: "#71717a", fontSize: 11 }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    key="y"
-                    tick={{ fill: "#71717a", fontSize: 11 }}
-                    axisLine={false}
-                    tickLine={false}
-                    unit={` ${t("suite.analytics.seconds", { count: "" }).trim()}`}
-                  />
-                  <Tooltip
-                    content={
-                      <DarkTooltip
-                        unit={` ${t("suite.analytics.seconds", { count: "" }).trim()}`}
-                      />
-                    }
-                    cursor={{ stroke: "rgba(255,255,255,0.08)" }}
-                  />
-                  <Bar
-                    dataKey="sec"
-                    name={t("suite.analytics.responseTime")}
-                    fill="#14b8a6"
-                    radius={[6, 6, 0, 0]}
-                  />
+                    <CartesianGrid key="grid" stroke="rgba(255,255,255,0.04)" />
+                    <XAxis
+                      key="x"
+                      dataKey="label"
+                      tick={{ fill: "#71717a", fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      key="y"
+                      tick={{ fill: "#71717a", fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
+                      unit={` ${t("suite.analytics.seconds", { count: "" }).trim()}`}
+                    />
+                    <Tooltip
+                      content={
+                        <DarkTooltip
+                          unit={` ${t("suite.analytics.seconds", { count: "" }).trim()}`}
+                        />
+                      }
+                      cursor={{ stroke: "rgba(255,255,255,0.08)" }}
+                    />
+                    <Bar
+                      dataKey="sec"
+                      name={t("suite.analytics.responseTime")}
+                      fill="#14b8a6"
+                      radius={[6, 6, 0, 0]}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </AccessibleChart>
@@ -790,58 +802,58 @@ export function AnalyticsPage() {
                 <AccessibleChart label={trendChartLabel} testId="analytics-trend-chart">
                   <ResponsiveContainer width="100%" height={260}>
                     <AreaChart data={leadsTrend} margin={{ left: 0, right: 12, top: 4, bottom: 0 }}>
-                    <defs key="defs-analytics-leads">
-                      <linearGradient id="gradLeads" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#34d399" stopOpacity={0.2} />
-                        <stop offset="95%" stopColor="#34d399" stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="gradBooked" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#818cf8" stopOpacity={0.2} />
-                        <stop offset="95%" stopColor="#818cf8" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid key="grid" stroke="rgba(255,255,255,0.04)" />
-                    <XAxis
-                      key="x"
-                      dataKey="day"
-                      tick={{ fill: "#71717a", fontSize: 11 }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      key="y"
-                      tick={{ fill: "#71717a", fontSize: 11 }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <Tooltip
-                      content={<DarkTooltip />}
-                      cursor={{ stroke: "rgba(255,255,255,0.08)" }}
-                    />
-                    <Area
-                      key="leads"
-                      type="monotone"
-                      dataKey="leads"
-                      name={t("suite.analytics.leads")}
-                      stroke="#34d399"
-                      strokeWidth={2}
-                      fill="url(#gradLeads)"
-                      dot={{ r: 3, fill: "#34d399", strokeWidth: 0 }}
-                      activeDot={{ r: 5 }}
-                    />
-                    {!demo ? (
+                      <defs key="defs-analytics-leads">
+                        <linearGradient id="gradLeads" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#34d399" stopOpacity={0.2} />
+                          <stop offset="95%" stopColor="#34d399" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="gradBooked" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#818cf8" stopOpacity={0.2} />
+                          <stop offset="95%" stopColor="#818cf8" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid key="grid" stroke="rgba(255,255,255,0.04)" />
+                      <XAxis
+                        key="x"
+                        dataKey="day"
+                        tick={{ fill: "#71717a", fontSize: 11 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        key="y"
+                        tick={{ fill: "#71717a", fontSize: 11 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <Tooltip
+                        content={<DarkTooltip />}
+                        cursor={{ stroke: "rgba(255,255,255,0.08)" }}
+                      />
                       <Area
-                        key="booked"
+                        key="leads"
                         type="monotone"
-                        dataKey="booked"
-                        name={t("suite.analytics.bookings")}
-                        stroke="#818cf8"
+                        dataKey="leads"
+                        name={t("suite.analytics.leads")}
+                        stroke="#34d399"
                         strokeWidth={2}
-                        fill="url(#gradBooked)"
-                        dot={{ r: 3, fill: "#818cf8", strokeWidth: 0 }}
+                        fill="url(#gradLeads)"
+                        dot={{ r: 3, fill: "#34d399", strokeWidth: 0 }}
                         activeDot={{ r: 5 }}
                       />
-                    ) : null}
+                      {!demo ? (
+                        <Area
+                          key="booked"
+                          type="monotone"
+                          dataKey="booked"
+                          name={t("suite.analytics.bookings")}
+                          stroke="#818cf8"
+                          strokeWidth={2}
+                          fill="url(#gradBooked)"
+                          dot={{ r: 3, fill: "#818cf8", strokeWidth: 0 }}
+                          activeDot={{ r: 5 }}
+                        />
+                      ) : null}
                     </AreaChart>
                   </ResponsiveContainer>
                 </AccessibleChart>
@@ -858,6 +870,7 @@ export function AnalyticsPage() {
 
         {/* Best channels */}
         <motion.div
+          data-testid="analytics-best-channels-section"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.35 }}
@@ -876,21 +889,22 @@ export function AnalyticsPage() {
                 >
                   <ResponsiveContainer width="100%" height={280} className="lg:max-w-xs">
                     <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={70}
-                      outerRadius={110}
-                      paddingAngle={3}
-                      dataKey="value"
-                      stroke="none"
-                    >
-                      {pieData.map((entry, i) => (
-                        <Cell key={i} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<DarkTooltip />} />
+                      <Pie
+                        rootTabIndex={-1}
+                        data={pieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={70}
+                        outerRadius={110}
+                        paddingAngle={3}
+                        dataKey="value"
+                        stroke="none"
+                      >
+                        {pieData.map((entry, i) => (
+                          <Cell key={i} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<DarkTooltip />} />
                     </PieChart>
                   </ResponsiveContainer>
                 </AccessibleChart>
@@ -913,7 +927,7 @@ export function AnalyticsPage() {
                           <div className="text-sm font-bold text-zinc-50">
                             {formatNumber(d.leads)}
                           </div>
-                          <div className="text-xs text-zinc-500">
+                          <div className="text-xs text-zinc-400">
                             {formatNumber(pct / 100, {
                               style: "percent",
                               maximumFractionDigits: 0,
@@ -931,56 +945,50 @@ export function AnalyticsPage() {
           </Card>
         </motion.div>
 
-        {/* ── AI Recommendations ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-        >
-          <Card className="p-6 border-emerald-500/10 bg-gradient-to-br from-emerald-500/5 via-zinc-900/50 to-zinc-900/50">
-            <SectionTitle
-              title={t("suite.analytics.recommendations")}
-              sub={t("suite.analytics.recommendationsSub")}
-            />
-            <div className="grid gap-3 sm:grid-cols-2">
-              {recommendations.length === 0 ? (
-                <EmptyAnalyticsSection
-                  testId="analytics-recommendations-empty"
-                  t={t}
-                  message={t("suite.analytics.noRecommendationsPeriod")}
-                  className="h-32 sm:col-span-2"
-                />
-              ) : null}
-              {recommendations.map((rec, i) => {
-                const Icon = rec.icon;
-                return (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.4, delay: 0.45 + i * 0.07 }}
-                    className="rounded-2xl bg-white/[0.03] border border-white/[0.06] p-4 flex gap-3 group hover:border-white/10 hover:bg-white/[0.05] transition-colors"
-                  >
-                    <div
-                      className={cn(
-                        "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5",
-                        rec.bg,
-                      )}
+        {recommendations.length > 0 ? (
+          <motion.div
+            data-testid="analytics-recommendations-section"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+          >
+            <Card className="p-6 border-emerald-500/10 bg-gradient-to-br from-emerald-500/5 via-zinc-900/50 to-zinc-900/50">
+              <SectionTitle
+                title={t("suite.analytics.recommendations")}
+                sub={t("suite.analytics.recommendationsSub")}
+              />
+              <div className="grid gap-3 sm:grid-cols-2">
+                {recommendations.map((rec, i) => {
+                  const Icon = rec.icon;
+                  return (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.4, delay: 0.45 + i * 0.07 }}
+                      className="rounded-2xl bg-white/[0.03] border border-white/[0.06] p-4 flex gap-3 group hover:border-white/10 hover:bg-white/[0.05] transition-colors"
                     >
-                      <Icon className={cn("w-4.5 h-[18px] w-[18px]", rec.color)} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-zinc-100 leading-snug">
-                        {rec.insight}
-                      </p>
-                      <p className="text-xs text-zinc-500 mt-1 leading-relaxed">{rec.sub}</p>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          </Card>
-        </motion.div>
+                      <div
+                        className={cn(
+                          "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5",
+                          rec.bg,
+                        )}
+                      >
+                        <Icon className={cn("w-4.5 h-[18px] w-[18px]", rec.color)} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-zinc-100 leading-snug">
+                          {rec.insight}
+                        </p>
+                        <p className="text-xs text-zinc-400 mt-1 leading-relaxed">{rec.sub}</p>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </Card>
+          </motion.div>
+        ) : null}
       </div>
     </ProductLayout>
   );

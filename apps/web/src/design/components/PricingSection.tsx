@@ -106,7 +106,7 @@ export function PricingSection() {
 
             <Button
               variant={plan.popular ? "primary" : "outline"}
-              className="w-full mb-8"
+              className="mb-8 min-h-11 w-full"
               asChild
             >
               {plan.id === "corporate" && corporateContactHref ? (

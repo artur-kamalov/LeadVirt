@@ -13,18 +13,21 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import { ProductLayout } from "../ProductLayout";
-import { Avatar, ChannelBadge, TempPill, stages, stageOrder, type StageId } from "../shared";
+import {
+  Avatar,
+  ChannelBadge,
+  StatusPill,
+  TempPill,
+  stages,
+  stageOrder,
+  type StageId,
+} from "../shared";
 import type { Lead } from "../types";
 import { useNav } from "../nav";
 import { cn } from "../../lib/utils";
 import { Dropdown, DropdownItem, DropdownSeparator, Skeleton, Tip } from "../ui";
 import { toast } from "sonner";
-import {
-  getLead,
-  getPipelineSummary,
-  updateLead,
-  type PipelineSummary,
-} from "@/lib/api/leads";
+import { getLead, getPipelineSummary, updateLead, type PipelineSummary } from "@/lib/api/leads";
 import { listInboxConversations } from "@/lib/api/inbox";
 import { leadFromApiLead, statusFromStage } from "../apiAdapters";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -157,7 +160,7 @@ const LeadCard = React.forwardRef<
             <Avatar name={lead.name} size={34} />
             <div className="min-w-0">
               <p className="text-sm font-semibold text-zinc-100 truncate">{lead.name}</p>
-              <p className="text-[11px] text-zinc-500 truncate mt-0.5">{lead.service}</p>
+              <p className="text-[11px] text-zinc-400 truncate mt-0.5">{lead.service}</p>
             </div>
           </div>
           <div className="pointer-events-auto flex items-center gap-1.5 shrink-0">
@@ -200,7 +203,7 @@ const LeadCard = React.forwardRef<
         <div className="pointer-events-none relative z-20 flex items-center gap-1.5 mb-3 flex-wrap">
           <ChannelBadge id={lead.channel} />
           {lead.manager !== "—" && (
-            <span className="text-[11px] text-zinc-500 bg-white/[0.04] rounded-full px-2 py-0.5 border border-white/[0.05]">
+            <span className="text-[11px] text-zinc-400 bg-white/[0.04] rounded-full px-2 py-0.5 border border-white/[0.05]">
               {lead.manager}
             </span>
           )}
@@ -212,7 +215,7 @@ const LeadCard = React.forwardRef<
             <span className="text-sm font-bold text-emerald-400 tracking-tight">
               {lead.value > 0 ? formatCurrency(lead.value, lead.currency) : "—"}
             </span>
-            <span className="text-[10px] text-zinc-600 truncate max-w-[120px]">{lead.source}</span>
+            <span className="text-[10px] text-zinc-400 truncate max-w-[120px]">{lead.source}</span>
           </div>
 
           {/* Advance stage button */}
@@ -338,9 +341,7 @@ function KanbanColumn({
       </div>
 
       {/* Value sub-line */}
-      {total !== "—" && (
-        <p className="text-[11px] text-zinc-500 font-medium px-1 mb-2">{total}</p>
-      )}
+      {total !== "—" && <p className="text-[11px] text-zinc-400 font-medium px-1 mb-2">{total}</p>}
 
       {/* Cards */}
       <div className="flex flex-col gap-2.5 flex-1">
@@ -354,7 +355,7 @@ function KanbanColumn({
               className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/[0.05] py-10 gap-2"
             >
               <Inbox className="w-5 h-5 text-zinc-700" />
-              <span className="text-xs text-zinc-700">{t("ops.pipeline.noLeads")}</span>
+              <span className="text-xs text-zinc-400">{t("ops.pipeline.noLeads")}</span>
             </motion.div>
           ) : (
             columnLeads.map((lead) => (
@@ -401,82 +402,197 @@ function ListView({
     "",
   ];
   return (
-    <div className="rounded-2xl border border-white/[0.06] bg-zinc-900/40 overflow-hidden">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-white/[0.06]">
-            {headings.map((h, index) => (
-              <th
-                key={`${h}:${index}`}
-                className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 whitespace-nowrap"
-              >
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          <AnimatePresence>
-            {leads.map((lead) => {
-              const stage = stages[lead.stage];
-              const canAdvance = nextManualStage(lead.stage) !== null;
-              return (
-                <motion.tr
-                  key={lead.id}
-                  layout
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  onClick={() => go("conversation", { id: lead.conversationId ?? lead.id })}
-                  className="border-b border-white/[0.04] hover:bg-white/[0.03] cursor-pointer transition-colors"
-                >
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2.5">
-                      <Avatar name={lead.name} size={28} />
-                      <div>
-                        <p className="font-medium text-zinc-100">{lead.name}</p>
-                        <p className="text-[11px] text-zinc-500">{lead.service}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={cn("text-xs font-medium", stage.color)}>
-                      {t(stage.labelKey)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <ChannelBadge id={lead.channel} />
-                  </td>
-                  <td className="px-4 py-3 font-bold text-emerald-400 whitespace-nowrap">
-                    {lead.value > 0 ? formatCurrency(lead.value, lead.currency) : "—"}
-                  </td>
-                  <td className="px-4 py-3 text-zinc-400 text-xs">{lead.manager}</td>
-                  <td className="px-4 py-3">
+    <>
+      <div className="grid gap-3 md:hidden" data-testid="pipeline-list-mobile">
+        {leads.map((lead) => {
+          const canAdvance = nextManualStage(lead.stage) !== null;
+          const conversationId = lead.conversationId ?? lead.id;
+          const openConversationLabel = `${t("ops.inbox.openConversation")}: ${lead.name}`;
+
+          return (
+            <motion.article
+              key={lead.id}
+              layout
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              aria-busy={pendingLeadIds.has(lead.id)}
+              data-testid={`pipeline-list-card-${lead.id}`}
+              className="relative rounded-2xl border border-white/[0.06] bg-zinc-900/60 p-4 transition-colors hover:border-white/[0.12] hover:bg-zinc-900/80"
+            >
+              <button
+                type="button"
+                aria-label={openConversationLabel}
+                data-testid={`pipeline-list-open-${lead.id}`}
+                onClick={() => go("conversation", { id: conversationId })}
+                className="absolute inset-0 z-10 cursor-pointer rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+              />
+
+              <div className="pointer-events-none relative z-20 flex min-w-0 items-start gap-3">
+                <Avatar name={lead.name} size={36} />
+                <div className="min-w-0 flex-1">
+                  <p className="break-words text-sm font-semibold text-zinc-100">{lead.name}</p>
+                  <p className="mt-0.5 break-words text-xs text-zinc-400">{lead.service}</p>
+                </div>
+              </div>
+
+              <dl className="pointer-events-none relative z-20 mt-4 grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-3 border-t border-white/[0.05] pt-4">
+                <div data-field="stage" className="min-w-0">
+                  <dt className="mb-1.5 text-[10px] font-semibold uppercase text-zinc-400">
+                    {t("ops.pipeline.stage")}
+                  </dt>
+                  <dd>
+                    <StatusPill stage={lead.stage} />
+                  </dd>
+                </div>
+                <div data-field="temperature" className="min-w-0 text-right">
+                  <dt className="mb-1.5 text-[10px] font-semibold uppercase text-zinc-400">
+                    {t("ops.pipeline.temperature")}
+                  </dt>
+                  <dd className="flex justify-end">
                     <TempPill t={lead.temp} />
-                  </td>
-                  <td className="px-4 py-3">
-                    {canAdvance && canManage && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onAdvance(lead.id);
-                        }}
-                        aria-label={t("ops.pipeline.advanceLead", { name: lead.name })}
-                        data-testid={`pipeline-advance-${lead.id}`}
-                        disabled={pendingLeadIds.has(lead.id)}
-                        className="flex items-center gap-1 rounded-lg bg-white/[0.05] hover:bg-emerald-500/15 border border-white/[0.06] hover:border-emerald-500/30 px-2 py-1 text-[11px] text-zinc-400 hover:text-emerald-400 transition-all disabled:cursor-wait disabled:opacity-40"
-                      >
-                        <ArrowRight className="w-3 h-3" />
-                      </button>
-                    )}
-                  </td>
-                </motion.tr>
-              );
-            })}
-          </AnimatePresence>
-        </tbody>
-      </table>
-    </div>
+                  </dd>
+                </div>
+                <div data-field="channel" className="min-w-0">
+                  <dt className="mb-1.5 text-[10px] font-semibold uppercase text-zinc-400">
+                    {t("ops.common.channel")}
+                  </dt>
+                  <dd>
+                    <ChannelBadge id={lead.channel} withLabel />
+                  </dd>
+                </div>
+                <div data-field="value" className="min-w-0 text-right">
+                  <dt className="mb-1.5 text-[10px] font-semibold uppercase text-zinc-400">
+                    {t("ops.common.value")}
+                  </dt>
+                  <dd className="break-words text-sm font-bold text-emerald-400">
+                    {lead.value > 0 ? formatCurrency(lead.value, lead.currency) : "\u2014"}
+                  </dd>
+                </div>
+                <div data-field="manager" className="col-span-2 min-w-0">
+                  <dt className="mb-1.5 text-[10px] font-semibold uppercase text-zinc-400">
+                    {t("ops.common.manager")}
+                  </dt>
+                  <dd className="break-words text-xs text-zinc-400">{lead.manager}</dd>
+                </div>
+              </dl>
+
+              <div className="pointer-events-none relative z-20 mt-4 flex min-h-11 items-center justify-between gap-3 border-t border-white/[0.05] pt-3">
+                <span className="flex items-center gap-1 text-xs font-medium text-emerald-400">
+                  {t("ops.inbox.openConversation")}
+                  <ChevronRight className="h-4 w-4" />
+                </span>
+                {canAdvance && canManage ? (
+                  <Tip content={t("ops.pipeline.advance")}>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onAdvance(lead.id);
+                      }}
+                      aria-label={t("ops.pipeline.advanceLead", { name: lead.name })}
+                      data-testid={`pipeline-advance-${lead.id}`}
+                      disabled={pendingLeadIds.has(lead.id)}
+                      className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.05] text-zinc-400 transition-all hover:border-emerald-500/30 hover:bg-emerald-500/15 hover:text-emerald-400 disabled:cursor-wait disabled:opacity-40"
+                    >
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
+                  </Tip>
+                ) : null}
+              </div>
+            </motion.article>
+          );
+        })}
+      </div>
+
+      <div
+        className="hidden overflow-hidden rounded-2xl border border-white/[0.06] bg-zinc-900/40 md:block"
+        data-testid="pipeline-list-table"
+      >
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-white/[0.06]">
+              {headings.map((h, index) => (
+                <th
+                  key={`${h}:${index}`}
+                  className="text-left px-4 py-3 text-xs font-semibold text-zinc-400 whitespace-nowrap"
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            <AnimatePresence>
+              {leads.map((lead) => {
+                const stage = stages[lead.stage];
+                const canAdvance = nextManualStage(lead.stage) !== null;
+                return (
+                  <motion.tr
+                    key={lead.id}
+                    layout
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => go("conversation", { id: lead.conversationId ?? lead.id })}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter" && event.key !== " ") return;
+                      event.preventDefault();
+                      go("conversation", { id: lead.conversationId ?? lead.id });
+                    }}
+                    aria-label={`${t("ops.inbox.openConversation")}: ${lead.name}`}
+                    data-testid={`pipeline-list-row-${lead.id}`}
+                    tabIndex={0}
+                    className="cursor-pointer border-b border-white/[0.04] transition-colors hover:bg-white/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-400/70"
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2.5">
+                        <Avatar name={lead.name} size={28} />
+                        <div>
+                          <p className="font-medium text-zinc-100">{lead.name}</p>
+                          <p className="text-[11px] text-zinc-400">{lead.service}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={cn("text-xs font-medium", stage.color)}>
+                        {t(stage.labelKey)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <ChannelBadge id={lead.channel} />
+                    </td>
+                    <td className="px-4 py-3 font-bold text-emerald-400 whitespace-nowrap">
+                      {lead.value > 0 ? formatCurrency(lead.value, lead.currency) : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-zinc-400 text-xs">{lead.manager}</td>
+                    <td className="px-4 py-3">
+                      <TempPill t={lead.temp} />
+                    </td>
+                    <td className="px-4 py-3">
+                      {canAdvance && canManage && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onAdvance(lead.id);
+                          }}
+                          aria-label={t("ops.pipeline.advanceLead", { name: lead.name })}
+                          data-testid={`pipeline-advance-${lead.id}`}
+                          disabled={pendingLeadIds.has(lead.id)}
+                          className="flex items-center gap-1 rounded-lg bg-white/[0.05] hover:bg-emerald-500/15 border border-white/[0.06] hover:border-emerald-500/30 px-2 py-1 text-[11px] text-zinc-400 hover:text-emerald-400 transition-all disabled:cursor-wait disabled:opacity-40"
+                        >
+                          <ArrowRight className="w-3 h-3" />
+                        </button>
+                      )}
+                    </td>
+                  </motion.tr>
+                );
+              })}
+            </AnimatePresence>
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
 
@@ -504,15 +620,15 @@ function StatChip({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        "flex items-center gap-3 rounded-2xl px-4 py-3 border border-white/[0.06] bg-zinc-900/70",
+        "flex min-w-0 items-center gap-3 rounded-2xl border border-white/[0.06] bg-zinc-900/70 px-3 py-3 sm:px-4",
       )}
     >
       <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center shrink-0", bg)}>
         <Icon className={cn("w-4 h-4", accent)} />
       </div>
-      <div>
-        <p className="text-xs text-zinc-500">{label}</p>
-        <p className="text-sm font-bold text-zinc-100 tracking-tight">{value}</p>
+      <div className="min-w-0 flex-1">
+        <p className="break-words text-xs leading-tight text-zinc-400">{label}</p>
+        <p className="mt-1 break-words text-sm font-bold tracking-tight text-zinc-100">{value}</p>
       </div>
     </motion.div>
   );
@@ -685,10 +801,7 @@ export function PipelinePage() {
     () => formatLeadAmounts(leads, formatCurrency),
     [formatCurrency, leads],
   );
-  const qualifiedLeads = useMemo(
-    () => leads.filter((lead) => lead.stage === "qualified"),
-    [leads],
-  );
+  const qualifiedLeads = useMemo(() => leads.filter((lead) => lead.stage === "qualified"), [leads]);
   const qualificationRate =
     totalLeads > 0 ? Math.round((qualifiedLeads.length / totalLeads) * 100) : 0;
   const averageQualifiedValue = useMemo(
@@ -763,7 +876,7 @@ export function PipelinePage() {
               <h1 className="text-2xl font-bold text-zinc-50 tracking-tight">
                 {t("ops.pipeline.heading")}
               </h1>
-              <p className="text-sm text-zinc-500 mt-0.5">
+              <p className="text-sm text-zinc-400 mt-0.5">
                 {t("ops.pipeline.count", { count: formatNumber(totalLeads) })} ·{" "}
                 {loadStatus === "loading"
                   ? t("ops.pipeline.loading")
@@ -781,7 +894,7 @@ export function PipelinePage() {
                   "flex min-h-11 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all",
                   view === "kanban"
                     ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/25"
-                    : "text-zinc-500 hover:text-zinc-300",
+                    : "text-zinc-400 hover:text-zinc-300",
                 )}
               >
                 <LayoutGrid className="w-3.5 h-3.5" />
@@ -793,7 +906,7 @@ export function PipelinePage() {
                   "flex min-h-11 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all",
                   view === "list"
                     ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/25"
-                    : "text-zinc-500 hover:text-zinc-300",
+                    : "text-zinc-400 hover:text-zinc-300",
                 )}
               >
                 <List className="w-3.5 h-3.5" />
@@ -898,7 +1011,7 @@ export function PipelinePage() {
           transition={{ delay: 0.35 }}
           className="rounded-2xl bg-zinc-900/40 border border-white/[0.06] p-4"
         >
-          <p className="text-xs font-semibold text-zinc-500 mb-3 uppercase tracking-wider">
+          <p className="text-xs font-semibold text-zinc-400 mb-3 uppercase tracking-wider">
             {t("ops.pipeline.distribution")}
           </p>
           <div className="flex gap-1.5 h-2 rounded-full overflow-hidden">
@@ -928,7 +1041,7 @@ export function PipelinePage() {
             {stageOrder.map((s) => (
               <div key={s} className="flex items-center gap-1.5">
                 <span className={cn("w-2 h-2 rounded-full shrink-0", stages[s].dot)} />
-                <span className="text-[11px] text-zinc-500">
+                <span className="text-[11px] text-zinc-400">
                   {t(stages[s].labelKey)}
                   <span className="ml-1 font-semibold text-zinc-300">
                     {formatNumber(byStage[s].length)}

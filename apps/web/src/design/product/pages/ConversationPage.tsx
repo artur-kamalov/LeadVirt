@@ -312,6 +312,7 @@ function MessageBubble({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: index * 0.04, ease: "easeOut" }}
+      data-testid={`conversation-message-${msg.id}`}
       className={cn(
         "flex gap-2.5 max-w-[85%] sm:max-w-[72%]",
         isClient ? "self-start" : "self-end flex-row-reverse",
@@ -692,10 +693,9 @@ export function ConversationPage() {
 
   useEffect(() => {
     const container = messagesScrollRef.current;
-    if (!container || (!demo && !shouldAutoScrollRef.current)) return;
+    if (!container || !shouldAutoScrollRef.current) return;
     container.scrollTop = container.scrollHeight;
-    shouldAutoScrollRef.current = false;
-  }, [demo, messages, demoTypingFrom]);
+  }, [messages, demoTypingFrom]);
 
   useEffect(() => {
     return () => {
@@ -1209,7 +1209,9 @@ export function ConversationPage() {
 
                 {/* Mobile toggle for lead info */}
                 <button
-                  className="lg:hidden flex flex-1 sm:flex-none items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-zinc-300"
+                  type="button"
+                  data-testid="conversation-lead-info-toggle"
+                  className="flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-zinc-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 sm:flex-none lg:hidden"
                   onClick={() => setShowLeadInfo((v) => !v)}
                 >
                   {t("ops.conversation.leadInfo")}
@@ -1224,8 +1226,10 @@ export function ConversationPage() {
                 <Dropdown
                   trigger={
                     <button
+                      type="button"
                       aria-label={t("ops.conversation.menuLabel")}
-                      className="w-8 h-8 flex items-center justify-center rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-zinc-200 transition-all"
+                      data-testid="conversation-actions-menu"
+                      className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-zinc-400 transition-all hover:bg-white/10 hover:text-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
                     >
                       <MoreVertical className="w-4 h-4" />
                     </button>
@@ -1288,7 +1292,8 @@ export function ConversationPage() {
                     <button
                       type="button"
                       onClick={() => revealDemoReplay("skipped")}
-                      className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-zinc-300 transition-colors hover:bg-white/10 hover:text-zinc-100"
+                      data-testid="conversation-demo-skip"
+                      className="min-h-11 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-zinc-300 transition-colors hover:bg-white/10 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
                     >
                       {t("ops.conversation.skip")}
                     </button>
@@ -1296,7 +1301,8 @@ export function ConversationPage() {
                   <button
                     type="button"
                     onClick={restartDemoReplay}
-                    className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-xs font-medium text-emerald-200 transition-colors hover:bg-emerald-400/15"
+                    data-testid="conversation-demo-replay"
+                    className="min-h-11 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-xs font-medium text-emerald-200 transition-colors hover:bg-emerald-400/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
                   >
                     {t("ops.conversation.replay")}
                   </button>
@@ -1331,7 +1337,10 @@ export function ConversationPage() {
             <div
               ref={messagesScrollRef}
               data-testid="conversation-messages-scroll"
-              className="flex-1 overflow-y-auto px-5 py-4"
+              onScroll={(event) => {
+                shouldAutoScrollRef.current = isNearConversationBottom(event.currentTarget);
+              }}
+              className="flex-1 overflow-y-auto px-5 pb-[calc(5rem+env(safe-area-inset-bottom))] pt-4 lg:pb-4"
             >
               <div className="flex flex-col gap-3">
                 {isLoadingConversation && (
@@ -1364,9 +1373,10 @@ export function ConversationPage() {
                     const quickReply = t(key);
                     return (
                       <button
+                        type="button"
                         key={key}
                         onClick={() => handleQuickReply(quickReply)}
-                        className="shrink-0 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 hover:border-emerald-500/30 transition-colors px-3 py-1.5 text-xs font-medium text-zinc-300"
+                        className="min-h-11 shrink-0 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-zinc-300 transition-colors hover:border-emerald-500/30 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
                       >
                         {quickReply}
                       </button>
@@ -1396,7 +1406,7 @@ export function ConversationPage() {
                           type="button"
                           aria-label={t("ops.conversation.removeFile")}
                           onClick={() => setPendingAttachments([])}
-                          className="ml-1 rounded-md px-1 text-emerald-200/70 transition-colors hover:bg-white/10 hover:text-white"
+                          className="ml-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-emerald-200/70 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
                         >
                           ×
                         </button>
@@ -1418,7 +1428,7 @@ export function ConversationPage() {
                     aria-label={t("ops.conversation.attachFile")}
                     data-testid="conversation-attach-file"
                     onClick={() => attachmentInputRef.current?.click()}
-                    className="mb-1 shrink-0 text-zinc-500 hover:text-zinc-300 transition-colors"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition-colors hover:bg-white/5 hover:text-zinc-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
                   >
                     <Paperclip className="w-4.5 h-4.5 w-[18px] h-[18px]" />
                   </button>
@@ -1426,6 +1436,8 @@ export function ConversationPage() {
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={handleKeyDown}
+                    aria-label={t("ops.conversation.placeholder")}
+                    data-testid="conversation-composer"
                     placeholder={t("ops.conversation.placeholder")}
                     rows={1}
                     className="flex-1 resize-none bg-transparent text-sm text-zinc-100 placeholder:text-zinc-600 outline-none leading-relaxed max-h-28 overflow-y-auto py-1"
@@ -1436,14 +1448,14 @@ export function ConversationPage() {
                       aria-label={t("ops.conversation.openEmoji")}
                       data-testid="conversation-emoji"
                       onClick={() => setEmojiOpen((open) => !open)}
-                      className="text-zinc-500 hover:text-zinc-300 transition-colors"
+                      className="flex h-11 w-11 items-center justify-center rounded-xl text-zinc-500 transition-colors hover:bg-white/5 hover:text-zinc-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
                     >
                       <Smile className="w-[18px] h-[18px]" />
                     </button>
                     {emojiOpen && (
                       <div
                         data-testid="conversation-emoji-panel"
-                        className="absolute bottom-10 right-0 z-50 grid w-36 grid-cols-4 gap-1 rounded-2xl border border-white/10 bg-zinc-950 p-2 shadow-2xl shadow-black/50"
+                        className="absolute bottom-12 right-0 z-50 grid w-[13rem] grid-cols-4 gap-1 rounded-2xl border border-white/10 bg-zinc-950 p-2 shadow-2xl shadow-black/50"
                       >
                         {emojiOptions.map((emoji, index) => (
                           <button
@@ -1452,7 +1464,7 @@ export function ConversationPage() {
                             data-testid={`conversation-emoji-option-${index}`}
                             aria-label={t("ops.conversation.addEmoji", { emoji })}
                             onClick={() => handleEmojiSelect(emoji)}
-                            className="flex h-8 w-8 items-center justify-center rounded-xl text-lg transition-colors hover:bg-white/10"
+                            className="flex h-11 w-11 items-center justify-center rounded-xl text-lg transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
                           >
                             {emoji}
                           </button>
@@ -1460,13 +1472,15 @@ export function ConversationPage() {
                       </div>
                     )}
                     <button
+                      type="button"
                       aria-label={t("ops.conversation.send")}
+                      data-testid="conversation-send"
                       onClick={() => void handleSend()}
                       disabled={
                         (!inputValue.trim() && pendingAttachments.length === 0) || isSending
                       }
                       className={cn(
-                        "w-8 h-8 rounded-xl flex items-center justify-center transition-all",
+                        "flex h-11 w-11 items-center justify-center rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60",
                         (inputValue.trim() || pendingAttachments.length > 0) && !isSending
                           ? "bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-[0_0_16px_rgba(52,211,153,0.4)]"
                           : "bg-white/5 text-zinc-600 cursor-not-allowed",
@@ -1503,7 +1517,7 @@ export function ConversationPage() {
           <div className="pointer-events-auto">
             <Button
               size="sm"
-              className="w-full justify-center gap-2"
+              className="min-h-11 w-full justify-center gap-2"
               disabled={Boolean(pendingLeadAction)}
               onClick={() => void handleLeadAction("qualified")}
             >

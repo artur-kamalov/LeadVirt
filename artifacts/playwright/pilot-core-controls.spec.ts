@@ -98,8 +98,10 @@ test("mobile navigation traps keyboard focus and restores the menu trigger", asy
   await page.keyboard.press("Shift+Tab");
   expect(await dialog.evaluate((node) => node.contains(document.activeElement))).toBe(true);
 
+  const closeStartedAt = Date.now();
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
+  expect(Date.now() - closeStartedAt).toBeLessThan(600);
   await expect(trigger).toHaveAttribute("aria-expanded", "false");
   await expect(trigger).toBeFocused();
 

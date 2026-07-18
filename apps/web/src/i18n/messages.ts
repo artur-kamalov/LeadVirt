@@ -217,6 +217,8 @@ const ru = {
   "auth.website": "На сайт",
   "auth.method.email": "Email",
   "auth.method.telegram": "Telegram",
+  "auth.telegram.signupExplanation":
+    "Telegram подтверждает вашу личность через бота авторизации LeadVirt. Бизнес-канал или бот вы подключите позже.",
   "auth.email.label": "Рабочий email",
   "auth.email.placeholder": "name@company.com",
   "auth.email.send": "Получить код",
@@ -642,6 +644,8 @@ const en: Record<BaseTranslationKey, string> = {
   "auth.website": "Back to site",
   "auth.method.email": "Email",
   "auth.method.telegram": "Telegram",
+  "auth.telegram.signupExplanation":
+    "Telegram verifies your identity through the LeadVirt authentication bot. You connect your business channel or bot later.",
   "auth.email.label": "Work email",
   "auth.email.placeholder": "name@company.com",
   "auth.email.send": "Send sign-in code",

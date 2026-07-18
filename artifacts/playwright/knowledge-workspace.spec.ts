@@ -13,6 +13,8 @@ import type {
   KnowledgeV2ScopeInput,
   KnowledgeV2SettingsView,
 } from "@leadvirt/types";
+import type { Locale } from "../../apps/web/src/i18n/config";
+import { messages } from "../../apps/web/src/i18n/messages";
 import { loginAsCleanUser } from "./helpers/auth";
 
 const webBase = process.env.LEADVIRT_WEB_BASE ?? "http://localhost:3001";
@@ -859,6 +861,17 @@ async function expectNoHorizontalPageOverflow(page: Page) {
     .toBeLessThanOrEqual(1);
 }
 
+async function selectMobileKnowledgeView(page: Page, label: string) {
+  await page.getByTestId("knowledge-mobile-view-selector").click();
+  const options = page.getByRole("option");
+  const optionHeights = await options.evaluateAll((items) =>
+    items.map((item) => item.getBoundingClientRect().height),
+  );
+  expect(optionHeights.length).toBeGreaterThan(0);
+  expect(Math.min(...optionHeights)).toBeGreaterThanOrEqual(44);
+  await page.getByRole("option", { name: label, exact: true }).click();
+}
+
 async function expectNoRawKnowledgeKeys(page: Page) {
   await expect.poll(() => page.locator("body").innerText()).not.toMatch(/knowledge\.[a-z]/i);
 }
@@ -960,7 +973,9 @@ test("Knowledge default audience preserves hidden scope and is read-only without
   const state = await installKnowledgeMocks(page);
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto(`${webBase}/app/knowledge`, { waitUntil: "domcontentloaded" });
-  await page.getByTestId("knowledge-tab-business").click();
+  await expect(page.getByTestId("knowledge-mobile-view-selector")).toContainText(
+    "Business information",
+  );
   await openAdvancedBusinessSettings(page);
 
   const settingsPanel = page.getByTestId("knowledge-language-settings");
@@ -1310,7 +1325,7 @@ test("failed publication context survives remount and retries from a mobile layo
 
   await page.getByTestId("knowledge-tab-overview").click();
   await page.setViewportSize({ width: 375, height: 812 });
-  await page.getByTestId("knowledge-tab-history").click();
+  await selectMobileKnowledgeView(page, "History");
   await expect(operation).toContainText("Knowledge processing did not complete.");
   await expect(operation.getByRole("button", { name: "Try again" })).toBeVisible();
   await expectNoHorizontalPageOverflow(page);
@@ -1326,32 +1341,62 @@ test("failed publication context survives remount and retries from a mobile layo
   await expect.poll(() => state.validationBodies.length).toBeGreaterThan(validationsBeforeRetry);
 });
 
-test("Knowledge workspace has no page overflow on mobile", async ({ page }) => {
+test("mobile Knowledge navigation keeps direct links, history, and localized views visible", async ({
+  page,
+}) => {
   test.setTimeout(60_000);
   await authenticate(page);
   await installKnowledgeMocks(page);
-  await page.setViewportSize({ width: 375, height: 812 });
-  await page.goto(`${webBase}/app/knowledge?view=overview`, { waitUntil: "domcontentloaded" });
-  await expect(page.getByTestId("knowledge-overview")).toBeVisible();
-  const metricColumns = await page
-    .getByTestId("knowledge-overview-metrics")
-    .evaluate(
-      (element) =>
-        window.getComputedStyle(element).gridTemplateColumns.split(" ").filter(Boolean).length,
-    );
-  expect(metricColumns).toBe(2);
-  await expectNoHorizontalPageOverflow(page);
-  await page.screenshot({
-    path: "artifacts/screenshots/knowledge-overview-mobile.png",
-    fullPage: true,
-    animations: "disabled",
-  });
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.goto(`${webBase}/app/knowledge?view=history`, { waitUntil: "domcontentloaded" });
 
-  await page.getByTestId("knowledge-tab-history").click();
+  const selector = page.getByTestId("knowledge-mobile-view-selector");
+  await expect(selector).toBeVisible();
+  await expect(selector).toContainText("History");
+  await expect(page.getByTestId("knowledge-tab-history")).toBeHidden();
   await expect(page.getByTestId("knowledge-publication-history")).toBeVisible();
+  const selectorBox = await selector.boundingBox();
+  expect(selectorBox?.height).toBeGreaterThanOrEqual(44);
+  await expectNoHorizontalPageOverflow(page);
+
+  await selectMobileKnowledgeView(page, "Sources");
+  await expect(page).toHaveURL(/\/app\/knowledge\?view=sources$/);
+  await expect(selector).toContainText("Sources");
+  await expect(page.getByRole("heading", { name: "Sources", exact: true })).toBeVisible();
+  await page.goBack({ waitUntil: "domcontentloaded" });
+  await expect(page).toHaveURL(/\/app\/knowledge\?view=history$/);
+  await expect(selector).toContainText("History");
+  await expect(page.getByTestId("knowledge-publication-history")).toBeVisible();
+  await page.goForward({ waitUntil: "domcontentloaded" });
+  await expect(page).toHaveURL(/\/app\/knowledge\?view=sources$/);
+  await expect(selector).toContainText("Sources");
+
+  const localizedSources = ["ru", "de", "fr"] as const satisfies readonly Locale[];
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const locale of localizedSources) {
+    const localeResponse = await page.request.patch(`${apiBase}/settings/preferences/locale`, {
+      data: { locale },
+    });
+    expect(localeResponse.ok()).toBeTruthy();
+    await page
+      .context()
+      .addCookies([{ name: "leadvirt-locale", value: locale, url: webBase, sameSite: "Lax" }]);
+    await page.goto(`${webBase}/app/knowledge?view=sources`, {
+      waitUntil: "domcontentloaded",
+    });
+    await expect(selector).toContainText(messages[locale]["knowledge.page.tab.sources"]);
+    await expect(
+      page.getByRole("heading", {
+        name: messages[locale]["knowledge.sources.title"],
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expectNoHorizontalPageOverflow(page);
+  }
+
   await expectNoHorizontalPageOverflow(page);
   await page.screenshot({
-    path: "artifacts/screenshots/knowledge-history-mobile.png",
+    path: "artifacts/screenshots/knowledge-sources-mobile-selector.png",
     fullPage: true,
     animations: "disabled",
   });

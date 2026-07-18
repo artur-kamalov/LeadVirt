@@ -408,7 +408,7 @@ export function DashboardPage() {
                 {t("auth.toast.welcome")}
               </h2>
             )}
-            <p className="text-sm text-zinc-500 mt-1 capitalize">
+            <p className="text-sm text-zinc-400 mt-1 capitalize">
               {formatDate(new Date(), {
                 weekday: "long",
                 day: "numeric",
@@ -419,19 +419,37 @@ export function DashboardPage() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <Button asChild variant="secondary" size="sm" data-testid="dashboard-open-inbox">
+            <Button
+              asChild
+              variant="secondary"
+              size="sm"
+              className="min-h-11"
+              data-testid="dashboard-open-inbox"
+            >
               <Link href={hrefForRoute("inbox", {}, mode)}>
                 <Inbox className="w-4 h-4 mr-1.5" />
                 {t("dashboard.action.openInbox")}
               </Link>
             </Button>
-            <Button asChild variant="outline" size="sm" data-testid="dashboard-scenarios">
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="min-h-11"
+              data-testid="dashboard-scenarios"
+            >
               <Link href={hrefForRoute("automation", {}, mode)}>
                 <Sparkles className="w-4 h-4 mr-1.5" />
                 {t("dashboard.action.scenarios")}
               </Link>
             </Button>
-            <Button asChild variant="outline" size="sm" data-testid="dashboard-analytics">
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="min-h-11"
+              data-testid="dashboard-analytics"
+            >
               <Link href={hrefForRoute("analytics", {}, mode)}>
                 <Zap className="w-4 h-4 mr-1.5" />
                 {t("dashboard.action.analytics")}
@@ -562,7 +580,7 @@ export function DashboardPage() {
                 </div>
               ) : (
                 <div
-                  className="flex h-32 items-center justify-center text-sm text-zinc-500 sm:h-56"
+                  className="flex h-32 items-center justify-center text-sm text-zinc-400 sm:h-56"
                   data-testid="dashboard-trend-empty"
                 >
                   {t("dashboard.recent.empty")}
@@ -572,12 +590,12 @@ export function DashboardPage() {
                 <div className="flex items-center gap-5 mt-4">
                   <div className="flex items-center gap-2">
                     <span className="w-3 h-0.5 bg-emerald-400 rounded-full" />
-                    <span className="text-xs text-zinc-500">{t("dashboard.chart.leads")}</span>
+                    <span className="text-xs text-zinc-400">{t("dashboard.chart.leads")}</span>
                   </div>
                   {!isDemo ? (
                     <div className="flex items-center gap-2">
                       <span className="w-3 h-0.5 bg-indigo-400 rounded-full" />
-                      <span className="text-xs text-zinc-500">{t("dashboard.chart.bookings")}</span>
+                      <span className="text-xs text-zinc-400">{t("dashboard.chart.bookings")}</span>
                     </div>
                   ) : null}
                 </div>
@@ -602,7 +620,7 @@ export function DashboardPage() {
                     <p className="text-sm font-medium text-zinc-300">
                       {t("dashboard.channels.empty")}
                     </p>
-                    <p className="mt-1 text-xs text-zinc-500">
+                    <p className="mt-1 text-xs text-zinc-400">
                       {t("dashboard.channels.emptyDetail")}
                     </p>
                   </div>
@@ -665,7 +683,7 @@ export function DashboardPage() {
                     <p className="text-sm font-medium text-zinc-300">
                       {t("dashboard.recent.empty")}
                     </p>
-                    <p className="mt-1 text-xs text-zinc-500">
+                    <p className="mt-1 text-xs text-zinc-400">
                       {t("dashboard.recent.emptyDetail")}
                     </p>
                   </div>
@@ -702,7 +720,7 @@ export function DashboardPage() {
                           <span className="inline-flex shrink-0 sm:hidden">
                             <ChannelBadge id={channelIdFromType(lead.channelType)} />
                           </span>
-                          <span className="block min-w-0 truncate text-xs text-zinc-500">
+                          <span className="block min-w-0 truncate text-xs text-zinc-400">
                             {leadService(lead, locale, t)}
                           </span>
                         </div>
@@ -711,7 +729,7 @@ export function DashboardPage() {
                           <span className="text-xs font-semibold text-emerald-400">
                             {formatCurrency(lead.valueAmount ?? 0, lead.currency)}
                           </span>
-                          <span className="text-[10px] text-zinc-600">
+                          <span className="text-[10px] text-zinc-400">
                             {leadTime(lead, locale)}
                           </span>
                         </div>
@@ -722,7 +740,7 @@ export function DashboardPage() {
                           <span className="text-xs font-semibold text-emerald-400">
                             {formatCurrency(lead.valueAmount ?? 0, lead.currency)}
                           </span>
-                          <span className="text-[10px] text-zinc-600">
+                          <span className="text-[10px] text-zinc-400">
                             {leadTime(lead, locale)}
                           </span>
                         </div>
@@ -757,7 +775,7 @@ export function DashboardPage() {
                       <p className="text-sm font-medium text-zinc-300">
                         {t("dashboard.activity.empty")}
                       </p>
-                      <p className="mt-1 text-xs text-zinc-500">
+                      <p className="mt-1 text-xs text-zinc-400">
                         {t("dashboard.activity.emptyDetail")}
                       </p>
                     </div>
@@ -783,7 +801,7 @@ export function DashboardPage() {
                         </div>
                         <div className="flex-1 min-w-0 pt-1">
                           <p className="text-sm text-zinc-300 leading-snug">{item.text}</p>
-                          <p className="text-xs text-zinc-600 mt-0.5">{item.time}</p>
+                          <p className="text-xs text-zinc-400 mt-0.5">{item.time}</p>
                         </div>
                       </motion.div>
                     );

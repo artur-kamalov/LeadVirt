@@ -621,26 +621,21 @@ function stringSetting(settings: Record<string, unknown>, key: string, fallback 
 
 function hasSentConnectionRequest(account?: IntegrationAccount | null) {
   const settings = asRecord(account?.settings);
-  return (
-    settings.requestStatus === "REQUESTED" &&
-    settings.requestDeliveryStatus === "SENT"
-  );
+  return settings.requestStatus === "REQUESTED" && settings.requestDeliveryStatus === "SENT";
 }
 
 function hasPendingConnectionRequest(account?: IntegrationAccount | null) {
   const settings = asRecord(account?.settings);
   return (
     settings.requestStatus === "REQUESTED" &&
-    (settings.requestDeliveryStatus === "PENDING" ||
-      settings.requestDeliveryStatus === undefined)
+    (settings.requestDeliveryStatus === "PENDING" || settings.requestDeliveryStatus === undefined)
   );
 }
 
 function hasUnknownConnectionRequest(account?: IntegrationAccount | null) {
   const settings = asRecord(account?.settings);
   return (
-    settings.requestStatus === "DELIVERY_UNKNOWN" ||
-    settings.requestDeliveryStatus === "UNKNOWN"
+    settings.requestStatus === "DELIVERY_UNKNOWN" || settings.requestDeliveryStatus === "UNKNOWN"
   );
 }
 
@@ -822,7 +817,7 @@ function ReadinessTile({
               variant="outline"
               size="sm"
               className={cn(
-                "h-8 w-full rounded-xl text-xs",
+                "min-h-11 w-full rounded-xl text-xs",
                 disabled && "pointer-events-none opacity-50",
               )}
             >
@@ -836,7 +831,7 @@ function ReadinessTile({
               type="button"
               variant="outline"
               size="sm"
-              className="h-8 w-full rounded-xl text-xs"
+              className="min-h-11 w-full rounded-xl text-xs"
               disabled={disabled}
               onClick={onAction}
               data-testid={actionTestId}
@@ -1037,7 +1032,7 @@ function TelegramConnectModal({
             asChild
             variant={connected && botUsername ? "primary" : "outline"}
             size="sm"
-            className="w-full shrink-0 sm:w-auto"
+            className="min-h-11 w-full shrink-0 sm:w-auto"
           >
             <a
               href={
@@ -1512,7 +1507,7 @@ function IntegrationCard({
                 target="_blank"
                 rel="noreferrer"
                 data-testid="telegram-card-open-bot"
-                className="mb-1 inline-flex w-fit max-w-full items-center gap-1.5 text-xs font-medium text-sky-300 transition-colors hover:text-sky-200"
+                className="mb-1 inline-flex min-h-11 w-fit max-w-full items-center gap-1.5 rounded-md px-2 text-xs font-medium text-sky-300 transition-colors hover:bg-white/5 hover:text-sky-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
               >
                 <Send className="h-3.5 w-3.5 shrink-0" />
                 <span className="truncate">@{telegramUsername}</span>
@@ -1534,8 +1529,8 @@ function IntegrationCard({
                     requestSent
                       ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
                       : integration.availability === "soon"
-                      ? "border-zinc-700 bg-white/[0.03] text-zinc-400"
-                      : "border-amber-500/20 bg-amber-500/10 text-amber-300",
+                        ? "border-zinc-700 bg-white/[0.03] text-zinc-400"
+                        : "border-amber-500/20 bg-amber-500/10 text-amber-300",
                   )}
                 >
                   {availabilityStatus}
@@ -1793,12 +1788,12 @@ export function IntegrationsPage() {
   const [requestedProviders, setRequestedProviders] = useState<Set<IntegrationProvider>>(
     () => new Set(),
   );
-  const [pendingRequestProviders, setPendingRequestProviders] = useState<
-    Set<IntegrationProvider>
-  >(() => new Set());
-  const [unknownRequestProviders, setUnknownRequestProviders] = useState<
-    Set<IntegrationProvider>
-  >(() => new Set());
+  const [pendingRequestProviders, setPendingRequestProviders] = useState<Set<IntegrationProvider>>(
+    () => new Set(),
+  );
+  const [unknownRequestProviders, setUnknownRequestProviders] = useState<Set<IntegrationProvider>>(
+    () => new Set(),
+  );
   const [contactRequiredProviders, setContactRequiredProviders] = useState<
     Set<IntegrationProvider>
   >(() => new Set());
@@ -2186,8 +2181,7 @@ export function IntegrationsPage() {
               account={accounts.find((account) => account.provider === integration.provider)}
               connected={connectedMap[integration.id]}
               pending={
-                pendingId === integration.id ||
-                pendingRequestProviders.has(integration.provider)
+                pendingId === integration.id || pendingRequestProviders.has(integration.provider)
               }
               requestSent={requestedProviders.has(integration.provider)}
               requestUnknown={unknownRequestProviders.has(integration.provider)}
@@ -2240,8 +2234,7 @@ export function IntegrationsPage() {
                 account={accounts.find((account) => account.provider === integration.provider)}
                 connected={false}
                 pending={
-                  pendingId === integration.id ||
-                  pendingRequestProviders.has(integration.provider)
+                  pendingId === integration.id || pendingRequestProviders.has(integration.provider)
                 }
                 requestSent={requestedProviders.has(integration.provider)}
                 requestUnknown={unknownRequestProviders.has(integration.provider)}
@@ -2287,19 +2280,13 @@ export function IntegrationsPage() {
           sampleBusy={pendingId === "webhook"}
           canRequest={permissions.canManageIntegrations}
           requestSent={
-            settingsIntegration
-              ? requestedProviders.has(settingsIntegration.provider)
-              : false
+            settingsIntegration ? requestedProviders.has(settingsIntegration.provider) : false
           }
           requestUnknown={
-            settingsIntegration
-              ? unknownRequestProviders.has(settingsIntegration.provider)
-              : false
+            settingsIntegration ? unknownRequestProviders.has(settingsIntegration.provider) : false
           }
           requestContactRequired={
-            settingsIntegration
-              ? contactRequiredProviders.has(settingsIntegration.provider)
-              : false
+            settingsIntegration ? contactRequiredProviders.has(settingsIntegration.provider) : false
           }
           onOpenChange={(open) => {
             if (!open) setSettingsIntegrationId(null);

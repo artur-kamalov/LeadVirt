@@ -3907,3 +3907,30 @@ Consequences:
 - Readiness steps stay collapsed behind an explicit control; the current primary action remains visible.
 - Horizontal filter rows expose a measured scroll action, and fixed mobile navigation is included in CTA scroll spacing.
 - Demo onboarding can return to its first step without creating a new session, and narrow Knowledge views expose one localized title.
+
+## 2026-07-18: Preserve Mobile Context Without Fabricating Product State
+
+Decision: Narrow product views use explicit selectors or responsive records when desktop navigation and tables cannot remain fully reachable. Read-only demo surfaces tolerate absent authenticated identity, preserve intentional reader scroll, and omit unsupported empty insight sections.
+
+Context: Mobile Knowledge hid the active deep-linked view in an overflowed tab strip, Pipeline List clipped several columns, conversation replay either forced the reader to the end or placed the final reply under fixed navigation, and demo Team crashed because it required a real current user. Analytics also rendered a large empty recommendations card, while public signup did not distinguish Telegram identity authentication from later business-channel setup.
+
+Consequences:
+
+- Knowledge uses a localized mobile selector while retaining desktop tabs and URL-backed browser history.
+- Pipeline uses complete mobile lead cards and keeps the dense desktop table keyboard-operable.
+- Demo permissions continue to default to read-only instead of receiving a fabricated user context.
+- Conversation auto-scroll follows only readers already near the live end and reserves mobile navigation clearance.
+- Analytics recommendations mount only for measured insight codes; signup explains Telegram's authentication role, and pricing actions retain 44px targets.
+
+## 2026-07-18: Localize Demo Fixtures Without Overriding Tenant Content
+
+Decision: Explicit demo routes may localize known seeded business, channel, and widget values using the selected product locale. Production widgets continue to use tenant configuration and locale, and arbitrary customer-authored content is never translated implicitly.
+
+Context: The demo Settings and website-widget flows mixed Russian seed values into otherwise localized EN/DE/ES/FR/PT interfaces. Applying the same override to live widgets would silently replace tenant-controlled language and content.
+
+Consequences:
+
+- `/widget/demo` passes an explicit demo locale and translates only recognized demo fixtures.
+- Live widget frames preserve the tenant's configured locale, title, greeting, replies, and consent copy.
+- Unknown customer messages and tenant-authored values remain byte-for-byte content, while shared widget chrome follows the resolved widget locale.
+- Regression coverage exercises all six supported demo locales and separately protects the live tenant boundary.

@@ -78,3 +78,31 @@ test("interactive demo routes use local browser data only", async ({ page }) => 
 
   expect(apiCalls).toEqual([]);
 });
+
+test("demo team settings render without an authenticated user provider", async ({ page }) => {
+  const apiCalls: string[] = [];
+  const pageErrors: string[] = [];
+
+  await page.route("**/api/**", async (route) => {
+    apiCalls.push(route.request().url());
+    await route.abort();
+  });
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${webBase}/demo/settings`, { waitUntil: "domcontentloaded" });
+  const mobileSectionSelector = page.getByRole("combobox", { name: "Settings" });
+  await expect(mobileSectionSelector).toHaveText("Workspace and contacts");
+  await mobileSectionSelector.click();
+  await page.getByRole("option", { name: "Team and roles", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Team and roles", exact: true })).toBeVisible();
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`${webBase}/demo/settings`, { waitUntil: "domcontentloaded" });
+  await expect(page.getByTestId("settings-demo-read-only-notice")).toBeVisible();
+  await page.getByRole("button", { name: "Team and roles", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Team and roles", exact: true })).toBeVisible();
+
+  expect(pageErrors).toEqual([]);
+  expect(apiCalls).toEqual([]);
+});

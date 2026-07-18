@@ -4,6 +4,8 @@ LeadVirt.ai is a universal AI lead assistant for businesses. It responds to inco
 
 This repository is a pnpm monorepo shaped as a scalable modular monolith:
 
+Detailed current-state architecture: [Russian architecture atlas](docs/PROJECT_ARCHITECTURE_RU.md).
+
 - `apps/web` - Next.js App Router frontend.
 - `apps/api` - NestJS REST API.
 - `apps/worker` - BullMQ-ready worker process.

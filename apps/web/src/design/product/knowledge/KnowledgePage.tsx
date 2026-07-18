@@ -11,7 +11,7 @@ import { getKnowledgeV2Overview } from "@/lib/api/knowledge";
 import { Button } from "../../components/ui/Button";
 import { cn } from "../../lib/utils";
 import { ProductLayout } from "../ProductLayout";
-import { LoadingOverlay, StatusBadge } from "../ui";
+import { LoadingOverlay, Select, StatusBadge } from "../ui";
 import { BusinessFactsEditor } from "./BusinessFactsEditor";
 import { BusinessProfileEditor } from "./BusinessProfileEditor";
 import { GuidanceEditor } from "./GuidanceEditor";
@@ -103,6 +103,19 @@ export function KnowledgePage() {
     router.push(`${pathname}?${params.toString()}`);
   }
 
+  const mobileViewOptions = knowledgeViews.map((item) => {
+    const Icon = item.icon;
+    return {
+      value: item.id,
+      label: (
+        <span className="flex min-w-0 items-center gap-2">
+          <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
+          <span className="truncate">{t(item.labelKey)}</span>
+        </span>
+      ),
+    };
+  });
+
   return (
     <ProductLayout title="Knowledge">
       <div
@@ -169,9 +182,22 @@ export function KnowledgePage() {
           </div>
         ) : null}
 
+        <div className="sm:hidden" data-testid="knowledge-mobile-navigation">
+          <Select
+            value={view}
+            onValueChange={(nextView) => {
+              if (isKnowledgeView(nextView)) navigate(nextView);
+            }}
+            options={mobileViewOptions}
+            ariaLabel={t("knowledge.page.tabsLabel")}
+            testId="knowledge-mobile-view-selector"
+            className="rounded-lg"
+          />
+        </div>
+
         <nav
           aria-label={t("knowledge.page.tabsLabel")}
-          className="max-w-full min-w-0 overflow-x-auto overscroll-x-contain border-b border-white/10 scrollbar-none"
+          className="hidden max-w-full min-w-0 overflow-x-auto overscroll-x-contain border-b border-white/10 scrollbar-none sm:block"
           role="tablist"
         >
           <div className="flex w-max min-w-full gap-1">
@@ -188,7 +214,7 @@ export function KnowledgePage() {
                   onClick={() => navigate(item.id)}
                   className={cn(
                     "relative flex h-11 items-center gap-2 px-3 text-sm font-medium transition-colors",
-                    active ? "text-emerald-300" : "text-zinc-500 hover:text-zinc-200",
+                    active ? "text-emerald-300" : "text-zinc-400 hover:text-zinc-200",
                   )}
                 >
                   <Icon className="h-4 w-4" />
@@ -274,7 +300,7 @@ function KnowledgeView({
               <h2 className="text-sm font-semibold text-zinc-200">
                 {t("businessProfile.advanced.title")}
               </h2>
-              <p className="mt-1 text-sm text-zinc-600">
+              <p className="mt-1 text-sm text-zinc-400">
                 {t("businessProfile.advanced.description")}
               </p>
             </div>
@@ -357,9 +383,9 @@ function RouteState({
         <Icon className="h-5 w-5 text-zinc-400" />
       </div>
       <h2 className="mt-4 text-base font-semibold text-zinc-100">{title}</h2>
-      <p className="mt-1.5 max-w-md text-sm text-zinc-500">{description}</p>
+      <p className="mt-1.5 max-w-md text-sm text-zinc-400">{description}</p>
       {requestId ? (
-        <p className="mt-2 text-xs text-zinc-700">
+        <p className="mt-2 text-xs text-zinc-400">
           {t("knowledge.common.request", { id: requestId })}
         </p>
       ) : null}

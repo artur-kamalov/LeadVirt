@@ -221,6 +221,7 @@ test("desktop presents the first unresolved step as the primary next action", as
 
   const journey = page.getByTestId("dashboard-readiness");
   await expect(journey).toBeVisible();
+  await expect(page.getByRole("progressbar")).toHaveAccessibleName(/\S/);
   await expect(page.getByTestId("dashboard-readiness-step-profile")).toHaveAttribute(
     "data-state",
     "completed",

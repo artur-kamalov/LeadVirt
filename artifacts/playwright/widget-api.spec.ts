@@ -3,7 +3,9 @@ import { expect, test } from "@playwright/test";
 const webBase = process.env.LEADVIRT_WEB_BASE ?? "http://localhost:3001";
 const publicKey = "demo-website-widget";
 
-test("widget frame loads config and sends a message through public widget API", async ({ page }) => {
+test("widget frame loads config and sends a message through public widget API", async ({
+  page,
+}) => {
   let postedBody: { sessionId?: string; text?: string; clientMessageId?: string } | null = null;
 
   await page.route(`**/api/public/widget/${publicKey}/config`, async (route) => {
@@ -93,6 +95,9 @@ test("widget demo stays local and never calls the public widget API", async ({ p
   });
 
   await page.setViewportSize({ width: 390, height: 844 });
+  await page
+    .context()
+    .addCookies([{ name: "leadvirt-locale", value: "ru", url: webBase, sameSite: "Lax" }]);
   await page.goto(`${webBase}/widget/demo`, { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Открыть чат" }).click();
 

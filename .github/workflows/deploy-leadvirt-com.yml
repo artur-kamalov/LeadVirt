@@ -313,6 +313,8 @@ jobs:
           corepack pnpm run qa:auth:email-otp
           corepack pnpm exec playwright test artifacts/playwright/onboarding-knowledge-sources.spec.ts --reporter=line --workers=1
           corepack pnpm exec playwright test artifacts/playwright/inbox-live-refresh.spec.ts --reporter=line --workers=1
+          corepack pnpm exec playwright test artifacts/playwright/demo-conversation-mobile-scroll.spec.ts artifacts/playwright/pipeline-list-responsive.spec.ts --reporter=line --workers=1
+          corepack pnpm exec playwright test artifacts/playwright/client-eye-ux-regressions.spec.ts --reporter=line --workers=1
           corepack pnpm run qa:knowledge:v2:api
           corepack pnpm run qa:knowledge:v2:workspace
           corepack pnpm run qa:knowledge:v2:editors

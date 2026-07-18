@@ -1,13 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { 
-  Bot, 
-  MessageCircle, 
-  Zap, 
-  LineChart, 
-  ChevronRight,
-} from "lucide-react";
+import { Bot, MessageCircle, Zap, LineChart, ChevronRight } from "lucide-react";
 import { GlowBg } from "./ui/GlowBg";
 import { Button } from "./ui/Button";
 import { HeroVisual } from "./HeroVisual";
@@ -26,19 +20,18 @@ export function LandingPage() {
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-50 font-sans selection:bg-emerald-500/30 selection:text-emerald-200 overflow-x-hidden">
       <GlowBg />
-      
+
       <LandingHeader />
 
       <main className="relative z-10 pt-20 pb-20 lg:pt-32">
-        
         {/* Global Page Background for sections below Hero */}
         <div className="absolute top-[1040px] inset-x-0 bottom-0 pointer-events-none overflow-hidden -z-10">
           {/* Subtle Grid that fades in after hero */}
           <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:linear-gradient(to_bottom,transparent_0%,black_10%,black_90%,transparent_100%)]" />
-          
+
           {/* Central vertical connecting line */}
           <div className="hidden lg:block absolute left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/5 to-transparent transform -translate-x-1/2" />
-          
+
           {/* Scattered glowing ambient orbs */}
           <div className="leadvirt-section-ambient leadvirt-section-ambient-indigo absolute top-[15%] right-[-10%] w-[40rem] h-[40rem]" />
           <div className="leadvirt-section-ambient leadvirt-section-ambient-emerald absolute top-[45%] left-[-10%] w-[50rem] h-[50rem]" />
@@ -51,9 +44,7 @@ export function LandingPage() {
           className="container mx-auto px-6 pt-1 pb-2 lg:pt-20 lg:pb-32"
         >
           <div className="grid items-center gap-2 lg:grid-cols-2 lg:gap-8">
-            <div
-              className="leadvirt-hero-copy-enter max-w-2xl"
-            >
+            <div className="leadvirt-hero-copy-enter max-w-2xl">
               <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/70 px-3 py-1 text-xs font-medium text-emerald-400 sm:mb-3 sm:text-sm lg:mb-6">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -62,7 +53,11 @@ export function LandingPage() {
                 {t("landing.badge")}
               </div>
               <h1 className="mb-2 text-[2rem] font-bold leading-[1.1] tracking-normal sm:mb-3 sm:text-5xl lg:mb-6 lg:text-7xl">
-                {t("landing.hero.before")} <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-400">{t("landing.hero.highlight")}</span> {t("landing.hero.after")}
+                {t("landing.hero.before")}{" "}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-400">
+                  {t("landing.hero.highlight")}
+                </span>{" "}
+                {t("landing.hero.after")}
               </h1>
               <p className="mb-2 max-w-xl text-sm leading-[1.35] text-zinc-400 sm:mb-3 sm:text-lg sm:leading-relaxed lg:mb-8">
                 {t("landing.hero.description")}
@@ -95,9 +90,7 @@ export function LandingPage() {
               </div>
             </div>
 
-            <div
-              className="leadvirt-hero-visual-enter"
-            >
+            <div className="leadvirt-hero-visual-enter">
               <HeroVisual />
             </div>
           </div>
@@ -124,28 +117,42 @@ export function LandingPage() {
 
               <div className="grid md:grid-cols-4 gap-8 relative z-10">
                 {[
-                  { step: "01", title: t("landing.how.step1.title"), desc: t("landing.how.step1.description") },
-                  { step: "02", title: t("landing.how.step2.title"), desc: t("landing.how.step2.description") },
-                  { step: "03", title: t("landing.how.step3.title"), desc: t("landing.how.step3.description") },
-                  { step: "04", title: t("landing.how.step4.title"), desc: t("landing.how.step4.description") }
+                  {
+                    step: "01",
+                    title: t("landing.how.step1.title"),
+                    desc: t("landing.how.step1.description"),
+                  },
+                  {
+                    step: "02",
+                    title: t("landing.how.step2.title"),
+                    desc: t("landing.how.step2.description"),
+                  },
+                  {
+                    step: "03",
+                    title: t("landing.how.step3.title"),
+                    desc: t("landing.how.step3.description"),
+                  },
+                  {
+                    step: "04",
+                    title: t("landing.how.step4.title"),
+                    desc: t("landing.how.step4.description"),
+                  },
                 ].map((item, i) => (
                   <div
-                    key={i} 
+                    key={i}
                     className="leadvirt-reveal-up relative group"
                     style={{ animationDelay: `${0.12 + i * 0.12}s` }}
                   >
                     <div className="flex flex-col items-center text-center">
                       {/* Node */}
-                      <div
-                        className="w-20 h-20 mb-8 rounded-2xl bg-zinc-950 border border-zinc-800 flex items-center justify-center text-xl font-bold text-zinc-500 group-hover:text-emerald-400 group-hover:border-emerald-500/50 group-hover:bg-emerald-500/10 group-hover:shadow-[0_0_30px_rgba(52,211,153,0.2)] group-hover:-translate-y-1 group-hover:scale-105 transition-all duration-300 relative z-10"
-                      >
+                      <div className="w-20 h-20 mb-8 rounded-2xl bg-zinc-950 border border-zinc-800 flex items-center justify-center text-xl font-bold text-zinc-500 group-hover:text-emerald-400 group-hover:border-emerald-500/50 group-hover:bg-emerald-500/10 group-hover:shadow-[0_0_30px_rgba(52,211,153,0.2)] group-hover:-translate-y-1 group-hover:scale-105 transition-all duration-300 relative z-10">
                         <div className="absolute inset-0 rounded-2xl border-2 border-emerald-500/0 group-hover:border-emerald-500/20 transition-colors" />
-                        
+
                         <div className="leadvirt-step-dot-pulse absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full shadow-[0_0_10px_rgba(52,211,153,0.8)] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
                         {item.step}
                       </div>
-                      
+
                       {/* Content Card */}
                       <div className="bg-zinc-900/40 border border-zinc-800/50 p-6 rounded-3xl group-hover:bg-zinc-900/80 group-hover:border-zinc-700/80 transition-colors duration-300 w-full h-full">
                         <h3 className="text-xl font-semibold mb-3 text-zinc-100">{item.title}</h3>
@@ -172,7 +179,7 @@ export function LandingPage() {
             {/* Feature 1 */}
             <div className="md:col-span-2 rounded-3xl bg-zinc-900 border border-zinc-800 p-8 flex flex-col justify-between overflow-hidden relative group">
               <div className="absolute inset-0 opacity-0 group-hover:opacity-30 transition-opacity duration-500">
-                <ImageWithFallback 
+                <ImageWithFallback
                   src="https://images.unsplash.com/photo-1710438399422-2fca27686bcd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkYXJrJTIwbW9kZXJuJTIwYWJzdHJhY3QlMjBiYWNrZ3JvdW5kfGVufDF8fHx8MTc4MTczOTMxOHww&ixlib=rb-4.1.0&q=80&w=1080"
                   alt="Texture"
                   className="w-full h-full object-cover grayscale"
@@ -196,7 +203,7 @@ export function LandingPage() {
             {/* Feature 2 */}
             <div className="rounded-3xl bg-zinc-900 border border-zinc-800 p-8 flex flex-col justify-between relative group overflow-hidden">
               <div className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-500">
-                <ImageWithFallback 
+                <ImageWithFallback
                   src="https://images.unsplash.com/photo-1678366633407-7f49da199a42?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGRhcmslMjAzZCUyMHNoYXBlc3xlbnwxfHx8fDE3ODE3MzkzMTV8MA&ixlib=rb-4.1.0&q=80&w=1080"
                   alt="3D Shapes"
                   className="w-full h-full object-cover grayscale"
@@ -204,15 +211,19 @@ export function LandingPage() {
               </div>
               <div className="relative z-10">
                 <MessageCircle className="w-8 h-8 text-blue-400 mb-4" />
-                <h3 className="text-xl font-bold mb-2">{t("landing.features.qualification.title")}</h3>
-                <p className="text-zinc-400 text-sm">{t("landing.features.qualification.description")}</p>
+                <h3 className="text-xl font-bold mb-2">
+                  {t("landing.features.qualification.title")}
+                </h3>
+                <p className="text-zinc-400 text-sm">
+                  {t("landing.features.qualification.description")}
+                </p>
               </div>
             </div>
 
             {/* Feature 3 */}
             <div className="rounded-3xl bg-zinc-900 border border-zinc-800 p-8 flex flex-col justify-between relative group overflow-hidden">
               <div className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-500">
-                <ImageWithFallback 
+                <ImageWithFallback
                   src="https://images.unsplash.com/photo-1678366633407-7f49da199a42?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGRhcmslMjAzZCUyMHNoYXBlc3xlbnwxfHx8fDE3ODE3MzkzMTV8MA&ixlib=rb-4.1.0&q=80&w=1080"
                   alt="3D Shapes"
                   className="w-full h-full object-cover grayscale"
@@ -221,14 +232,16 @@ export function LandingPage() {
               <div className="relative z-10">
                 <Bot className="w-8 h-8 text-purple-400 mb-4" />
                 <h3 className="text-xl font-bold mb-2">{t("landing.features.followup.title")}</h3>
-                <p className="text-zinc-400 text-sm">{t("landing.features.followup.description")}</p>
+                <p className="text-zinc-400 text-sm">
+                  {t("landing.features.followup.description")}
+                </p>
               </div>
             </div>
 
             {/* Feature 4 */}
             <div className="md:col-span-2 rounded-3xl bg-zinc-900 border border-zinc-800 p-8 flex flex-col justify-between relative group overflow-hidden">
               <div className="absolute inset-0 opacity-0 group-hover:opacity-30 transition-opacity duration-500">
-                <ImageWithFallback 
+                <ImageWithFallback
                   src="https://images.unsplash.com/photo-1678366633407-7f49da199a42?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGRhcmslMjAzZCUyMHNoYXBlc3xlbnwxfHx8fDE3ODE3MzkzMTV8MA&ixlib=rb-4.1.0&q=80&w=1080"
                   alt="3D Shapes"
                   className="w-full h-full object-cover grayscale"
@@ -253,11 +266,16 @@ export function LandingPage() {
                 { val: "1", label: t("landing.metrics.inbox.label") },
                 { val: "2", label: t("landing.metrics.integrations.label") },
                 { val: "6", label: t("landing.metrics.languages.label") },
-                { val: "OTP", label: t("landing.metrics.auth.label") }
+                { val: "OTP", label: t("landing.metrics.auth.label") },
               ].map((metric, i) => (
-                <div key={i} className={`flex flex-col items-center justify-center text-center ${i === 0 || i === 2 ? 'pl-0' : 'pl-8'} ${i === 1 || i === 3 ? 'pr-0' : 'pr-8'} border-l-0 md:border-l first:border-l-0 border-white/5`}>
+                <div
+                  key={i}
+                  className={`flex flex-col items-center justify-center text-center ${i === 0 || i === 2 ? "pl-0" : "pl-8"} ${i === 1 || i === 3 ? "pr-0" : "pr-8"} border-l-0 md:border-l first:border-l-0 border-white/5`}
+                >
                   <div className="text-4xl md:text-5xl font-bold text-white mb-2">{metric.val}</div>
-                  <div className="text-sm text-zinc-400 uppercase tracking-wider">{metric.label}</div>
+                  <div className="text-sm text-zinc-400 uppercase tracking-wider">
+                    {metric.label}
+                  </div>
                 </div>
               ))}
             </div>
@@ -268,33 +286,41 @@ export function LandingPage() {
         <PricingSection />
 
         {/* CTA SECTION */}
-        <section className="py-32 container mx-auto px-6 relative">
+        <section className="container relative mx-auto px-4 py-20 sm:px-6 sm:py-32">
           <div className="leadvirt-cta-section-glow absolute inset-0 -z-10" />
-          <div className="max-w-4xl mx-auto text-center bg-zinc-900 border border-zinc-800 rounded-[3rem] p-12 md:p-20 relative overflow-hidden group">
+          <div className="group relative mx-auto max-w-4xl overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 p-6 text-center sm:rounded-[3rem] sm:p-12 md:p-20">
             <div className="absolute inset-0 opacity-20 mix-blend-screen pointer-events-none group-hover:scale-105 transition-transform duration-1000">
-              <ImageWithFallback 
+              <ImageWithFallback
                 src="https://images.unsplash.com/photo-1710438399422-2fca27686bcd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkYXJrJTIwbW9kZXJuJTIwYWJzdHJhY3QlMjBiYWNrZ3JvdW5kfGVufDF8fHx8MTc4MTczOTMxOHww&ixlib=rb-4.1.0&q=80&w=1080"
                 alt="Dark background"
                 className="w-full h-full object-cover"
               />
             </div>
             <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-zinc-900/80 to-zinc-900/40" />
-            
+
             <div className="leadvirt-cta-card-glow absolute -top-40 -right-40 w-80 h-80 rounded-full pointer-events-none" />
-            
+
             <div className="relative z-10">
-              <h2 className="text-4xl md:text-6xl font-bold mb-6 tracking-tight">{t("landing.cta.title.before")} <br/>{t("landing.cta.title.after")}</h2>
-              <p className="text-xl text-zinc-400 mb-10 max-w-2xl mx-auto">
+              <h2 className="mb-6 text-3xl font-bold tracking-tight sm:text-4xl md:text-6xl">
+                {t("landing.cta.title.before")} <br />
+                {t("landing.cta.title.after")}
+              </h2>
+              <p className="mx-auto mb-8 max-w-2xl text-base text-zinc-400 sm:mb-10 sm:text-xl">
                 {t("landing.cta.description")}
               </p>
-              <Button size="lg" className="h-16 px-10 text-lg w-full sm:w-auto shadow-[0_0_40px_rgba(52,211,153,0.3)]" asChild>
-                <Link href={signupHref()} prefetch={false}>{t("landing.cta.action")}</Link>
+              <Button
+                size="lg"
+                className="h-auto min-h-16 w-full whitespace-normal px-4 py-4 text-base leading-tight shadow-[0_0_40px_rgba(52,211,153,0.3)] sm:w-auto sm:px-10 sm:text-lg"
+                asChild
+              >
+                <Link href={signupHref()} prefetch={false} data-testid="landing-final-cta">
+                  {t("landing.cta.action")}
+                </Link>
               </Button>
               <p className="text-sm text-zinc-500 mt-6">{t("landing.cta.note")}</p>
             </div>
           </div>
         </section>
-
       </main>
 
       {/* FOOTER */}
@@ -337,7 +363,7 @@ export function LandingPage() {
               {t("landing.nav.login")}
             </Link>
           </nav>
-          <p className="text-center text-sm text-zinc-500 md:text-right">
+          <p className="text-center text-sm text-zinc-400 md:text-right">
             {t("landing.footer.rights")}
           </p>
         </div>

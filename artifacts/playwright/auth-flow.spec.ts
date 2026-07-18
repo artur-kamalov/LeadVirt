@@ -232,6 +232,32 @@ test.describe("telegram auth flow", () => {
       .poll(async () => page.evaluate(() => window.localStorage.getItem("leadvirt.auth.session")))
       .toBeNull();
   });
+
+  test("signup distinguishes identity auth from the business Telegram connection", async ({
+    context,
+    page,
+  }) => {
+    const copy = {
+      en: "Telegram verifies your identity through the LeadVirt authentication bot. You connect your business channel or bot later.",
+      ru: "Telegram подтверждает вашу личность через бота авторизации LeadVirt. Бизнес-канал или бот вы подключите позже.",
+      es: "Telegram verifica tu identidad mediante el bot de acceso de LeadVirt. Conectarás después el canal o bot de tu negocio.",
+      fr: "Telegram vérifie votre identité via le bot d’authentification LeadVirt. Vous connecterez ensuite le canal ou le bot de votre entreprise.",
+      de: "Telegram bestätigt Ihre Identität über den LeadVirt-Anmeldebot. Den Kanal oder Bot Ihres Unternehmens verbinden Sie später.",
+      pt: "O Telegram verifica sua identidade pelo bot de autenticação do LeadVirt. Você conectará depois o canal ou bot da sua empresa.",
+    } as const;
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    for (const [locale, explanation] of Object.entries(copy)) {
+      await context.addCookies([
+        { name: "leadvirt-locale", value: locale, url: webBase, sameSite: "Lax" },
+      ]);
+      await page.goto(`${webBase}/signup`, { waitUntil: "domcontentloaded" });
+      await expect(page.getByTestId("telegram-signup-explanation")).toHaveText(explanation);
+    }
+
+    await page.goto(`${webBase}/login`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("telegram-signup-explanation")).toHaveCount(0);
+  });
 });
 
 test.describe("email OTP configuration", () => {
@@ -316,11 +342,9 @@ test.describe("email OTP configuration", () => {
 
     await page.goto(`${webBase}/login`, { waitUntil: "networkidle" });
     await expect(page.getByTestId("email-otp-config-error")).toBeVisible();
-    await expect(page.getByTestId("auth-method-email")).toHaveAttribute("aria-selected", "true");
-    await expect(page.getByTestId("auth-method-telegram")).toHaveAttribute(
-      "aria-selected",
-      "false",
-    );
+    await expect(page.getByTestId("auth-method-email")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByTestId("auth-method-telegram")).toHaveAttribute("aria-pressed", "false");
+    await expect(page.getByRole("tab")).toHaveCount(0);
 
     const requestsBeforeRetry = configRequests;
     configAvailable = true;
@@ -382,7 +406,7 @@ test.describe("email OTP auth flow", () => {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto(`${webBase}/login`, { waitUntil: "networkidle" });
 
-    await expect(page.getByTestId("auth-method-email")).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByTestId("auth-method-email")).toHaveAttribute("aria-pressed", "true");
     await page.getByLabel("Work email").fill("owner@example.com");
     await page.getByTestId("email-otp-request").click();
     await expect(page.getByText("We sent a 6-digit code to owner@example.com")).toBeVisible();

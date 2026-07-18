@@ -187,6 +187,8 @@ export const fr: Record<BaseTranslationKey, string> = {
   "auth.website": "Retour au site",
   "auth.method.email": "E-mail",
   "auth.method.telegram": "Telegram",
+  "auth.telegram.signupExplanation":
+    "Telegram vérifie votre identité via le bot d’authentification LeadVirt. Vous connecterez ensuite le canal ou le bot de votre entreprise.",
   "auth.email.label": "E-mail professionnel",
   "auth.email.placeholder": "nom@entreprise.com",
   "auth.email.send": "Envoyer le code",

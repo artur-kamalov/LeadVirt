@@ -311,7 +311,7 @@ function NavLink({
         onClick?.();
       }}
       className={cn(
-        "group relative flex min-h-11 w-full min-w-0 items-center gap-3 overflow-hidden rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+        "group relative flex min-h-11 w-full min-w-0 items-center gap-3 overflow-hidden rounded-xl px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60",
         active ? "text-zinc-50" : "text-zinc-400 hover:text-zinc-100 hover:bg-white/5",
       )}
     >
@@ -533,7 +533,7 @@ export function ProductLayout({
                 <div className="text-sm font-medium text-zinc-100 truncate">
                   {tenantDisplayName}
                 </div>
-                <div className="text-xs text-zinc-500 truncate">{identity.userEmail}</div>
+                <div className="truncate text-xs text-zinc-400">{identity.userEmail}</div>
               </div>
               <ChevronDown className="w-4 h-4 text-zinc-500" />
             </button>
@@ -568,49 +568,33 @@ export function ProductLayout({
   );
 
   const mobileDrawer = (
-    <DialogPrimitive.Portal forceMount>
-      <AnimatePresence>
-        {mobileOpen && (
-          <>
-            <DialogPrimitive.Overlay forceMount asChild>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="lg:hidden fixed inset-0 bg-black/70 z-50"
-                data-testid="product-mobile-navigation-overlay"
-              />
-            </DialogPrimitive.Overlay>
-            <DialogPrimitive.Content forceMount asChild aria-describedby={undefined}>
-              <motion.aside
-                initial={{ x: -300 }}
-                animate={{ x: 0 }}
-                exit={{ x: -300 }}
-                transition={{ type: "spring", stiffness: 400, damping: 38 }}
-                className={cn(
-                  "lg:hidden fixed inset-y-0 left-0 w-72 overflow-hidden border-r border-white/5 bg-zinc-950 z-50",
-                  theme === "light" && "theme-light",
-                )}
-                data-testid="product-mobile-navigation"
-              >
-                <DialogPrimitive.Title className="sr-only">
-                  {t("product.menu.navigation")}
-                </DialogPrimitive.Title>
-                <DialogPrimitive.Close asChild>
-                  <button
-                    aria-label={t("product.menu.close")}
-                    className="absolute right-2 top-4 z-10 flex h-11 w-11 items-center justify-center rounded-xl text-zinc-400 transition-colors hover:bg-white/5 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
-                    data-testid="product-mobile-menu-close"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </DialogPrimitive.Close>
-                {sidebar}
-              </motion.aside>
-            </DialogPrimitive.Content>
-          </>
+    <DialogPrimitive.Portal>
+      <DialogPrimitive.Overlay
+        className="fixed inset-0 z-50 bg-black/70 lg:hidden data-[state=open]:animate-in data-[state=open]:fade-in-0"
+        data-testid="product-mobile-navigation-overlay"
+      />
+      <DialogPrimitive.Content
+        aria-describedby={undefined}
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 w-72 overflow-hidden border-r border-white/5 bg-zinc-950 lg:hidden data-[state=open]:animate-in data-[state=open]:slide-in-from-left",
+          theme === "light" && "theme-light",
         )}
-      </AnimatePresence>
+        data-testid="product-mobile-navigation"
+      >
+        <DialogPrimitive.Title className="sr-only">
+          {t("product.menu.navigation")}
+        </DialogPrimitive.Title>
+        <DialogPrimitive.Close asChild>
+          <button
+            aria-label={t("product.menu.close")}
+            className="absolute right-2 top-4 z-10 flex h-11 w-11 items-center justify-center rounded-xl text-zinc-400 transition-colors hover:bg-white/5 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+            data-testid="product-mobile-menu-close"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </DialogPrimitive.Close>
+        {sidebar}
+      </DialogPrimitive.Content>
     </DialogPrimitive.Portal>
   );
 
@@ -871,8 +855,8 @@ export function ProductLayout({
                   href={hrefForRoute(item.id, {}, mode)}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex min-h-11 flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors",
-                    active ? "text-emerald-400" : "text-zinc-500",
+                    "flex min-h-11 flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-400/60",
+                    active ? "text-emerald-400" : "text-zinc-400",
                   )}
                 >
                   <Icon className="w-5 h-5" />
@@ -893,7 +877,7 @@ export function BackButton({ to, label }: { to: Route; label: string }) {
   return (
     <Link
       href={hrefForRoute(to, {}, mode)}
-      className="mb-4 inline-flex min-h-11 items-center gap-1.5 text-sm text-zinc-400 transition-colors hover:text-zinc-100"
+      className="mb-4 inline-flex min-h-11 items-center gap-1.5 rounded-md text-sm text-zinc-400 transition-colors hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
     >
       <ChevronLeft className="w-4 h-4" /> {label}
     </Link>

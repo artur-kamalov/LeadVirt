@@ -161,9 +161,7 @@ test("demo business profile follows all six interface locales", async ({ page })
     await expect(page.getByLabel(messages[locale]["onboarding.company.name"])).toHaveValue(
       localizeDemoSeedText("Студия Лето", locale),
     );
-    await expect(
-      page.getByLabel(messages[locale]["onboarding.company.about"]),
-    ).toHaveValue(
+    await expect(page.getByLabel(messages[locale]["onboarding.company.about"])).toHaveValue(
       localizeDemoSeedText(
         "Салон красоты в центре города: окрашивание, стрижки, укладки и уход.",
         locale,
@@ -205,15 +203,14 @@ test("demo fixtures and API do not claim an unsupported manager task workflow", 
 });
 
 test("demo business hours and analytics match the available evidence", () => {
-  const profile = demoApiRequest<ApiEnvelope<BusinessProfileView>>("/business-profile").data.profile;
+  const profile =
+    demoApiRequest<ApiEnvelope<BusinessProfileView>>("/business-profile").data.profile;
   const analytics = demoApiRequest<ApiEnvelope<AnalyticsOverview>>("/analytics/overview").data;
 
   expect(profile.hours).toBe("Ежедневно 10:00-21:00");
   expect(profile.weeklySchedule).toHaveLength(7);
   expect(profile.weeklySchedule).toEqual(
-    expect.arrayContaining([
-      { day: "SUN", enabled: true, opensAt: "10:00", closesAt: "21:00" },
-    ]),
+    expect.arrayContaining([{ day: "SUN", enabled: true, opensAt: "10:00", closesAt: "21:00" }]),
   );
   expect(
     profile.weeklySchedule.every(
@@ -224,9 +221,8 @@ test("demo business hours and analytics match the available evidence", () => {
 });
 
 test("demo Knowledge resolves the active publication advertised by readiness", () => {
-  const overview = demoApiRequest<ApiEnvelope<KnowledgeV2OverviewView>>(
-    "/knowledge/v2/overview",
-  ).data;
+  const overview =
+    demoApiRequest<ApiEnvelope<KnowledgeV2OverviewView>>("/knowledge/v2/overview").data;
 
   expect(overview.activePublication).toMatchObject({
     id: overview.readiness.activePublicationId,
@@ -234,9 +230,7 @@ test("demo Knowledge resolves the active publication advertised by readiness", (
     status: "ACTIVE",
     isActive: true,
   });
-  expect(overview.readiness.serving.activePublicationId).toBe(
-    overview.activePublication?.id,
-  );
+  expect(overview.readiness.serving.activePublicationId).toBe(overview.activePublication?.id);
 });
 
 test("managed integration confirmation addresses the requester in all locales", () => {
@@ -268,18 +262,17 @@ test("interactive demo only claims supported pilot outcomes", async ({ page }) =
   test.setTimeout(90_000);
 
   await page.goto(`${webBase}/demo`, { waitUntil: "domcontentloaded" });
-  await expect(page.getByText(messages.en["dashboard.metric.bookings"], { exact: true })).toHaveCount(
-    0,
-  );
-  await expect(page.getByText(messages.en["dashboard.metric.crmLeads"], { exact: true })).toHaveCount(
-    0,
-  );
+  await expect(
+    page.getByText(messages.en["dashboard.metric.bookings"], { exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByText(messages.en["dashboard.metric.crmLeads"], { exact: true }),
+  ).toHaveCount(0);
   await expect(page.getByText("Instagram", { exact: true })).toHaveCount(0);
   await expect(page.getByText("VK", { exact: true })).toHaveCount(0);
-  await expect(page.getByTestId("dashboard-readiness-progress").getByRole("progressbar")).toHaveAttribute(
-    "aria-valuenow",
-    "7",
-  );
+  await expect(
+    page.getByTestId("dashboard-readiness-progress").getByRole("progressbar"),
+  ).toHaveAttribute("aria-valuenow", "7");
   await expect(page.getByTestId("dashboard-readiness-primary")).toHaveAttribute(
     "href",
     "/demo/inbox",
@@ -307,9 +300,9 @@ test("interactive demo only claims supported pilot outcomes", async ({ page }) =
   await expect(
     page.getByText(messages.en["suite.analytics.bookingsOrders"], { exact: true }),
   ).toHaveCount(0);
-  await expect(
-    page.getByText(messages.en["suite.analytics.revenue"], { exact: true }),
-  ).toHaveCount(0);
+  await expect(page.getByText(messages.en["suite.analytics.revenue"], { exact: true })).toHaveCount(
+    0,
+  );
   await expect(page.getByText("Send to CRM", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Instagram", { exact: true })).toHaveCount(0);
 
@@ -323,9 +316,9 @@ test("interactive demo only claims supported pilot outcomes", async ({ page }) =
     page.getByRole("button", { name: messages.en["ops.common.bookAppointment"] }),
   ).toHaveCount(0);
   await page.getByRole("button", { name: messages.en["ops.conversation.skip"] }).click();
-  await expect(page.getByText(messages.en["ops.conversation.demo6"], { exact: true })).toContainText(
-    "manager",
-  );
+  await expect(
+    page.getByText(messages.en["ops.conversation.demo6"], { exact: true }),
+  ).toContainText("manager");
 
   await page.goto(`${webBase}/demo/integrations`, { waitUntil: "domcontentloaded" });
   const telegram = page.getByTestId("integration-card-telegram");
@@ -347,25 +340,29 @@ test("interactive demo only claims supported pilot outcomes", async ({ page }) =
 
   await page.goto(`${webBase}/demo/onboarding`, { waitUntil: "domcontentloaded" });
   await expect(page.getByText("Summer Studio", { exact: true })).toBeVisible();
-  await expect(page.getByText(messages.en["onboarding.scenario.consult"], { exact: true })).toBeVisible();
+  await expect(
+    page.getByText(messages.en["onboarding.scenario.consult"], { exact: true }),
+  ).toBeVisible();
   await expect(page.getByText(messages.en["onboarding.crm.none"], { exact: true })).toBeVisible();
 
-  await page.goto(`${webBase}/widget/demo`, { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: widgetMessage("ru", "widget.chat.open") }).click();
-  await expect(page.getByText("Студия Лето", { exact: true })).toBeVisible();
+  await page.goto(`${webBase}/widget/demo`, { waitUntil: "networkidle" });
+  await expect(page.getByTestId("leadvirt-widget")).toHaveAttribute("data-widget-locale", "en");
+  await page.getByRole("button", { name: widgetMessage("en", "widget.chat.open") }).click();
+  await expect(page.getByTestId("leadvirt-widget-panel")).toBeVisible();
+  await expect(page.getByText("Summer Studio", { exact: true })).toBeVisible();
   await expect(
     page.getByText(
-      "Здравствуйте! Подскажу цены, соберу удобное время и передам заявку менеджеру.",
+      "Hello! I can share prices, collect your preferred time, and pass your request to a manager.",
       { exact: true },
     ),
   ).toBeVisible();
   await page
-    .getByPlaceholder(widgetMessage("ru", "widget.chat.placeholder"))
-    .fill("Нужно окрашивание в пятницу");
-  await page.getByRole("button", { name: widgetMessage("ru", "widget.chat.send") }).click();
+    .getByPlaceholder(widgetMessage("en", "widget.chat.placeholder"))
+    .fill("I need coloring on Friday");
+  await page.getByRole("button", { name: widgetMessage("en", "widget.chat.send") }).click();
   await expect(
     page.getByText(
-      "Спасибо! Уточню услугу и удобное время, затем передам заявку менеджеру для подтверждения.",
+      "Thank you! I'll confirm the service and preferred time, then pass your request to a manager for confirmation.",
       { exact: true },
     ),
   ).toBeVisible();
@@ -375,7 +372,9 @@ test("demo planned integration requests respect the read-only boundary", async (
   await page.goto(`${webBase}/demo/integrations`, { waitUntil: "domcontentloaded" });
   await page.getByTestId("integrations-planned-toggle").click();
   const whatsapp = page.getByTestId("integration-card-whatsapp");
-  await whatsapp.getByRole("button", { name: messages.en["integrations.availability.request"] }).click();
+  await whatsapp
+    .getByRole("button", { name: messages.en["integrations.availability.request"] })
+    .click();
   await expect(page.getByTestId("integration-request-submit")).toHaveCount(0);
   await expect(page.getByTestId("integration-request-status")).toContainText(
     messages.en["integrations.request.noPermission"],
@@ -388,7 +387,7 @@ test("demo analytics and automation use locale-aware system labels", async ({ pa
   await page.goto(`${webBase}/demo/analytics`, { waitUntil: "domcontentloaded" });
   for (const locale of supportedLocales) {
     await selectLocale(page, locale);
-    await expect(page.getByTestId("analytics-recommendations-empty")).toBeVisible();
+    await expect(page.getByTestId("analytics-recommendations-section")).toHaveCount(0);
     await expect(
       page.getByText(analyticsExpectations[locale].monday, { exact: true }).first(),
     ).toBeVisible();
@@ -431,7 +430,9 @@ test("demo analytics and automation use locale-aware system labels", async ({ pa
   );
 });
 
-test("automation block labels follow locale switches without changing the draft", async ({ page }) => {
+test("automation block labels follow locale switches without changing the draft", async ({
+  page,
+}) => {
   test.setTimeout(90_000);
 
   await loginAsCleanUser(page, apiBase, { locale: "en" });

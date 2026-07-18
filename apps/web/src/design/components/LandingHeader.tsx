@@ -37,10 +37,25 @@ export function LandingHeader() {
           <BrandWordmark className="text-xl" />
         </Link>
 
-        <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-400">
-          <a href="#niches" className="hover:text-zinc-100 transition-colors">{t("landing.nav.solutions")}</a>
-          <a href="#features" className="hover:text-zinc-100 transition-colors">{t("landing.nav.features")}</a>
-          <a href="#pricing" className="hover:text-zinc-100 transition-colors">{t("landing.nav.pricing")}</a>
+        <nav className="hidden md:flex items-center gap-4 text-sm font-medium text-zinc-400">
+          <a
+            href="#niches"
+            className="inline-flex min-h-11 items-center rounded-md px-2 transition-colors hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
+          >
+            {t("landing.nav.solutions")}
+          </a>
+          <a
+            href="#features"
+            className="inline-flex min-h-11 items-center rounded-md px-2 transition-colors hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
+          >
+            {t("landing.nav.features")}
+          </a>
+          <a
+            href="#pricing"
+            className="inline-flex min-h-11 items-center rounded-md px-2 transition-colors hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
+          >
+            {t("landing.nav.pricing")}
+          </a>
           {/* <a href="#integrations" className="hover:text-zinc-100 transition-colors">Интеграции</a> */}
         </nav>
 
@@ -50,7 +65,7 @@ export function LandingHeader() {
             href="/login"
             prefetch={false}
             data-testid="landing-desktop-login"
-            className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium text-zinc-300 transition-all hover:bg-white/10 hover:text-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
+            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium text-zinc-300 transition-all hover:bg-white/10 hover:text-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
           >
             {t("landing.nav.login")}
           </Link>
@@ -58,7 +73,7 @@ export function LandingHeader() {
             href={signupHref()}
             prefetch={false}
             data-testid="landing-desktop-trial"
-            className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md bg-emerald-400 px-3 text-sm font-medium text-zinc-950 shadow-[0_0_22px_rgba(52,211,153,0.18)] transition-all hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
+            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md bg-emerald-400 px-3 text-sm font-medium text-zinc-950 shadow-[0_0_22px_rgba(52,211,153,0.18)] transition-all hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
           >
             {t("landing.nav.trial")}
           </Link>
@@ -122,9 +137,20 @@ export function LandingHeader() {
                   aria-label={t("product.menu.navigation")}
                   className="container mx-auto flex flex-1 flex-col gap-4 overflow-y-auto px-6 py-6 text-zinc-300"
                 >
-                  <a href="#niches" onClick={closeMenu} data-testid="landing-mobile-solutions" className="flex min-h-11 items-center">{t("landing.nav.solutions")}</a>
-                  <a href="#features" onClick={closeMenu} className="flex min-h-11 items-center">{t("landing.nav.features")}</a>
-                  <a href="#pricing" onClick={closeMenu} className="flex min-h-11 items-center">{t("landing.nav.pricing")}</a>
+                  <a
+                    href="#niches"
+                    onClick={closeMenu}
+                    data-testid="landing-mobile-solutions"
+                    className="flex min-h-11 items-center"
+                  >
+                    {t("landing.nav.solutions")}
+                  </a>
+                  <a href="#features" onClick={closeMenu} className="flex min-h-11 items-center">
+                    {t("landing.nav.features")}
+                  </a>
+                  <a href="#pricing" onClick={closeMenu} className="flex min-h-11 items-center">
+                    {t("landing.nav.pricing")}
+                  </a>
                   <div className="flex flex-col gap-3 pt-2">
                     <LanguageSwitcher className="h-11 w-fit" />
                     <Link

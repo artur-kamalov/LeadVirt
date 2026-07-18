@@ -118,7 +118,7 @@ export function DropdownItem({
         onClick?.();
       }}
       className={cn(
-        "group flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-sm outline-none transition-colors",
+        "group flex min-h-11 cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-sm outline-none transition-colors",
         danger
           ? "text-rose-400 focus:bg-rose-500/10 data-[highlighted]:bg-rose-500/10"
           : "text-zinc-300 focus:bg-white/5 focus:text-zinc-50 data-[highlighted]:bg-white/5 data-[highlighted]:text-zinc-50",
@@ -159,6 +159,7 @@ export function Select({
   placeholder = "Выберите...",
   className,
   ariaLabel,
+  testId,
   disabled = false,
 }: {
   value?: string;
@@ -168,6 +169,7 @@ export function Select({
   placeholder?: string;
   className?: string;
   ariaLabel?: string;
+  testId?: string;
   disabled?: boolean;
 }) {
   const themeClass = useThemeClass();
@@ -180,6 +182,7 @@ export function Select({
     >
       <SelectPrimitive.Trigger
         aria-label={ariaLabel}
+        data-testid={testId}
         className={cn(
           "group flex h-11 w-full items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-zinc-100 outline-none transition-colors hover:border-white/20 focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50 data-[placeholder]:text-zinc-500",
           className,
@@ -205,7 +208,7 @@ export function Select({
               <SelectPrimitive.Item
                 key={o.value}
                 value={o.value}
-                className="relative flex cursor-pointer select-none items-center rounded-xl px-3 py-2 pr-9 text-sm text-zinc-300 outline-none transition-colors data-[highlighted]:bg-white/5 data-[highlighted]:text-zinc-50 data-[state=checked]:text-emerald-400"
+                className="relative flex min-h-11 cursor-pointer select-none items-center rounded-xl px-3 py-2 pr-9 text-sm text-zinc-300 outline-none transition-colors data-[highlighted]:bg-white/5 data-[highlighted]:text-zinc-50 data-[state=checked]:text-emerald-400"
               >
                 <SelectPrimitive.ItemText>{o.label}</SelectPrimitive.ItemText>
                 <SelectPrimitive.ItemIndicator className="absolute right-2.5 flex items-center">
@@ -265,7 +268,7 @@ export function Modal({
             {/* Always render an accessible title + description (Radix requirement).
                 Falls back to sr-only when no visible title/description is provided. */}
             {title ? (
-              <DialogPrimitive.Title className="text-xl font-bold tracking-tight text-zinc-50 mb-1.5 pr-8">
+              <DialogPrimitive.Title className="mb-1.5 pr-12 text-xl font-bold tracking-tight text-zinc-50">
                 {title}
               </DialogPrimitive.Title>
             ) : (
@@ -291,7 +294,7 @@ export function Modal({
           </div>
           <DialogPrimitive.Close
             aria-label={closeLabel}
-            className="absolute right-5 top-5 w-8 h-8 rounded-full flex items-center justify-center text-zinc-400 hover:text-zinc-100 hover:bg-white/5 transition-colors"
+            className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-white/5 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
           >
             <X className="w-4 h-4" />
           </DialogPrimitive.Close>

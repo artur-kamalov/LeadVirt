@@ -32,11 +32,7 @@ import { plans } from "@/design/product/plans";
 import { useI18n } from "@/i18n/I18nProvider";
 import type { Locale } from "@/i18n/config";
 import type { TranslationKey } from "@/i18n/messages";
-import {
-  authHref,
-  resolveAcquisitionIntent,
-  type AcquisitionIntent,
-} from "@/lib/acquisition";
+import { authHref, resolveAcquisitionIntent, type AcquisitionIntent } from "@/lib/acquisition";
 
 type AuthMode = "login" | "signup";
 
@@ -567,14 +563,13 @@ export function AuthFlow({ mode, intent }: { mode: AuthMode; intent?: Acquisitio
               <div className="space-y-4">
                 <div
                   className="grid grid-cols-2 gap-1 rounded-lg border border-white/10 bg-zinc-950/70 p-1"
-                  role="tablist"
+                  role="group"
                   aria-label={copy.title}
                 >
                   <button
                     type="button"
-                    role="tab"
                     data-testid="auth-method-email"
-                    aria-selected={method === "email"}
+                    aria-pressed={method === "email"}
                     disabled={emailOtpStatus !== "enabled" || loading}
                     onClick={() => {
                       setMethod("email");
@@ -583,7 +578,7 @@ export function AuthFlow({ mode, intent }: { mode: AuthMode; intent?: Acquisitio
                     className={`flex h-11 items-center justify-center gap-2 rounded-md px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 disabled:cursor-not-allowed disabled:opacity-40 ${
                       method === "email"
                         ? "bg-white/10 text-zinc-50"
-                        : "text-zinc-500 hover:text-zinc-200"
+                        : "text-zinc-400 hover:text-zinc-200"
                     }`}
                   >
                     <Mail className="h-4 w-4" aria-hidden="true" />
@@ -591,9 +586,8 @@ export function AuthFlow({ mode, intent }: { mode: AuthMode; intent?: Acquisitio
                   </button>
                   <button
                     type="button"
-                    role="tab"
                     data-testid="auth-method-telegram"
-                    aria-selected={method === "telegram"}
+                    aria-pressed={method === "telegram"}
                     disabled={loading}
                     onClick={() => {
                       setMethod("telegram");
@@ -602,7 +596,7 @@ export function AuthFlow({ mode, intent }: { mode: AuthMode; intent?: Acquisitio
                     className={`flex h-11 items-center justify-center gap-2 rounded-md px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 disabled:cursor-not-allowed disabled:opacity-40 ${
                       method === "telegram"
                         ? "bg-white/10 text-zinc-50"
-                        : "text-zinc-500 hover:text-zinc-200"
+                        : "text-zinc-400 hover:text-zinc-200"
                     }`}
                   >
                     <Send className="h-4 w-4" aria-hidden="true" />
@@ -746,11 +740,21 @@ export function AuthFlow({ mode, intent }: { mode: AuthMode; intent?: Acquisitio
                 ) : null}
 
                 {method === "telegram" ? (
-                  <TelegramLoginButton
-                    label={copy.primaryAction}
-                    loading={loading}
-                    onAuth={handleTelegramAuthStart}
-                  />
+                  <div className="space-y-3">
+                    {mode === "signup" ? (
+                      <p
+                        data-testid="telegram-signup-explanation"
+                        className="text-xs leading-5 text-zinc-400"
+                      >
+                        {t("auth.telegram.signupExplanation")}
+                      </p>
+                    ) : null}
+                    <TelegramLoginButton
+                      label={copy.primaryAction}
+                      loading={loading}
+                      onAuth={handleTelegramAuthStart}
+                    />
+                  </div>
                 ) : null}
 
                 {error ? (
