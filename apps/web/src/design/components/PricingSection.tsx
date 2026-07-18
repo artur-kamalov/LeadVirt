@@ -8,7 +8,7 @@ import { plans } from "../product/plans";
 import { cn } from "../lib/utils";
 import { useI18n } from "@/i18n/I18nProvider";
 import type { TranslationKey } from "@/i18n/messages";
-import { signupHref, type AcquisitionPlanId } from "@/lib/acquisition";
+import { signupHref } from "@/lib/acquisition";
 
 const corporateContactHref = process.env.NEXT_PUBLIC_CORPORATE_CONTACT_URL?.trim();
 
@@ -36,7 +36,7 @@ const planCopy: Record<string, { tagline: TranslationKey; cta: TranslationKey; f
 };
 
 export function PricingSection() {
-  const { t } = useI18n();
+  const { formatNumber, t } = useI18n();
 
   return (
     <section id="pricing" className="scroll-mt-20 py-24 container mx-auto px-6 relative">
@@ -78,9 +78,21 @@ export function PricingSection() {
             <h3 className="text-xl font-bold tracking-tight mb-1">{plan.name}</h3>
             <p className="text-sm text-zinc-400 mb-6 min-h-[40px]">{t(planCopy[plan.id].tagline)}</p>
 
-            <div className="mb-6">
+            <div className="mb-6 min-w-0">
               <div className="flex items-baseline gap-1.5">
-                <span className="text-4xl font-bold tracking-tight">{plan.id === "corporate" ? t("pricing.corporate.price") : plan.price}</span>
+                <span
+                  data-testid={`pricing-price-${plan.id}`}
+                  className={cn(
+                    "whitespace-nowrap font-bold tracking-tight",
+                    plan.id === "corporate" ? "text-[22px]" : "text-4xl",
+                  )}
+                >
+                  {plan.id === "corporate"
+                    ? t("pricing.corporate.price", {
+                        price: `${formatNumber(plan.priceMonthlyRub)} RUB`,
+                      })
+                    : `${formatNumber(plan.priceMonthlyRub)} RUB`}
+                </span>
               </div>
               <span className="text-sm text-zinc-500">{t("pricing.perMonth")}</span>
             </div>
@@ -96,7 +108,7 @@ export function PricingSection() {
                 </a>
               ) : (
                 <Link
-                  href={signupHref(plan.id as AcquisitionPlanId)}
+                  href={signupHref(plan.id)}
                   prefetch={false}
                   data-testid={`pricing-cta-${plan.id}`}
                 >

@@ -41,7 +41,6 @@ import {
   ShieldCheck,
   RotateCcw,
   Send,
-  AlertCircle,
 } from "lucide-react";
 import { ProductLayout } from "../ProductLayout";
 import { Card, Avatar, Pill, channels } from "../shared";
@@ -105,7 +104,6 @@ import {
 } from "@/lib/api/channels";
 import { useI18n } from "@/i18n/I18nProvider";
 import type { TranslationKey } from "@/i18n/messages";
-import { ApiClientError } from "@/lib/api/client";
 import { useCurrentUser, useProductPermissions } from "../CurrentUser";
 import { useProductMode } from "../ProductMode";
 import { ResourceErrorState } from "../ResourceErrorState";
@@ -502,24 +500,37 @@ function buildInvoiceText(
 
 const LOGO_MAX_BYTES = 60 * 1024;
 
+const businessTypeLabelKeys: Record<string, TranslationKey> = {
+  services: "onboarding.business.services",
+  beauty: "onboarding.business.beauty",
+  fitness: "settings.profile.industry.fitness",
+  shop: "onboarding.business.shop",
+  retail: "settings.profile.industry.retail",
+  clinic: "onboarding.business.clinic",
+  education: "onboarding.business.education",
+  auto: "onboarding.business.auto",
+  local: "onboarding.business.local",
+  other: "settings.profile.industry.other",
+};
+
+function businessTypeLabel(value: string | null | undefined, i18n: SettingsI18n) {
+  const normalized = value?.trim() || "other";
+  const key = businessTypeLabelKeys[normalized];
+  return key ? i18n.t(key) : normalized;
+}
+
 function ProfileTab() {
-  const { t } = useI18n();
+  const i18n = useI18n();
+  const { t } = i18n;
   const { demo } = useProductMode();
   const permissions = useProductPermissions();
   const { account, setAccount } = useSettingsApi();
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [profileConflict, setProfileConflict] = useState(false);
-  const [reloadingProfile, setReloadingProfile] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
-  const [businessName, setBusinessName] = useState("");
-  const [businessType, setBusinessType] = useState("other");
-  const [timezone, setTimezone] = useState("Europe/Moscow");
-  const [description, setDescription] = useState("");
   const [phone, setPhone] = useState("");
   const [website, setWebsite] = useState("");
   const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
-  const [formBusinessProfileEtag, setFormBusinessProfileEtag] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement | null>(null);
   const skipNextAccountHydration = useRef(false);
 
@@ -529,60 +540,35 @@ function ProfileTab() {
       skipNextAccountHydration.current = false;
       return;
     }
-    setBusinessName(account.businessName);
-    setBusinessType(account.tenant.businessType ?? "other");
-    setTimezone(account.timezone);
-    setDescription(account.description ?? "");
     setPhone(account.phone ?? "");
     setWebsite(account.website ?? "");
     setLogoDataUrl(account.logoDataUrl ?? null);
-    setFormBusinessProfileEtag(account.businessProfileEtag);
   }, [account]);
 
+  const normalizedPhone = phone.trim() || null;
+  const normalizedWebsite = website.trim() || null;
+  const contactsDirty = Boolean(
+    account &&
+      (normalizedPhone !== (account.phone?.trim() || null) ||
+        normalizedWebsite !== (account.website?.trim() || null)),
+  );
+
   const handleSave = async () => {
-    if (!permissions.canManageAccount || !account || !formBusinessProfileEtag || profileConflict) {
-      return;
-    }
+    if (!permissions.canManageAccount || !account || !contactsDirty) return;
     setSaving(true);
     try {
-      const updated = await updateAccountSettings(
-        {
-          businessName,
-          businessType,
-          timezone,
-          description: description.trim() || null,
-          phone: phone.trim() || null,
-          website: website.trim() || null,
-        },
-        { ifMatch: formBusinessProfileEtag },
-      );
-      setFormBusinessProfileEtag(updated.businessProfileEtag);
+      const updated = await updateAccountSettings({
+        phone: normalizedPhone,
+        website: normalizedWebsite,
+      });
       setAccount(updated);
-      setProfileConflict(false);
       setSaved(true);
       toast.success(t("settings.profile.savedToast"));
       setTimeout(() => setSaved(false), 2000);
     } catch (error) {
-      if (error instanceof ApiClientError && error.status === 412) {
-        setProfileConflict(true);
-      } else {
-        showLocalizedError(error, t("settings.profile.saveError"));
-      }
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const reloadProfile = async () => {
-    setReloadingProfile(true);
-    try {
-      const latest = await getAccountSettings();
-      setAccount(latest);
-      setProfileConflict(false);
-    } catch (error) {
       showLocalizedError(error, t("settings.profile.saveError"));
     } finally {
-      setReloadingProfile(false);
+      setSaving(false);
     }
   };
 
@@ -644,62 +630,83 @@ function ProfileTab() {
         description={t("settings.profile.description")}
       />
 
-      {profileConflict ? (
-        <div
-          role="alert"
-          aria-live="assertive"
-          data-testid="settings-profile-conflict"
-          className="flex flex-col gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-amber-100 sm:flex-row sm:items-center sm:justify-between"
-        >
-          <div className="flex min-w-0 gap-3">
-            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" aria-hidden="true" />
-            <div>
-              <p className="text-sm font-semibold">{t("businessProfile.conflict.title")}</p>
-              <p className="mt-1 text-sm text-amber-200/80">
-                {t("businessProfile.conflict.description")}
+      <div
+        className="min-w-0 space-y-4 border-y border-white/10 py-5"
+        data-testid="settings-business-profile-summary"
+      >
+        <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10 text-emerald-400">
+              <Building2 className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-zinc-200">
+                {t("businessProfile.settingsCta.title")}
+              </p>
+              <p className="mt-1 max-w-2xl text-xs text-zinc-500">
+                {t("businessProfile.settingsCta.description")}
               </p>
             </div>
           </div>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={reloadingProfile}
-            onClick={() => void reloadProfile()}
-            className="shrink-0 gap-2"
-          >
-            <RotateCcw className={cn("h-4 w-4", reloadingProfile && "animate-spin")} />
-            {t("businessProfile.conflict.reload")}
+          <Button asChild size="sm" variant="outline" className="shrink-0">
+            <Link
+              href={demo ? "/demo/knowledge?view=business" : "/app/knowledge?view=business"}
+              data-testid="settings-business-profile-link"
+            >
+              {t("businessProfile.settingsCta.action")}
+              <ExternalLink className="h-3.5 w-3.5" />
+            </Link>
           </Button>
         </div>
-      ) : null}
 
-      <div className="flex min-w-0 flex-col gap-4 border-y border-white/10 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 items-start gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10 text-emerald-400">
-            <Building2 className="h-4 w-4" />
+        <dl className="grid min-w-0 gap-x-5 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="min-w-0">
+            <dt className="text-[11px] font-medium uppercase tracking-wider text-zinc-600">
+              {t("settings.profile.name")}
+            </dt>
+            <dd
+              className="mt-1 break-words text-sm font-medium text-zinc-200"
+              data-testid="settings-business-profile-name"
+            >
+              {account?.businessName || "—"}
+            </dd>
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-medium text-zinc-200">
-              {t("businessProfile.settingsCta.title")}
-            </p>
-            <p className="mt-1 max-w-2xl text-xs text-zinc-500">
-              {t("businessProfile.settingsCta.description")}
-            </p>
+            <dt className="text-[11px] font-medium uppercase tracking-wider text-zinc-600">
+              {t("settings.profile.industry")}
+            </dt>
+            <dd
+              className="mt-1 break-words text-sm text-zinc-300"
+              data-testid="settings-business-profile-type"
+            >
+              {businessTypeLabel(account?.tenant.businessType, i18n)}
+            </dd>
           </div>
-        </div>
-        <Button asChild size="sm" variant="outline" className="shrink-0">
-          <Link
-            href={demo ? "/demo/knowledge?view=business" : "/app/knowledge?view=business"}
-            data-testid="settings-business-profile-link"
-          >
-            {t("businessProfile.settingsCta.action")}
-            <ExternalLink className="h-3.5 w-3.5" />
-          </Link>
-        </Button>
+          <div className="min-w-0">
+            <dt className="text-[11px] font-medium uppercase tracking-wider text-zinc-600">
+              {t("settings.profile.timezone")}
+            </dt>
+            <dd
+              className="mt-1 break-words text-sm text-zinc-300"
+              data-testid="settings-business-profile-timezone"
+            >
+              {account?.timezone || "—"}
+            </dd>
+          </div>
+          <div className="min-w-0 sm:col-span-2 lg:col-span-3">
+            <dt className="text-[11px] font-medium uppercase tracking-wider text-zinc-600">
+              {t("settings.profile.about")}
+            </dt>
+            <dd
+              className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-zinc-400"
+              data-testid="settings-business-profile-description"
+            >
+              {account?.description || "—"}
+            </dd>
+          </div>
+        </dl>
       </div>
 
-      {/* Logo row */}
       <Card className="p-6">
         <div className="flex items-center gap-5">
           {logoDataUrl ? (
@@ -710,7 +717,7 @@ function ProfileTab() {
               className="h-16 w-16 rounded-full border border-white/10 object-cover"
             />
           ) : (
-            <Avatar name={businessName} size={64} />
+            <Avatar name={account?.businessName ?? ""} size={64} />
           )}
           <div>
             <p className="text-sm font-semibold text-zinc-200 mb-1">{t("settings.profile.logo")}</p>
@@ -728,7 +735,7 @@ function ProfileTab() {
                 size="sm"
                 variant="outline"
                 data-testid="settings-logo-upload"
-                disabled={logoUploading || !account || profileConflict}
+                disabled={logoUploading || !account}
                 onClick={() => logoInputRef.current?.click()}
               >
                 <Upload className="w-3.5 h-3.5 mr-1.5" />
@@ -739,7 +746,7 @@ function ProfileTab() {
                   size="sm"
                   variant="ghost"
                   data-testid="settings-logo-remove"
-                  disabled={logoUploading || profileConflict}
+                  disabled={logoUploading}
                   onClick={() => void saveLogo(null)}
                 >
                   {t("settings.common.delete")}
@@ -750,49 +757,23 @@ function ProfileTab() {
         </div>
       </Card>
 
-      <Card className="p-6 space-y-5">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-          <Field label={t("settings.profile.name")}>
-            <Input
-              value={businessName}
-              onChange={(event) => setBusinessName(event.target.value)}
-              placeholder={t("settings.profile.namePlaceholder")}
-            />
-          </Field>
-
-          <Field label={t("settings.profile.industry")}>
-            <Select value={businessType} onChange={setBusinessType}>
-              <option value="beauty">{t("settings.profile.industry.beauty")}</option>
-              <option value="fitness">{t("settings.profile.industry.fitness")}</option>
-              <option value="education">{t("settings.profile.industry.education")}</option>
-              <option value="retail">{t("settings.profile.industry.retail")}</option>
-              <option value="services">{t("settings.profile.industry.services")}</option>
-              <option value="other">{t("settings.profile.industry.other")}</option>
-            </Select>
-          </Field>
+      <Card className="space-y-5 p-6">
+        <div>
+          <h3 className="text-sm font-semibold text-zinc-200">
+            {t("settings.profile.contactsTitle")}
+          </h3>
+          <p className="mt-1 text-xs text-zinc-500">{t("settings.profile.contactsDescription")}</p>
         </div>
 
-        <Field label={t("settings.profile.about")} hint={t("settings.profile.aboutHint")}>
-          <Textarea
-            data-testid="settings-profile-description"
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            placeholder={t("settings.profile.aboutDefault")}
-            rows={3}
-          />
-        </Field>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-          <Field label={t("settings.profile.timezone")}>
-            <Select value={timezone} onChange={setTimezone}>
-              <option value="Europe/Moscow">{t("settings.profile.timezone.moscow")}</option>
-              <option value="Europe/Samara">{t("settings.profile.timezone.samara")}</option>
-              <option value="Asia/Yekaterinburg">
-                {t("settings.profile.timezone.yekaterinburg")}
-              </option>
-              <option value="Asia/Novosibirsk">{t("settings.profile.timezone.novosibirsk")}</option>
-              <option value="Asia/Vladivostok">{t("settings.profile.timezone.vladivostok")}</option>
-            </Select>
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <Field label={t("settings.profile.email")} hint={t("settings.profile.emailHint")}>
+            <Input
+              data-testid="settings-account-email"
+              type="email"
+              value={account?.owner.email ?? ""}
+              readOnly
+              placeholder={t("settings.profile.emailPlaceholder")}
+            />
           </Field>
 
           <Field label={t("settings.profile.phone")}>
@@ -801,36 +782,26 @@ function ProfileTab() {
               type="tel"
               value={phone}
               onChange={(event) => setPhone(event.target.value)}
-              placeholder="+7 (___) ___-__-__"
+              placeholder={t("settings.profile.phonePlaceholder")}
             />
           </Field>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-          <Field label={t("settings.profile.email")}>
-            <Input
-              type="email"
-              value={account?.owner.email ?? ""}
-              readOnly
-              placeholder={t("settings.profile.emailPlaceholder")}
-            />
-          </Field>
+        <Field label={t("settings.profile.website")}>
+          <Input
+            data-testid="settings-profile-website"
+            type="url"
+            value={website}
+            onChange={(event) => setWebsite(event.target.value)}
+            placeholder="https://"
+          />
+        </Field>
 
-          <Field label={t("settings.profile.website")}>
-            <Input
-              data-testid="settings-profile-website"
-              type="url"
-              value={website}
-              onChange={(event) => setWebsite(event.target.value)}
-              placeholder="https://"
-            />
-          </Field>
-        </div>
-
-        <div className="pt-2 flex justify-end">
+        <div className="flex justify-end pt-2">
           <Button
+            data-testid="settings-contact-save"
             onClick={() => void handleSave()}
-            disabled={saving || !account || !formBusinessProfileEtag || profileConflict}
+            disabled={saving || !account || !contactsDirty}
             className="gap-2"
           >
             <AnimatePresence mode="wait" initial={false}>

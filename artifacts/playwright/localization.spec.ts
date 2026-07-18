@@ -95,10 +95,26 @@ test.describe("six-language localization", () => {
     context,
     page,
   }) => {
+    const runtimeErrors: string[] = [];
+    page.on("pageerror", (error) => runtimeErrors.push(error.message));
     await page.setViewportSize({ width: 390, height: 844 });
     await context.addCookies([
       { name: "leadvirt-locale", value: "pt", url: webBase, sameSite: "Lax" },
     ]);
+    await page.route("**/api/auth/me", async (route) => {
+      await route.fulfill({
+        json: {
+          data: {
+            id: "localization-owner",
+            tenantId: "localization-tenant",
+            email: "owner@localization.test",
+            role: "OWNER",
+            authMode: "email",
+            passwordChangeRequired: false,
+          },
+        },
+      });
+    });
     await page.route("**/api/onboarding/state", async (route) => {
       await route.fulfill({
         json: {
@@ -133,6 +149,8 @@ test.describe("six-language localization", () => {
       { name: "leadvirt-locale", value: "de", url: webBase, sameSite: "Lax" },
     ]);
     await page.goto(`${webBase}/demo`, { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(3_000);
+    expect(runtimeErrors).toEqual([]);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Übersicht");
     await expect(page.getByText(/^Willkommen, /)).toBeVisible();
     await expect(page.getByText("Neue Leads", { exact: true }).first()).toBeVisible();

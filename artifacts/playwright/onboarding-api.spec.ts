@@ -14,6 +14,165 @@ test.beforeEach(async ({ page }) => {
   await page
     .context()
     .addCookies([{ name: "leadvirt-locale", value: "ru", url: webBase, sameSite: "Lax" }]);
+  await page.route("**/api/auth/me", async (route) => {
+    await route.fulfill({
+      json: {
+        data: {
+          id: "onboarding-owner",
+          tenantId: "onboarding-tenant",
+          email: "owner@onboarding.test",
+          name: "Onboarding Owner",
+          role: "OWNER",
+          authMode: "email",
+          passwordChangeRequired: false,
+        },
+      },
+    });
+  });
+});
+
+test("unauthenticated onboarding returns to login with the selected plan preserved", async ({
+  context,
+  page,
+}) => {
+  await context.addCookies([
+    { name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" },
+  ]);
+  await page.unroute("**/api/auth/me");
+  let onboardingRequests = 0;
+  await page.route("**/api/auth/me", async (route) => {
+    await route.fulfill({
+      status: 401,
+      json: { error: { code: "UNAUTHORIZED", message: "Authentication required" } },
+    });
+  });
+  await page.route("**/api/onboarding/state", async (route) => {
+    onboardingRequests += 1;
+    await route.fulfill({ status: 401, json: { message: "Unexpected onboarding request" } });
+  });
+
+  await page.goto(`${webBase}/onboarding?plan=pro`, { waitUntil: "domcontentloaded" });
+
+  await expect(page).toHaveURL(`${webBase}/login?plan=pro&returnTo=%2Fonboarding%3Fplan%3Dpro`, {
+    timeout: 15_000,
+  });
+  await expect(page.getByRole("link", { name: "Sign up" })).toHaveAttribute(
+    "href",
+    "/signup?plan=pro&returnTo=%2Fonboarding%3Fplan%3Dpro",
+  );
+  expect(onboardingRequests).toBe(0);
+});
+
+test("mobile onboarding announces progress, intent availability, and saving state", async ({
+  context,
+  page,
+}) => {
+  await context.addCookies([
+    { name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" },
+  ]);
+  let releaseFirstPatch: (() => void) | null = null;
+  let patchCount = 0;
+
+  await page.route("**/api/onboarding/state", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({
+        json: {
+          data: {
+            ...businessProfileRevision(),
+            currentStep: "channels",
+            completedSteps: ["business"],
+            data: { businessType: "services", selectedChannels: [] },
+            completedAt: null,
+          },
+        },
+      });
+      return;
+    }
+
+    patchCount += 1;
+    if (patchCount === 1) {
+      await new Promise<void>((resolve) => {
+        releaseFirstPatch = resolve;
+      });
+    }
+    const body = route.request().postDataJSON() as { currentStep?: string };
+    await route.fulfill({
+      json: {
+        data: {
+          ...businessProfileRevision(),
+          currentStep: body.currentStep ?? "channels",
+          completedSteps: ["business", "channels"],
+          data: { businessType: "services", selectedChannels: ["whatsapp"] },
+          completedAt: null,
+        },
+      },
+    });
+  });
+  await page.route("**/api/onboarding/complete-step", async (route) => {
+    await route.fulfill({
+      json: {
+        data: {
+          ...businessProfileRevision(),
+          currentStep: "channels",
+          completedSteps: ["business", "channels"],
+          data: {},
+          completedAt: null,
+        },
+      },
+    });
+  });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${webBase}/onboarding`, { waitUntil: "domcontentloaded" });
+
+  const progress = page.getByRole("progressbar", { name: "Step 2 of 6" });
+  await expect(progress).toHaveAttribute("aria-valuenow", "2");
+  const skip = page.getByRole("button", { name: "Skip" });
+  const skipBox = await skip.boundingBox();
+  expect(skipBox?.width).toBeGreaterThanOrEqual(44);
+  expect(skipBox?.height).toBeGreaterThanOrEqual(44);
+
+  const requestedChannel = page.getByRole("button", { name: /WhatsApp.*By request/i });
+  await expect(requestedChannel).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByRole("button", { name: /Telegram.*Available/i })).toBeVisible();
+  await requestedChannel.click();
+  await expect(requestedChannel).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+
+  await expect(page.getByRole("button", { name: "Saving...", exact: true })).toBeVisible();
+  await expect(page.getByRole("status")).toContainText("Saving...");
+  releaseFirstPatch?.();
+  await expect(page.getByRole("heading", { name: "Choose an AI workflow" })).toBeVisible();
+});
+
+test("company onboarding fields expose associated required labels", async ({ context, page }) => {
+  await context.addCookies([
+    { name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" },
+  ]);
+  await page.route("**/api/onboarding/state", async (route) => {
+    await route.fulfill({
+      json: {
+        data: {
+          ...businessProfileRevision(),
+          currentStep: "company",
+          completedSteps: ["business", "channels", "scenario"],
+          data: {
+            businessType: "services",
+            selectedChannels: ["telegram"],
+            scenario: "support",
+          },
+          completedAt: null,
+        },
+      },
+    });
+  });
+
+  await page.goto(`${webBase}/onboarding`, { waitUntil: "domcontentloaded" });
+
+  await expect(page.getByLabel(/Company name/)).toHaveAttribute("required", "");
+  await expect(page.getByLabel(/About the company/)).toHaveAttribute("required", "");
+  await expect(page.getByLabel("Catalog, services, and prices")).toBeVisible();
+  await expect(page.getByLabel("Business hours")).toBeVisible();
 });
 
 test("onboarding hydrates state and persists progress", async ({ page }) => {
@@ -569,12 +728,17 @@ async function mockLaunchReadyOnboarding(page: Page) {
   };
 }
 
-async function launchReadyOnboarding(page: Page, path: string) {
+async function launchReadyOnboarding(page: Page, path: string, actionLabel: string) {
   const requests = await mockLaunchReadyOnboarding(page);
 
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(`${webBase}${path}`, { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "Launch AI Administrator" }).click();
+  await expect(page.getByRole("heading", { name: "Initial setup saved" })).toBeVisible();
+  await expect(
+    page.getByText(/complete readiness before enabling automatic replies/i),
+  ).toBeVisible();
+  await expect(page.getByText("Everything is ready!")).toHaveCount(0);
+  await page.getByRole("button", { name: actionLabel }).click();
 
   await expect.poll(requests.stateUpdates).toBe(1);
   await expect.poll(requests.launchCompletions).toBe(1);
@@ -582,20 +746,24 @@ async function launchReadyOnboarding(page: Page, path: string) {
 }
 
 test("successful onboarding launch opens Knowledge review", async ({ page }) => {
-  await launchReadyOnboarding(page, "/onboarding");
+  await launchReadyOnboarding(page, "/onboarding", "Review business information");
 
   await expect(page).toHaveURL(`${webBase}/app/knowledge?welcome=1`, { timeout: 15_000 });
   await expect(page.getByText("Your setup answers are saved.")).toBeVisible();
 });
 
 test("successful onboarding launch hands a selected plan to billing", async ({ page }) => {
-  await launchReadyOnboarding(page, "/onboarding?plan=pro");
+  await launchReadyOnboarding(page, "/onboarding?plan=pro", "Review selected plan");
 
   await expect(page).toHaveURL(`${webBase}/app/billing?plan=pro`, { timeout: 15_000 });
 });
 
 test("successful onboarding launch ignores a malformed plan", async ({ page }) => {
-  await launchReadyOnboarding(page, "/onboarding?plan=pro%2F..%2Fcorporate");
+  await launchReadyOnboarding(
+    page,
+    "/onboarding?plan=pro%2F..%2Fcorporate",
+    "Review business information",
+  );
 
   await expect(page).toHaveURL(`${webBase}/app/knowledge?welcome=1`, { timeout: 15_000 });
   await expect(page.getByText("Your setup answers are saved.")).toBeVisible();

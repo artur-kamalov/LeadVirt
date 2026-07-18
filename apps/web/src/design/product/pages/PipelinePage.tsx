@@ -82,6 +82,32 @@ function fallbackPatchForAction(action: LeadAction): Partial<Lead> {
   }
 }
 
+function formatLeadAmounts(
+  leads: Lead[],
+  formatCurrency: (value: number, currency?: string) => string,
+  mode: "total" | "average" = "total",
+) {
+  const groups = new Map<string, { total: number; count: number }>();
+  for (const lead of leads) {
+    if (lead.value <= 0) continue;
+    const group = groups.get(lead.currency) ?? { total: 0, count: 0 };
+    group.total += lead.value;
+    group.count += 1;
+    groups.set(lead.currency, group);
+  }
+
+  if (groups.size === 0) return "—";
+  return [...groups.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([currency, group]) =>
+      formatCurrency(
+        mode === "average" ? Math.round(group.total / group.count) : group.total,
+        currency,
+      ),
+    )
+    .join(" · ");
+}
+
 /* ─────────────────────────────────────────────
    Lead card
 ───────────────────────────────────────────── */
@@ -179,7 +205,7 @@ const LeadCard = React.forwardRef<
         <div className="flex items-center justify-between gap-2">
           <div className="flex flex-col gap-0.5">
             <span className="text-sm font-bold text-emerald-400 tracking-tight">
-              {lead.value > 0 ? formatCurrency(lead.value) : "—"}
+              {lead.value > 0 ? formatCurrency(lead.value, lead.currency) : "—"}
             </span>
             <span className="text-[10px] text-zinc-600 truncate max-w-[120px]">{lead.source}</span>
           </div>
@@ -228,7 +254,7 @@ function KanbanColumn({
   const { formatCurrency, t } = useI18n();
   const stage = stages[stageId];
   const isLast = stageId === "closed";
-  const total = columnLeads.reduce((s, l) => s + l.value, 0);
+  const total = formatLeadAmounts(columnLeads, formatCurrency);
 
   return (
     <div className="flex flex-col w-full min-w-0 md:min-w-[292px] md:max-w-[292px]">
@@ -253,8 +279,8 @@ function KanbanColumn({
       </div>
 
       {/* Value sub-line */}
-      {total > 0 && (
-        <p className="text-[11px] text-zinc-500 font-medium px-1 mb-2">{formatCurrency(total)}</p>
+      {total !== "—" && (
+        <p className="text-[11px] text-zinc-500 font-medium px-1 mb-2">{total}</p>
       )}
 
       {/* Cards */}
@@ -363,7 +389,7 @@ function ListView({
                     <ChannelBadge id={lead.channel} />
                   </td>
                   <td className="px-4 py-3 font-bold text-emerald-400 whitespace-nowrap">
-                    {lead.value > 0 ? formatCurrency(lead.value) : "—"}
+                    {lead.value > 0 ? formatCurrency(lead.value, lead.currency) : "—"}
                   </td>
                   <td className="px-4 py-3 text-zinc-400 text-xs">{lead.manager}</td>
                   <td className="px-4 py-3">
@@ -619,18 +645,18 @@ export function PipelinePage() {
 
   /* Summary stats */
   const totalLeads = leads.length;
-  const totalValue = useMemo(() => leads.reduce((s, l) => s + l.value, 0), [leads]);
+  const totalValue = useMemo(
+    () => formatLeadAmounts(leads, formatCurrency),
+    [formatCurrency, leads],
+  );
   const bookedLeads = leads.filter(
     (l) => l.stage === "booked" || l.stage === "crm" || l.stage === "closed",
   ).length;
   const convRate = totalLeads > 0 ? Math.round((bookedLeads / totalLeads) * 100) : 0;
-  const avgCheck =
-    bookedLeads > 0
-      ? Math.round(
-          leads.filter((l) => l.value > 0).reduce((s, l) => s + l.value, 0) /
-            leads.filter((l) => l.value > 0).length,
-        )
-      : 0;
+  const avgCheck = useMemo(
+    () => (bookedLeads > 0 ? formatLeadAmounts(leads, formatCurrency, "average") : "—"),
+    [bookedLeads, formatCurrency, leads],
+  );
 
   /* Group leads by stage */
   const byStage = useMemo(() => {
@@ -750,7 +776,7 @@ export function PipelinePage() {
             <StatChip
               icon={Wallet}
               label={t("ops.pipeline.value")}
-              value={formatCurrency(totalValue)}
+              value={totalValue}
               accent="text-emerald-400"
               bg="bg-emerald-500/10"
             />
@@ -768,7 +794,7 @@ export function PipelinePage() {
             <StatChip
               icon={BarChart3}
               label={t("ops.pipeline.average")}
-              value={avgCheck > 0 ? formatCurrency(avgCheck) : "—"}
+              value={avgCheck}
               accent="text-amber-400"
               bg="bg-amber-500/10"
             />

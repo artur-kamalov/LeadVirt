@@ -1,7 +1,15 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { OnboardingPage } from "@/design/product/pages/OnboardingPage";
+interface LegacyOnboardingPageProps {
+  searchParams?: Promise<{ plan?: string | string[] }>;
+}
 
-export default function Page() {
-  return <OnboardingPage />;
+function first(value?: string | string[]) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function Page({ searchParams }: LegacyOnboardingPageProps) {
+  const params = await searchParams;
+  const plan = first(params?.plan);
+  redirect(plan ? `/onboarding?plan=${encodeURIComponent(plan)}` : "/onboarding");
 }

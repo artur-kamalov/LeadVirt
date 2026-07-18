@@ -22,29 +22,38 @@ export const pt: Record<BaseTranslationKey, string> = {
   "landing.hero.before": "Um administrador de IA para",
   "landing.hero.highlight": "leads",
   "landing.hero.after": "e mensagens",
-  "landing.hero.description": "Responde 24 horas por dia, 7 dias por semana, qualifica clientes, agenda serviços, ajuda com pedidos e envia leads para seu CRM. O companheiro de equipe ideal que nunca dorme.",
+  "landing.hero.description":
+    "Responde 24 horas por dia, 7 dias por semana, qualifica clientes, agenda serviços, ajuda com pedidos e envia leads para seu CRM. O companheiro de equipe ideal que nunca dorme.",
   "landing.hero.demo": "Veja a demonstração",
   "landing.how.title": "Como funciona",
-  "landing.how.description": "Um fluxo totalmente autônomo desde a primeira mensagem até uma reserva em seu sistema.",
+  "landing.how.description":
+    "Um fluxo totalmente autônomo desde a primeira mensagem até uma reserva em seu sistema.",
   "landing.how.step1.title": "Mensagens de clientes",
-  "landing.how.step1.description": "Através de qualquer canal conveniente: Telegram, WhatsApp, Instagram ou widget do seu site.",
+  "landing.how.step1.description":
+    "Através de qualquer canal conveniente: Telegram, WhatsApp, Instagram ou widget do seu site.",
   "landing.how.step2.title": "A IA qualifica",
-  "landing.how.step2.description": "Ela faz as perguntas certas, qualifica o lead e identifica o serviço certo.",
+  "landing.how.step2.description":
+    "Ela faz as perguntas certas, qualifica o lead e identifica o serviço certo.",
   "landing.how.step3.title": "Reserva criada",
   "landing.how.step3.description": "Faça um pedido ou reserve um horário em seu calendário.",
   "landing.how.step4.title": "Pronto para agir",
-  "landing.how.step4.description": "Sua equipe recebe uma solicitação estruturada no CRM ou no painel.",
+  "landing.how.step4.description":
+    "Sua equipe recebe uma solicitação estruturada no CRM ou no painel.",
   "landing.features.title": "O que o administrador de IA pode fazer",
   "landing.features.description": "Substitui toda uma equipe de resposta de entrada.",
   "landing.features.always.title": "Respostas 24 horas por dia, 7 dias por semana",
-  "landing.features.always.description": "Respostas instantâneas à noite, nos finais de semana e durante feriados. Nenhum cliente sai para um concorrente por causa de uma resposta lenta.",
+  "landing.features.always.description":
+    "Respostas instantâneas à noite, nos finais de semana e durante feriados. Nenhum cliente sai para um concorrente por causa de uma resposta lenta.",
   "landing.features.responseTime": "Tempo médio de resposta: 18 segundos",
   "landing.features.qualification.title": "Qualificação de leads",
-  "landing.features.qualification.description": "Faz as perguntas certas e filtra solicitações irrelevantes.",
+  "landing.features.qualification.description":
+    "Faz as perguntas certas e filtra solicitações irrelevantes.",
   "landing.features.followup.title": "Acompanhamentos automatizados",
-  "landing.features.followup.description": "Envia lembretes de reserva ou oferece um pedido repetido no próximo mês.",
+  "landing.features.followup.description":
+    "Envia lembretes de reserva ou oferece um pedido repetido no próximo mês.",
   "landing.features.crm.title": "Transferência e análise de CRM",
-  "landing.features.crm.description": "Envie leads hoje pelo Webhook de autoatendimento. Os conectores diretos de CRM aparecerão quando estiverem disponíveis.",
+  "landing.features.crm.description":
+    "Envie leads hoje pelo Webhook de autoatendimento. Os conectores diretos de CRM aparecerão quando estiverem disponíveis.",
   "landing.metrics.response.value": "18 seg",
   "landing.metrics.response.label": "Tempo médio de resposta",
   "landing.metrics.conversion.label": "Conversão de reservas",
@@ -55,7 +64,8 @@ export const pt: Record<BaseTranslationKey, string> = {
   "landing.metrics.auth.label": "Entrada sem senha",
   "landing.cta.title.before": "Pare de perder clientes",
   "landing.cta.title.after": "enquanto sua equipe está ocupada",
-  "landing.cta.description": "Conecte o Administrador de IA hoje mesmo e comece a converter cada mensagem em receita.",
+  "landing.cta.description":
+    "Conecte o Administrador de IA hoje mesmo e comece a converter cada mensagem em receita.",
   "landing.cta.action": "Iniciar gratuitamente",
   "landing.cta.note": "Criar um workspace é gratuito. Não é necessário cartão de pagamento.",
   "landing.footer.rights": "© 2026 LeadVirt.ai. Todos os direitos reservados.",
@@ -67,9 +77,11 @@ export const pt: Record<BaseTranslationKey, string> = {
   "hero.task.resolved": "Pergunta resolvida",
   "pricing.badge": "Preços transparentes",
   "pricing.title": "Escolha seu plano",
-  "pricing.description": "Comece pequeno e expanda conforme você cresce. Sem taxas ocultas ou contratos longos.",
+  "pricing.description":
+    "Comece pequeno e expanda conforme você cresce. Sem taxas ocultas ou contratos longos.",
   "pricing.popular": "Popular",
-  "pricing.note": "Não é necessário cartão para criar um workspace. O plano pago é ativado após confirmação e faturamento.",
+  "pricing.note":
+    "Não é necessário cartão para criar um workspace. O plano pago é ativado após confirmação e faturamento. Todos os preços e faturas são indicados em rublos russos (RUB).",
   "pricing.perMonth": "por mês",
   "pricing.start.tagline": "Para pequenas empresas testando um fluxo de trabalho de IA",
   "pricing.start.cta": "Escolher Start",
@@ -77,7 +89,7 @@ export const pt: Record<BaseTranslationKey, string> = {
   "pricing.pro.cta": "Escolha Profissional",
   "pricing.business.tagline": "Para equipes de vendas ativas e múltiplas linhas de negócios",
   "pricing.business.cta": "Escolha Business",
-  "pricing.corporate.price": "de 120.000 ₽",
+  "pricing.corporate.price": "a partir de {price}",
   "pricing.corporate.tagline": "Para redes, clínicas, e-commerce e grupos empresariais",
   "pricing.corporate.cta": "Solicitar plano Corporate",
   "pricing.feature.ai500": "500 conversas de IA",
@@ -108,37 +120,51 @@ export const pt: Record<BaseTranslationKey, string> = {
   "pricing.feature.personalManager": "Gerente pessoal 24 horas por dia, 7 dias por semana",
   "niches.title.before": "Uma opção perfeita para",
   "niches.title.highlight": "todas as empresas",
-  "niches.description": "A IA se adapta instantaneamente ao seu setor, aprende seus serviços e preços e se comunica em seu tom de voz.",
+  "niches.description":
+    "A IA se adapta instantaneamente ao seu setor, aprende seus serviços e preços e se comunica em seu tom de voz.",
   "niches.crmAdded": "Adicionado ao CRM",
   "niches.beauty.title": "Beleza",
-  "niches.beauty.description": "Reservas automatizadas, consultas de preços e lembretes de compromissos.",
+  "niches.beauty.description":
+    "Reservas automatizadas, consultas de preços e lembretes de compromissos.",
   "niches.beauty.user": "Olá! Você tem um espaço para corte de cabelo disponível esta noite?",
-  "niches.beauty.ai": "Olá! Alex tem vagas às 18h e às 19h30. Qual horário devo reservar para você?",
+  "niches.beauty.ai":
+    "Olá! Alex tem vagas às 18h e às 19h30. Qual horário devo reservar para você?",
   "niches.beauty.task": "Nova reserva: corte de cabelo, 19h30",
   "niches.medicine.title": "Assistência médica",
-  "niches.medicine.description": "Qualificação de sintomas, agendamentos médicos e coleta de histórico inicial.",
+  "niches.medicine.description":
+    "Qualificação de sintomas, agendamentos médicos e coleta de histórico inicial.",
   "niches.medicine.user": "Olá. Como posso marcar um cardiologista?",
-  "niches.medicine.ai": "Olá! A próxima abertura do Dr. Smirnov é amanhã às 14h. Gostaria do preço da consulta?",
+  "niches.medicine.ai":
+    "Olá! A próxima abertura do Dr. Smirnov é amanhã às 14h. Gostaria do preço da consulta?",
   "niches.medicine.task": "Lead no CRM: consulta de cardiologia",
   "niches.ecom.title": "E-commerce",
-  "niches.ecom.description": "Respostas de estoque, recomendações de tamanho e atualizações de status de pedidos.",
+  "niches.ecom.description":
+    "Respostas de estoque, recomendações de tamanho e atualizações de status de pedidos.",
   "niches.ecom.user": "Este suéter está disponível em preto, tamanho L?",
-  "niches.ecom.ai": "Sim, o suéter preto está disponível no tamanho L, faltando 2. Você gostaria de entrega?",
+  "niches.ecom.ai":
+    "Sim, o suéter preto está disponível no tamanho L, faltando 2. Você gostaria de entrega?",
   "niches.ecom.task": "Novo pedido: suéter (L, preto)",
   "niches.education.title": "Educação",
-  "niches.education.description": "Vendas de cursos, links para webinars e respostas a perguntas comuns.",
+  "niches.education.description":
+    "Vendas de cursos, links para webinars e respostas a perguntas comuns.",
   "niches.education.user": "Quanto tempo dura o curso de design?",
-  "niches.education.ai": "O curso dura 3 meses e é realizado on-line duas vezes por semana. Devo enviar-lhe o programa completo?",
+  "niches.education.ai":
+    "O curso dura 3 meses e é realizado on-line duas vezes por semana. Devo enviar-lhe o programa completo?",
   "niches.education.task": "Solicitação: Programa do curso de design",
   "niches.auto.title": "Serviço automotivo",
-  "niches.auto.description": "Agendamentos de manutenção, estimativas preliminares e atualizações de status de reparo.",
+  "niches.auto.description":
+    "Agendamentos de manutenção, estimativas preliminares e atualizações de status de reparo.",
   "niches.auto.user": "Quanto custa uma troca de óleo em um Toyota Camry?",
-  "niches.auto.ai": "Uma troca de óleo com seus suprimentos custa ₽1.500. A mão de obra com nosso petróleo começa em ₽6.500. Devo reservar sua entrada?",
+  "niches.auto.ai":
+    "Uma troca de óleo com seus suprimentos custa ₽1.500. A mão de obra com nosso petróleo começa em ₽6.500. Devo reservar sua entrada?",
   "niches.auto.task": "Lead: troca de óleo (Camry)",
   "niches.services.title": "Serviços (B2B/B2C)",
-  "niches.services.description": "Serviços de limpeza, jurídicos e reparos. Estimativas baseadas em fotos e coleta de detalhes.",
-  "niches.services.user": "Preciso de uma limpeza profunda para um apartamento de dois quartos. Quanto isso custa?",
-  "niches.services.ai": "Uma limpeza profunda para um apartamento de dois quartos começa em ₽4.500 e leva cerca de 4 horas. Qual dia funciona para você?",
+  "niches.services.description":
+    "Serviços de limpeza, jurídicos e reparos. Estimativas baseadas em fotos e coleta de detalhes.",
+  "niches.services.user":
+    "Preciso de uma limpeza profunda para um apartamento de dois quartos. Quanto isso custa?",
+  "niches.services.ai":
+    "Uma limpeza profunda para um apartamento de dois quartos começa em ₽4.500 e leva cerca de 4 horas. Qual dia funciona para você?",
   "niches.services.task": "Lead: Limpeza profunda (2 quartos)",
   "auth.login.title": "Faça login em LeadVirt.ai",
   "auth.login.subtitle": "Receba um código por e-mail ou continue com o Telegram.",
@@ -168,7 +194,8 @@ export const pt: Record<BaseTranslationKey, string> = {
   "auth.email.requestError": "Não foi possível enviar o código",
   "auth.email.verifyError": "Não foi possível verificar o código",
   "auth.email.unavailable": "O acesso por e-mail está temporariamente indisponível",
-  "auth.hero.title": "Seu administrador de IA está pronto para receber leads e gerenciar conversas.",
+  "auth.hero.title":
+    "Seu administrador de IA está pronto para receber leads e gerenciar conversas.",
   "auth.hero.description": "Entre sem senha usando um código único por e-mail ou Telegram.",
   "auth.highlight.passwordless": "Sem senha",
   "auth.highlight.telegram": "E-mail ou Telegram",
@@ -182,7 +209,8 @@ export const pt: Record<BaseTranslationKey, string> = {
   "auth.error.login": "Não foi possível fazer login",
   "auth.sessionChecking": "Verificando o acesso...",
   "auth.sessionCheckFailed": "Não foi possível verificar o acesso",
-  "auth.sessionCheckFailedDetail": "O LeadVirt não consegue acessar o servidor agora. Sua sessão foi preservada.",
+  "auth.sessionCheckFailedDetail":
+    "O LeadVirt não consegue acessar o servidor agora. Sua sessão foi preservada.",
   "auth.sessionRetry": "Tentar novamente",
   "product.nav.dashboard": "Visão geral",
   "product.nav.inbox": "Caixa de entrada",
@@ -208,7 +236,8 @@ export const pt: Record<BaseTranslationKey, string> = {
   "product.theme.toggle": "Alternar tema",
   "product.notifications.label": "Notificações",
   "product.notifications.none": "Nenhum evento novo ainda",
-  "product.notifications.noneDetail": "Novos leads, reservas e eventos de sincronização de CRM aparecerão aqui.",
+  "product.notifications.noneDetail":
+    "Novos leads, reservas e eventos de sincronização de CRM aparecerão aqui.",
   "product.notifications.openAll": "Abrir todos",
   "product.notifications.noNew": "nenhum item novo",
   "product.notifications.oneNew": "1 novo item",
@@ -268,11 +297,13 @@ export const pt: Record<BaseTranslationKey, string> = {
   "dashboard.recent.description": "Consultas atuais",
   "dashboard.recent.all": "Todos os leads",
   "dashboard.recent.empty": "Nenhum lead ainda",
-  "dashboard.recent.emptyDetail": "Novas consultas aparecerão depois que você conectar um canal ou receber um webhook.",
+  "dashboard.recent.emptyDetail":
+    "Novas consultas aparecerão depois que você conectar um canal ou receber um webhook.",
   "dashboard.activity.title": "Atividade",
   "dashboard.activity.description": "Eventos em tempo real",
   "dashboard.activity.empty": "Nenhum evento ainda",
-  "dashboard.activity.emptyDetail": "Os eventos do produto aparecerão após novos leads, tarefas, reservas ou conexões.",
+  "dashboard.activity.emptyDetail":
+    "Os eventos do produto aparecerão após novos leads, tarefas, reservas ou conexões.",
   "dashboard.fallback.client": "Cliente LeadVirt",
   "dashboard.fallback.lead": "Novo lead",
   "channel.website": "Site",
@@ -290,11 +321,16 @@ export const pt: Record<BaseTranslationKey, string> = {
   "onboarding.skip": "Pular",
   "onboarding.back": "Voltar",
   "onboarding.next": "Próximo",
-  "onboarding.launch": "Iniciar Administrador de IA",
+  "onboarding.launch": "Abrir painel",
+  "onboarding.saving": "Salvando...",
+  "onboarding.continue.billing": "Revisar o plano selecionado",
+  "onboarding.continue.knowledge": "Revisar informações da empresa",
   "onboarding.saveError.title": "Não foi possível salvar seu progresso",
-  "onboarding.saveError.description": "Verifique sua conexão e tente novamente. Suas respostas continuam aqui.",
+  "onboarding.saveError.description":
+    "Verifique sua conexão e tente novamente. Suas respostas continuam aqui.",
   "onboarding.business.title": "Que tipo de negócio é esse?",
-  "onboarding.business.description": "Escolha seu tipo de negócio para que a IA possa se adaptar ao seu setor",
+  "onboarding.business.description":
+    "Escolha seu tipo de negócio para que a IA possa se adaptar ao seu setor",
   "onboarding.business.services": "Serviços",
   "onboarding.business.beauty": "Estúdio de beleza",
   "onboarding.business.shop": "Loja on-line",
@@ -303,17 +339,25 @@ export const pt: Record<BaseTranslationKey, string> = {
   "onboarding.business.auto": "Oficina mecânica",
   "onboarding.business.local": "Empresa local",
   "onboarding.channels.title": "Onde os clientes entram em contato com você?",
-  "onboarding.channels.description": "Escolha os canais que deseja conectar",
+  "onboarding.channels.description":
+    "Escolha os canais. As opções disponíveis podem ser conectadas agora; as demais ficam salvas como solicitação ou plano.",
+  "onboarding.availability.available": "Disponível",
+  "onboarding.availability.request": "Sob solicitação",
+  "onboarding.availability.planned": "Planejado",
   "onboarding.scenario.title": "Escolha um fluxo de trabalho de IA",
   "onboarding.scenario.description": "Como seu assistente de IA deve funcionar?",
   "onboarding.scenario.booking": "Reserva de serviços",
-  "onboarding.scenario.bookingDescription": "A IA registra os clientes automaticamente e confirma a data, hora e especialista",
+  "onboarding.scenario.bookingDescription":
+    "A IA registra os clientes automaticamente e confirma a data, hora e especialista",
   "onboarding.scenario.order": "Processamento de pedidos",
-  "onboarding.scenario.orderDescription": "Aceita pedidos, confirma detalhes e os envia para processamento",
+  "onboarding.scenario.orderDescription":
+    "Aceita pedidos, confirma detalhes e os envia para processamento",
   "onboarding.scenario.consult": "Consulta e qualificação",
-  "onboarding.scenario.consultDescription": "Responde perguntas, identifica necessidades e qualifica leads",
+  "onboarding.scenario.consultDescription":
+    "Responde perguntas, identifica necessidades e qualifica leads",
   "onboarding.scenario.support": "Suporte ao cliente",
-  "onboarding.scenario.supportDescription": "Lida com solicitações comuns e reduz a carga de trabalho da equipe",
+  "onboarding.scenario.supportDescription":
+    "Lida com solicitações comuns e reduz a carga de trabalho da equipe",
   "onboarding.company.title": "Informações da empresa",
   "onboarding.company.description": "A IA usa essas informações ao falar com os clientes",
   "onboarding.company.name": "Nome da empresa",
@@ -321,21 +365,27 @@ export const pt: Record<BaseTranslationKey, string> = {
   "onboarding.company.about": "Sobre a empresa",
   "onboarding.company.aboutPlaceholder": "O que sua empresa faz e o que a torna diferente...",
   "onboarding.company.catalog": "Catálogo, serviços e preços",
-  "onboarding.company.catalogPlaceholder": "Por exemplo: corte de cabelo feminino — ₽2.500, 60 minutos; coloração — a partir de ₽6.000; consulta - gratuita.",
+  "onboarding.company.catalogPlaceholder":
+    "Por exemplo: corte de cabelo feminino — ₽2.500, 60 minutos; coloração — a partir de ₽6.000; consulta - gratuita.",
   "onboarding.company.hours": "Horário comercial",
   "onboarding.company.hoursPlaceholder": "Seg a Sex, 9h00 às 18h00",
   "onboarding.company.average": "Valor médio do pedido",
   "onboarding.company.averagePlaceholder": "₽2.000–₽5.000",
   "onboarding.company.availability": "Disponibilidade e regras de reserva",
-  "onboarding.company.availabilityPlaceholder": "Por exemplo: aberturas de terça a quinta, das 12h às 17h; reserve com pelo menos 2 horas de antecedência; reagendar no máximo 24 horas antes.",
+  "onboarding.company.availabilityPlaceholder":
+    "Por exemplo: aberturas de terça a quinta, das 12h às 17h; reserve com pelo menos 2 horas de antecedência; reagendar no máximo 24 horas antes.",
   "onboarding.company.faq": "Perguntas frequentes e objeções comuns",
-  "onboarding.company.faqPlaceholder": "Por exemplo: se crianças são bem-vindas, quanto tempo duram os resultados, contra-indicações e o que o torna diferente.",
+  "onboarding.company.faqPlaceholder":
+    "Por exemplo: se crianças são bem-vindas, quanto tempo duram os resultados, contra-indicações e o que o torna diferente.",
   "onboarding.company.policies": "Regras, limitações e promessas restritas",
-  "onboarding.company.policiesPlaceholder": "Por exemplo: não prometa um preço exato sem consultar; sem garantias médicas; descontos requerem aprovação.",
+  "onboarding.company.policiesPlaceholder":
+    "Por exemplo: não prometa um preço exato sem consultar; sem garantias médicas; descontos requerem aprovação.",
   "onboarding.company.escalation": "Quando envolver uma pessoa",
-  "onboarding.company.escalationPlaceholder": "Por exemplo: o cliente está irritado, solicita um reembolso, pede um desconto especial ou precisa de detalhes legais ou médicos.",
+  "onboarding.company.escalationPlaceholder":
+    "Por exemplo: o cliente está irritado, solicita um reembolso, pede um desconto especial ou precisa de detalhes legais ou médicos.",
   "onboarding.crm.title": "Para onde devem ir os leads?",
-  "onboarding.crm.description": "Escolha um CRM ou mantenha tudo dentro do LeadVirt",
+  "onboarding.crm.description":
+    "Escolha seu CRM preferido ou mantenha os leads no LeadVirt. CRMs planejados ainda não são conectados.",
   "onboarding.crm.amoDescription": "CRM de vendas popular na Rússia",
   "onboarding.crm.bitrixDescription": "Portal corporativo com pipeline de vendas",
   "onboarding.crm.retailDescription": "CRM especializado para e-commerce",
@@ -346,7 +396,8 @@ export const pt: Record<BaseTranslationKey, string> = {
   "onboarding.summary.notSelected": "Não selecionado",
   "onboarding.summary.scenario": "Fluxo de trabalho de IA",
   "onboarding.summary.company": "Empresa",
-  "onboarding.ready.title": "Tudo está pronto!",
-  "onboarding.ready.description": "O Administrador de IA está configurado e pronto para trabalhar",
-  "onboarding.ready.summary": "Resumo da configuração"
+  "onboarding.ready.title": "Configuração inicial salva",
+  "onboarding.ready.description":
+    "Suas respostas foram salvas. Agora revise os dados, conecte um canal disponível e conclua a preparação antes de ativar respostas automáticas.",
+  "onboarding.ready.summary": "Resumo da configuração",
 };

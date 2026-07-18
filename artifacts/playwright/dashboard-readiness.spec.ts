@@ -111,13 +111,15 @@ async function mockBase(page: Page) {
 async function mockReadiness(
   page: Page,
   options: {
-    knowledge: "ready" | "review" | "unavailable";
+    knowledge: "ready" | "review" | "unavailable" | "null";
     repliesActive?: boolean;
     inboundSucceeded?: boolean;
     channelConnected?: boolean;
     integrationProvider?: "TELEGRAM" | "AMOCRM";
+    channelsFailingInitially?: boolean;
   },
 ) {
+  let channelsFailing = Boolean(options.channelsFailingInitially);
   await page.route("**/api/knowledge/v2/overview", (route) => {
     if (options.knowledge === "unavailable") {
       return route.fulfill({
@@ -125,10 +127,14 @@ async function mockReadiness(
         json: { error: { code: "SERVICE_UNAVAILABLE", message: "internal-service-name failed" } },
       });
     }
+    if (options.knowledge === "null") return route.fulfill({ json: { data: null } });
     return route.fulfill({ json: { data: overview(options.knowledge) } });
   });
-  await page.route("**/api/channels", (route) =>
-    route.fulfill({
+  await page.route("**/api/channels", (route) => {
+    if (channelsFailing) {
+      return route.fulfill({ json: {} });
+    }
+    return route.fulfill({
       json: {
         data:
           options.channelConnected === false
@@ -146,8 +152,8 @@ async function mockReadiness(
                 },
               ],
       },
-    }),
-  );
+    });
+  });
   await page.route("**/api/channels/channel-telegram/automatic-replies/readiness", (route) =>
     route.fulfill({
       json: {
@@ -193,6 +199,11 @@ async function mockReadiness(
       },
     }),
   );
+  return {
+    setChannelsFailing: (value: boolean) => {
+      channelsFailing = value;
+    },
+  };
 }
 
 test.beforeEach(async ({ page }) => {
@@ -247,6 +258,71 @@ test("unavailable evidence is labeled as needing a check", async ({ page }) => {
   await expect(knowledge).toHaveAttribute("data-evidence", "needs_check");
   await expect(knowledge.locator("p")).toHaveCount(2);
   await expect(page.getByText("internal-service-name failed")).toHaveCount(0);
+});
+
+test("an empty Knowledge overview is treated as missing evidence, not a dashboard crash", async ({
+  page,
+}) => {
+  await mockReadiness(page, { knowledge: "null" });
+  await page.goto(`${webBase}/app`, { waitUntil: "networkidle" });
+
+  await expect(page.getByTestId("dashboard-readiness")).toBeVisible();
+  await expect(page.getByTestId("dashboard-readiness-step-knowledge")).toHaveAttribute(
+    "data-evidence",
+    "needs_check",
+  );
+  await expect(page.getByText(/Application error:/)).toHaveCount(0);
+});
+
+test("a readiness load failure replaces the skeleton and retry recovers", async ({ page }) => {
+  const readiness = await mockReadiness(page, {
+    knowledge: "ready",
+    channelsFailingInitially: true,
+  });
+  await page.goto(`${webBase}/app`, { waitUntil: "networkidle" });
+
+  const error = page.getByTestId("dashboard-readiness-load-error");
+  await expect(error).toBeVisible();
+  await expect(error).toContainText("Launch readiness could not be checked");
+  await expect(page.getByTestId("dashboard-readiness-loading")).toHaveCount(0);
+  await expect(page.getByTestId("dashboard-readiness")).toHaveCount(0);
+
+  readiness.setChannelsFailing(false);
+  await page.getByTestId("dashboard-readiness-retry").click();
+
+  await expect(page.getByTestId("dashboard-readiness")).toBeVisible();
+  await expect(page.getByTestId("dashboard-readiness-step-profile")).toHaveAttribute(
+    "data-state",
+    "completed",
+  );
+  await expect(error).toHaveCount(0);
+});
+
+test("a refresh failure retains the last verified readiness evidence", async ({ page }) => {
+  const readiness = await mockReadiness(page, {
+    knowledge: "ready",
+    repliesActive: true,
+    inboundSucceeded: true,
+  });
+  await page.goto(`${webBase}/app`, { waitUntil: "networkidle" });
+
+  const journey = page.getByTestId("dashboard-readiness");
+  const profile = page.getByTestId("dashboard-readiness-step-profile");
+  await expect(journey).toHaveAttribute("data-ready", "true");
+  await expect(profile).toHaveAttribute("data-state", "completed");
+
+  readiness.setChannelsFailing(true);
+  await page.getByTestId("dashboard-readiness-refresh").click();
+
+  await expect(page.getByTestId("dashboard-readiness-refresh-error")).toBeVisible();
+  await expect(journey).toHaveAttribute("data-ready", "true");
+  await expect(profile).toHaveAttribute("data-state", "completed");
+  await expect(page.getByTestId("dashboard-readiness-load-error")).toHaveCount(0);
+
+  readiness.setChannelsFailing(false);
+  await page.getByTestId("dashboard-readiness-refresh-retry").click();
+  await expect(page.getByTestId("dashboard-readiness-refresh-error")).toHaveCount(0);
+  await expect(journey).toHaveAttribute("data-ready", "true");
 });
 
 test("a connected CRM does not complete customer channel or inbound readiness", async ({ page }) => {

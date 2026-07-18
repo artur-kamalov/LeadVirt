@@ -11,6 +11,7 @@ import {
   LockKeyhole,
   MessageSquareMore,
   Plug,
+  RefreshCw,
   Rocket,
   Send,
 } from "lucide-react";
@@ -105,13 +106,17 @@ function detailMessage(detail: DashboardReadinessDetail): {
 export function DashboardReadinessJourney({
   snapshot,
   isLoading,
+  isError,
+  onRetry,
 }: {
   snapshot: DashboardReadinessSnapshot | null;
   isLoading: boolean;
+  isError: boolean;
+  onRetry: () => void;
 }) {
   const { t } = useI18n();
 
-  if (!snapshot) {
+  if (!snapshot && isLoading) {
     return (
       <Card className="min-w-0 p-4 sm:p-6" data-testid="dashboard-readiness-loading">
         <div className="flex items-center gap-3" role="status">
@@ -122,6 +127,43 @@ export function DashboardReadinessJourney({
           </div>
         </div>
         <p className="sr-only">{t("dashboard.readiness.loading")}</p>
+      </Card>
+    );
+  }
+
+  if (!snapshot) {
+    return (
+      <Card
+        className="min-w-0 border-amber-400/20 bg-amber-400/[0.035] p-4 sm:p-6"
+        data-testid="dashboard-readiness-load-error"
+        role="alert"
+      >
+        <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center">
+          <div className="flex min-w-0 flex-1 items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-amber-400/25 bg-amber-400/10 text-amber-300">
+              <AlertCircle className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold text-zinc-100">
+                {t("dashboard.readiness.error.title")}
+              </h2>
+              <p className="mt-1 text-sm leading-5 text-zinc-400">
+                {t("dashboard.readiness.error.description")}
+              </p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full shrink-0 gap-2 sm:w-auto"
+            data-testid="dashboard-readiness-retry"
+            onClick={onRetry}
+          >
+            <RefreshCw className="h-4 w-4" />
+            {t("dashboard.readiness.retry")}
+          </Button>
+        </div>
       </Card>
     );
   }
@@ -139,6 +181,36 @@ export function DashboardReadinessJourney({
       data-ready={model.isReady ? "true" : "false"}
       aria-busy={isLoading}
     >
+      {isError ? (
+        <div
+          className="flex min-w-0 flex-col gap-3 border-b border-amber-400/15 bg-amber-400/[0.045] px-4 py-3 sm:flex-row sm:items-center sm:px-5"
+          data-testid="dashboard-readiness-refresh-error"
+          role="alert"
+        >
+          <div className="flex min-w-0 flex-1 items-start gap-2.5">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-zinc-200">
+                {t("dashboard.readiness.error.title")}
+              </p>
+              <p className="mt-0.5 text-xs leading-5 text-zinc-500">
+                {t("dashboard.readiness.error.description")}
+              </p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full shrink-0 gap-2 sm:w-auto"
+            data-testid="dashboard-readiness-refresh-retry"
+            onClick={onRetry}
+          >
+            <RefreshCw className="h-4 w-4" />
+            {t("dashboard.readiness.retry")}
+          </Button>
+        </div>
+      ) : null}
       <div className="grid min-w-0 lg:grid-cols-[minmax(15rem,0.72fr)_minmax(0,1.55fr)]">
         <div className="min-w-0 border-b border-white/10 p-4 sm:p-6 lg:border-b-0 lg:border-r">
           <div className="flex items-start gap-3">
@@ -203,6 +275,18 @@ export function DashboardReadinessJourney({
               {primaryLabel}
               <Rocket className="h-4 w-4" />
             </Link>
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="mt-2 w-full justify-center gap-2 text-zinc-400"
+            data-testid="dashboard-readiness-refresh"
+            disabled={isLoading}
+            onClick={onRetry}
+          >
+            <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+            {t("dashboard.readiness.retry")}
           </Button>
           {isLoading ? (
             <p className="mt-2 text-xs text-zinc-600">{t("dashboard.readiness.loading")}</p>

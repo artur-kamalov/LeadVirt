@@ -113,7 +113,7 @@ const ru = {
     "Начните с малого и масштабируйтесь по мере роста. Без скрытых платежей и долгих контрактов.",
   "pricing.popular": "Популярный",
   "pricing.note":
-    "Карта не требуется для создания рабочего пространства. Платный тариф подключается после подтверждения и выставления счёта.",
+    "Карта не требуется для создания рабочего пространства. Платный тариф подключается после подтверждения и выставления счёта. Все цены и счета указаны в российских рублях (RUB).",
   "pricing.perMonth": "в месяц",
   "pricing.start.tagline": "Для малого бизнеса и теста одного AI-сценария",
   "pricing.start.cta": "Выбрать Start",
@@ -121,7 +121,7 @@ const ru = {
   "pricing.pro.cta": "Выбрать Professional",
   "pricing.business.tagline": "Для активных отделов продаж и нескольких направлений",
   "pricing.business.cta": "Выбрать Business",
-  "pricing.corporate.price": "от 120 000 ₽",
+  "pricing.corporate.price": "от {price}",
   "pricing.corporate.tagline": "Для сетей, клиник, e-commerce и холдингов",
   "pricing.corporate.cta": "Запросить корпоративный тариф",
   "pricing.feature.ai500": "500 AI-диалогов",
@@ -350,7 +350,10 @@ const ru = {
   "onboarding.skip": "Пропустить",
   "onboarding.back": "Назад",
   "onboarding.next": "Далее",
-  "onboarding.launch": "Запустить AI Администратора",
+  "onboarding.launch": "Открыть дашборд",
+  "onboarding.saving": "Сохраняем...",
+  "onboarding.continue.billing": "Проверить выбранный тариф",
+  "onboarding.continue.knowledge": "Проверить информацию о бизнесе",
   "onboarding.saveError.title": "Не удалось сохранить прогресс",
   "onboarding.saveError.description":
     "Проверьте подключение и попробуйте снова. Ваши ответы остались на месте.",
@@ -364,7 +367,11 @@ const ru = {
   "onboarding.business.auto": "Автосервис",
   "onboarding.business.local": "Локальный бизнес",
   "onboarding.channels.title": "Откуда приходят клиенты?",
-  "onboarding.channels.description": "Выберите каналы, которые хотите подключить",
+  "onboarding.channels.description":
+    "Выберите каналы. Доступные можно подключить самостоятельно, остальные сохранятся как запрос или план.",
+  "onboarding.availability.available": "Доступно",
+  "onboarding.availability.request": "По запросу",
+  "onboarding.availability.planned": "Планируется",
   "onboarding.scenario.title": "Выберите сценарий AI",
   "onboarding.scenario.description": "Как должен работать ваш AI-ассистент?",
   "onboarding.scenario.booking": "Запись на услугу",
@@ -405,7 +412,8 @@ const ru = {
   "onboarding.company.escalationPlaceholder":
     "Например: клиент злится, просит возврат, хочет нестандартную скидку, спрашивает юридические или медицинские детали.",
   "onboarding.crm.title": "Куда отправлять лиды?",
-  "onboarding.crm.description": "Выберите CRM или оставьте всё внутри системы",
+  "onboarding.crm.description":
+    "Выберите предпочтительную CRM или оставьте лиды в LeadVirt. Планируемые CRM сейчас не подключаются.",
   "onboarding.crm.amoDescription": "Популярная CRM для продаж в России",
   "onboarding.crm.bitrixDescription": "Корпоративный портал с воронкой продаж",
   "onboarding.crm.retailDescription": "Специализированная CRM для e-commerce",
@@ -416,8 +424,9 @@ const ru = {
   "onboarding.summary.notSelected": "Не выбраны",
   "onboarding.summary.scenario": "Сценарий AI",
   "onboarding.summary.company": "Компания",
-  "onboarding.ready.title": "Всё готово!",
-  "onboarding.ready.description": "AI Администратор настроен и готов к работе",
+  "onboarding.ready.title": "Первичная настройка сохранена",
+  "onboarding.ready.description":
+    "Ответы сохранены. Далее проверьте данные, подключите доступный канал и завершите путь готовности перед включением автоматических ответов.",
   "onboarding.ready.summary": "Итог настройки",
 } as const;
 
@@ -517,7 +526,8 @@ const en: Record<BaseTranslationKey, string> = {
   "pricing.title": "Choose your plan",
   "pricing.description": "Start small and scale as you grow. No hidden fees or long contracts.",
   "pricing.popular": "Popular",
-  "pricing.note": "No card is required to create a workspace. A paid plan starts after confirmation and invoicing.",
+  "pricing.note":
+    "No card is required to create a workspace. A paid plan starts after confirmation and invoicing. All listed prices and invoices are in Russian rubles (RUB).",
   "pricing.perMonth": "per month",
   "pricing.start.tagline": "For small businesses testing one AI workflow",
   "pricing.start.cta": "Choose Start",
@@ -525,7 +535,7 @@ const en: Record<BaseTranslationKey, string> = {
   "pricing.pro.cta": "Choose Professional",
   "pricing.business.tagline": "For active sales teams and multiple business lines",
   "pricing.business.cta": "Choose Business",
-  "pricing.corporate.price": "from 120,000 ₽",
+  "pricing.corporate.price": "from {price}",
   "pricing.corporate.tagline": "For chains, clinics, e-commerce, and enterprise groups",
   "pricing.corporate.cta": "Request Corporate",
   "pricing.feature.ai500": "500 AI conversations",
@@ -752,7 +762,10 @@ const en: Record<BaseTranslationKey, string> = {
   "onboarding.skip": "Skip",
   "onboarding.back": "Back",
   "onboarding.next": "Next",
-  "onboarding.launch": "Launch AI Administrator",
+  "onboarding.launch": "Open dashboard",
+  "onboarding.saving": "Saving...",
+  "onboarding.continue.billing": "Review selected plan",
+  "onboarding.continue.knowledge": "Review business information",
   "onboarding.saveError.title": "We couldn't save your progress",
   "onboarding.saveError.description":
     "Check your connection and try again. Your answers are still here.",
@@ -766,7 +779,11 @@ const en: Record<BaseTranslationKey, string> = {
   "onboarding.business.auto": "Auto service",
   "onboarding.business.local": "Local business",
   "onboarding.channels.title": "Where do customers contact you?",
-  "onboarding.channels.description": "Choose the channels you want to connect",
+  "onboarding.channels.description":
+    "Choose channels. Available options can be connected now; the rest are saved as a request or plan.",
+  "onboarding.availability.available": "Available",
+  "onboarding.availability.request": "By request",
+  "onboarding.availability.planned": "Planned",
   "onboarding.scenario.title": "Choose an AI workflow",
   "onboarding.scenario.description": "How should your AI assistant work?",
   "onboarding.scenario.booking": "Service booking",
@@ -807,7 +824,8 @@ const en: Record<BaseTranslationKey, string> = {
   "onboarding.company.escalationPlaceholder":
     "For example: the customer is angry, requests a refund, asks for a special discount, or needs legal or medical details.",
   "onboarding.crm.title": "Where should leads go?",
-  "onboarding.crm.description": "Choose a CRM or keep everything inside LeadVirt",
+  "onboarding.crm.description":
+    "Choose your preferred CRM or keep leads in LeadVirt. Planned CRMs are not connected yet.",
   "onboarding.crm.amoDescription": "Popular sales CRM in Russia",
   "onboarding.crm.bitrixDescription": "Corporate portal with a sales pipeline",
   "onboarding.crm.retailDescription": "Specialized CRM for e-commerce",
@@ -818,8 +836,9 @@ const en: Record<BaseTranslationKey, string> = {
   "onboarding.summary.notSelected": "Not selected",
   "onboarding.summary.scenario": "AI workflow",
   "onboarding.summary.company": "Company",
-  "onboarding.ready.title": "Everything is ready!",
-  "onboarding.ready.description": "AI Administrator is configured and ready to work",
+  "onboarding.ready.title": "Initial setup saved",
+  "onboarding.ready.description":
+    "Your answers are saved. Next, review the data, connect an available channel, and complete readiness before enabling automatic replies.",
   "onboarding.ready.summary": "Setup summary",
 };
 

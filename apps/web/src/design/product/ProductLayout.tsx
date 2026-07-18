@@ -148,8 +148,8 @@ function notificationMetaFromAction(action: string): Pick<NotificationItem, "ico
 
 function notificationTimeLabel(createdAt: string, locale: Locale, t: Translate) {
   const label = relativeTimeLabel(createdAt, locale);
-  if (label === t("common.now") || label === "—") return label;
-  return `${label} ${t("common.ago")}`;
+  if (label === t("common.now")) return t("common.justNow");
+  return label;
 }
 
 function notificationsFromActivity(

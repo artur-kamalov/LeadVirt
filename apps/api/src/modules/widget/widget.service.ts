@@ -216,7 +216,6 @@ export class WidgetService {
           if (conversation.leadId) {
             const leadData: Prisma.LeadUpdateInput = {
               lastMessageAt: now,
-              interest: shortSubject(text),
             };
             const name = optionalString(dto.customer?.name);
             const phone = optionalString(dto.customer?.phone);

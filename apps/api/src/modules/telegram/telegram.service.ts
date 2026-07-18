@@ -622,7 +622,6 @@ export class TelegramService {
               ...(latestMessage ? { lastMessageAt: latestMessage.createdAt } : {}),
               ...(inbound.customerName ? { name: inbound.customerName } : {}),
               ...(inbound.customerPhone ? { phone: inbound.customerPhone } : {}),
-              ...(latestMessage?.id === message.id ? { interest: shortSubject(inbound.text) } : {}),
             },
           });
         }
@@ -694,7 +693,6 @@ export class TelegramService {
             lastMessageAt: latestMessage.createdAt,
             ...(inbound.customerName ? { name: inbound.customerName } : {}),
             ...(inbound.customerPhone ? { phone: inbound.customerPhone } : {}),
-            ...(latestMessage.id === message.id ? { interest: shortSubject(inbound.text) } : {}),
           },
         });
       }

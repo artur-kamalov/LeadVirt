@@ -18,8 +18,8 @@ function accountSettings(businessName = "API Studio", businessProfileVersion = 3
         name: businessName,
         slug: "api-studio",
         status: "TRIALING",
-        businessType: "education",
-        timezone: "Asia/Novosibirsk",
+        businessType: "clinic",
+        timezone: "Europe/Paris",
       },
       owner: {
         id: "user-owner",
@@ -28,8 +28,8 @@ function accountSettings(businessName = "API Studio", businessProfileVersion = 3
         avatarUrl: null,
       },
       businessName,
-      timezone: "Asia/Novosibirsk",
-      description: "API-backed education workspace",
+      timezone: "Europe/Paris",
+      description: "API-backed clinic workspace",
       phone: "+33 1 84 80 20 26",
       website: "https://api-studio.example",
       businessProfileVersion,
@@ -61,8 +61,8 @@ function currentTenant(role = "OWNER") {
       name: "API Studio",
       slug: "api-studio",
       status: "TRIALING",
-      businessType: "education",
-      timezone: "Asia/Novosibirsk",
+      businessType: "clinic",
+      timezone: "Europe/Paris",
       role,
     },
   };
@@ -119,13 +119,8 @@ async function installSettingsProfileDependencies(page: Page) {
 test("settings page renders account controls without exposing technical-only settings", async ({
   page,
 }) => {
-  let patchedBusinessName = "";
-  let patchedBusinessProfileIfMatch = "";
-  let patchedProfile: {
-    description?: string | null;
-    phone?: string | null;
-    website?: string | null;
-  } = {};
+  let accountPatch: Record<string, unknown> = {};
+  let accountPatchIfMatch = "";
   let patchedRole = "";
   let releaseRolePatch!: () => void;
   const rolePatchGate = new Promise<void>((resolve) => {
@@ -155,25 +150,14 @@ test("settings page renders account controls without exposing technical-only set
 
   await page.route("**/api/settings/account", async (route) => {
     if (route.request().method() === "PATCH") {
-      const body = route.request().postDataJSON() as {
-        businessName?: string;
-        description?: string | null;
-        phone?: string | null;
-        website?: string | null;
-      };
-      patchedBusinessName = body.businessName ?? "";
-      patchedBusinessProfileIfMatch = route.request().headers()["if-match"] ?? "";
-      patchedProfile = {
-        description: body.description,
-        phone: body.phone,
-        website: body.website,
-      };
+      accountPatch = route.request().postDataJSON() as Record<string, unknown>;
+      accountPatchIfMatch = route.request().headers()["if-match"] ?? "";
       await route.fulfill({
         json: {
-          ...accountSettings(patchedBusinessName, 4),
+          ...accountSettings(),
           data: {
-            ...accountSettings(patchedBusinessName, 4).data,
-            ...patchedProfile,
+            ...accountSettings().data,
+            ...accountPatch,
           },
         },
       });
@@ -465,35 +449,41 @@ test("settings page renders account controls without exposing technical-only set
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(`${webBase}/app/settings`, { waitUntil: "networkidle" });
 
-  const businessNameInput = page.getByPlaceholder("Введите название");
-  const descriptionInput = page.getByTestId("settings-profile-description");
   const phoneInput = page.getByTestId("settings-profile-phone");
   const websiteInput = page.getByTestId("settings-profile-website");
+  await expect(page.getByTestId("settings-business-profile-summary")).toBeVisible();
   await expect(page.getByTestId("settings-business-profile-link")).toHaveAttribute(
     "href",
     "/app/knowledge?view=business",
   );
-  await expect(businessNameInput).toHaveValue("API Studio");
-  await expect(descriptionInput).toHaveValue("API-backed education workspace");
+  await expect(page.getByTestId("settings-business-profile-name")).toHaveText("API Studio");
+  await expect(page.getByTestId("settings-business-profile-type")).toHaveText("Клиника");
+  await expect(page.getByTestId("settings-business-profile-timezone")).toHaveText("Europe/Paris");
+  await expect(page.getByTestId("settings-business-profile-description")).toHaveText(
+    "API-backed clinic workspace",
+  );
+  await expect(page.getByTestId("settings-profile-description")).toHaveCount(0);
+  await expect(page.getByPlaceholder("Введите название")).toHaveCount(0);
   await expect(phoneInput).toHaveValue("+33 1 84 80 20 26");
   await expect(websiteInput).toHaveValue("https://api-studio.example");
-  await expect(page.locator('input[type="email"]')).toHaveValue("owner@api-studio.test");
+  await expect(page.getByTestId("settings-account-email")).toHaveValue("owner@api-studio.test");
 
-  await businessNameInput.fill("API Studio Updated");
-  await descriptionInput.fill("Updated profile description");
   await phoneInput.fill("+1 202 555 0142");
   await websiteInput.fill("https://updated.api-studio.example");
-  await page.getByRole("button", { name: /Сохранить изменения/ }).click();
-  await expect.poll(() => patchedBusinessName).toBe("API Studio Updated");
-  expect(patchedBusinessProfileIfMatch).toBe('"business-profile-settings-3"');
+  await page.getByTestId("settings-contact-save").click();
   await expect
-    .poll(() => patchedProfile)
+    .poll(() => accountPatch)
     .toEqual({
-      description: "Updated profile description",
       phone: "+1 202 555 0142",
       website: "https://updated.api-studio.example",
     });
-  await expect(businessNameInput).toHaveValue("API Studio Updated");
+  expect(accountPatchIfMatch).toBe("");
+  expect(accountPatch).not.toHaveProperty("businessName");
+  expect(accountPatch).not.toHaveProperty("businessType");
+  expect(accountPatch).not.toHaveProperty("timezone");
+  expect(accountPatch).not.toHaveProperty("description");
+  expect(accountPatch).not.toHaveProperty("logoDataUrl");
+  await expect(page.getByTestId("settings-business-profile-name")).toHaveText("API Studio");
 
   await page.getByRole("button", { name: /Команда и роли/ }).click();
   await expect(page.getByTestId("settings-team-member-membership-owner")).toContainText(
@@ -583,13 +573,12 @@ test("settings page renders account controls without exposing technical-only set
   });
 });
 
-test("settings logo update preserves the form draft and its loaded profile ETag", async ({
+test("settings logo update preserves contact drafts and cannot overwrite business information", async ({
   page,
 }) => {
   await installSettingsProfileDependencies(page);
   const patchBodies: Record<string, unknown>[] = [];
   const patchIfMatches: string[] = [];
-  let savedProfileVersion = 3;
 
   await page.route("**/api/settings/account", async (route) => {
     if (route.request().method() !== "PATCH") {
@@ -600,12 +589,7 @@ test("settings logo update preserves the form draft and its loaded profile ETag"
     const patchBody = route.request().postDataJSON() as Record<string, unknown>;
     patchBodies.push(patchBody);
     patchIfMatches.push(route.request().headers()["if-match"] ?? "");
-    const logoOnly = Object.keys(patchBody).every((key) => key === "logoDataUrl");
-    if (!logoOnly) savedProfileVersion += 1;
-    const response = accountSettings(
-      typeof patchBody.businessName === "string" ? patchBody.businessName : "API Studio",
-      logoOnly ? 99 : savedProfileVersion,
-    );
+    const response = accountSettings("Server canonical profile", 99);
     await route.fulfill({
       json: {
         ...response,
@@ -619,12 +603,11 @@ test("settings logo update preserves the form draft and its loaded profile ETag"
 
   await page.goto(`${webBase}/app/settings`, { waitUntil: "networkidle" });
   const profileEditor = page.getByTestId("settings-profile-editor");
-  const businessNameInput = profileEditor.locator("input:not([type])").first();
-  const descriptionInput = page.getByTestId("settings-profile-description");
+  const phoneInput = page.getByTestId("settings-profile-phone");
+  const websiteInput = page.getByTestId("settings-profile-website");
   await expect(profileEditor).toBeVisible();
-  await expect(businessNameInput).toHaveValue("API Studio");
-  await businessNameInput.fill("Unsaved local business name");
-  await descriptionInput.fill("Unsaved local profile description");
+  await phoneInput.fill("+1 202 555 0199");
+  await websiteInput.fill("https://draft.api-studio.example");
   await page.getByTestId("settings-logo-input").setInputFiles({
     name: "logo.png",
     mimeType: "image/png",
@@ -640,99 +623,76 @@ test("settings logo update preserves the form draft and its loaded profile ETag"
   expect(patchBodies[0]).not.toHaveProperty("businessType");
   expect(patchBodies[0]).not.toHaveProperty("timezone");
   expect(patchBodies[0]).not.toHaveProperty("description");
+  expect(patchBodies[0]).not.toHaveProperty("phone");
+  expect(patchBodies[0]).not.toHaveProperty("website");
+  expect(patchIfMatches[0]).toBe("");
   await expect(page.getByTestId("settings-logo-preview")).toBeVisible();
-  await expect(businessNameInput).toHaveValue("Unsaved local business name");
-  await expect(descriptionInput).toHaveValue("Unsaved local profile description");
+  await expect(page.getByTestId("settings-business-profile-name")).toHaveText(
+    "Server canonical profile",
+  );
+  await expect(phoneInput).toHaveValue("+1 202 555 0199");
+  await expect(websiteInput).toHaveValue("https://draft.api-studio.example");
 
-  const save = profileEditor.getByRole("button").last();
+  const save = page.getByTestId("settings-contact-save");
   await save.click();
   await expect.poll(() => patchBodies.length).toBe(2);
-  expect(patchIfMatches[1]).toBe('"business-profile-settings-3"');
-  await expect(save).toBeEnabled();
-  await expect(descriptionInput).toHaveValue("Unsaved local profile description");
-
-  await descriptionInput.fill("Second profile save after the logo response");
-  await save.click();
-  await expect.poll(() => patchBodies.length).toBe(3);
-  expect(patchIfMatches[2]).toBe('"business-profile-settings-4"');
+  expect(patchBodies[1]).toEqual({
+    phone: "+1 202 555 0199",
+    website: "https://draft.api-studio.example",
+  });
+  expect(patchIfMatches[1]).toBe("");
+  expect(patchBodies[1]).not.toHaveProperty("businessName");
+  expect(patchBodies[1]).not.toHaveProperty("businessType");
+  expect(patchBodies[1]).not.toHaveProperty("timezone");
+  expect(patchBodies[1]).not.toHaveProperty("description");
+  await expect(save).toBeDisabled();
 });
 
-test("settings preserves a stale draft until the user reloads the current profile", async ({
+test("settings contact save accepts a newer canonical profile without a stale write", async ({
   page,
 }) => {
   await installSettingsProfileDependencies(page);
-  let conflictReturned = false;
-  let patchAttempts = 0;
-  const patchIfMatches: string[] = [];
+  let patchBody: Record<string, unknown> = {};
+  let patchIfMatch = "not-sent";
 
   await page.route("**/api/settings/account", async (route) => {
     if (route.request().method() !== "PATCH") {
-      await route.fulfill({
-        json: conflictReturned
-          ? accountSettings("Server profile", 4)
-          : accountSettings("API Studio", 3),
-      });
+      await route.fulfill({ json: accountSettings("API Studio", 3) });
       return;
     }
 
-    patchAttempts += 1;
-    patchIfMatches.push(route.request().headers()["if-match"] ?? "");
-    const body = route.request().postDataJSON() as {
-      businessName?: string;
-      businessType?: string;
-      timezone?: string;
-      description?: string | null;
-      phone?: string | null;
-      website?: string | null;
-    };
-    if (patchAttempts === 1) {
-      conflictReturned = true;
-      await route.fulfill({
-        status: 412,
-        json: {
-          error: {
-            code: "REVISION_CONFLICT",
-            message: "The business profile changed in another session.",
-            retryable: false,
-          },
-        },
-      });
-      return;
-    }
-
+    patchBody = route.request().postDataJSON() as Record<string, unknown>;
+    patchIfMatch = route.request().headers()["if-match"] ?? "";
+    const response = accountSettings("Server profile", 4);
     await route.fulfill({
       json: {
-        ...accountSettings(body.businessName ?? "Server profile", 5),
+        ...response,
         data: {
-          ...accountSettings(body.businessName ?? "Server profile", 5).data,
-          ...body,
+          ...response.data,
+          ...patchBody,
         },
       },
     });
   });
 
   await page.goto(`${webBase}/app/settings`, { waitUntil: "networkidle" });
-  const profile = page.getByTestId("settings-profile-editor");
-  const businessName = profile.locator("input:not([type])").first();
-  const save = profile.getByRole("button").last();
-  await expect(businessName).toHaveValue("API Studio");
+  await page.getByTestId("settings-profile-phone").fill("+49 30 123456");
+  await page.getByTestId("settings-contact-save").click();
 
-  await businessName.fill("Local stale edit");
-  await save.click();
-  await expect.poll(() => patchAttempts).toBe(1);
-  await expect(page.getByTestId("settings-profile-conflict")).toBeVisible();
-  await expect(businessName).toHaveValue("Local stale edit");
-  expect(patchIfMatches[0]).toBe('"business-profile-settings-3"');
-
-  await page.getByTestId("settings-profile-conflict").getByRole("button").click();
-  await expect(page.getByTestId("settings-profile-conflict")).toBeHidden();
-  await expect(businessName).toHaveValue("Server profile");
-
-  await businessName.fill("Resolved after reload");
-  await save.click();
-  await expect.poll(() => patchAttempts).toBe(2);
-  expect(patchIfMatches[1]).toBe('"business-profile-settings-4"');
-  await expect(businessName).toHaveValue("Resolved after reload");
+  await expect
+    .poll(() => patchBody)
+    .toEqual({
+      phone: "+49 30 123456",
+      website: "https://api-studio.example",
+    });
+  expect(patchIfMatch).toBe("");
+  expect(patchBody).not.toHaveProperty("businessName");
+  expect(patchBody).not.toHaveProperty("businessType");
+  expect(patchBody).not.toHaveProperty("timezone");
+  expect(patchBody).not.toHaveProperty("description");
+  await expect(page.getByTestId("settings-business-profile-name")).toHaveText("Server profile");
+  await expect(page.getByTestId("settings-business-profile-type")).toHaveText("Клиника");
+  await expect(page.getByTestId("settings-business-profile-timezone")).toHaveText("Europe/Paris");
 });
 
 test("owner API-key deep link falls back to profile without loading legacy keys", async ({
@@ -1087,10 +1047,9 @@ test("settings account initial failure stays explicit and recovers on retry", as
   const loadError = page.getByTestId("settings-account-load-error");
   await expect(loadError).toBeVisible();
   await expect(page.getByTestId("settings-profile-editor")).toHaveCount(0);
-  await expect(page.getByTestId("settings-profile-description")).toHaveCount(0);
+  await expect(page.getByTestId("settings-business-profile-summary")).toHaveCount(0);
   await expect(page.getByTestId("settings-profile-phone")).toHaveCount(0);
   await expect(page.getByTestId("settings-profile-website")).toHaveCount(0);
-  await expect(page.getByPlaceholder("Введите название")).toHaveCount(0);
 
   accountAvailable = true;
   await loadError.getByRole("button").click();
@@ -1098,9 +1057,11 @@ test("settings account initial failure stays explicit and recovers on retry", as
   await expect.poll(() => accountRequests).toBeGreaterThan(1);
   await expect(loadError).toBeHidden();
   await expect(page.getByTestId("settings-profile-editor")).toBeVisible();
-  await expect(page.getByPlaceholder("Введите название")).toHaveValue("Recovered API Studio");
-  await expect(page.getByTestId("settings-profile-description")).toHaveValue(
-    "API-backed education workspace",
+  await expect(page.getByTestId("settings-business-profile-name")).toHaveText(
+    "Recovered API Studio",
+  );
+  await expect(page.getByTestId("settings-business-profile-description")).toHaveText(
+    "API-backed clinic workspace",
   );
   await expect(page.getByTestId("settings-profile-phone")).toHaveValue("+33 1 84 80 20 26");
   await expect(page.getByTestId("settings-profile-website")).toHaveValue(

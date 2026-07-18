@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { supportedLocales, type Locale } from "../../apps/web/src/i18n/config";
+import { intlLocale, supportedLocales, type Locale } from "../../apps/web/src/i18n/config";
 import { messages } from "../../apps/web/src/i18n/messages";
 import { loginAsCleanUser } from "./helpers/auth";
 
@@ -7,6 +7,38 @@ const webBase = process.env.LEADVIRT_WEB_BASE ?? "http://localhost:3001";
 const apiBase = process.env.LEADVIRT_API_BASE ?? "http://localhost:4001/api";
 const conversationId = "conversation-operational-locale";
 const leadId = "lead-operational-locale";
+const relativeTimestamp = new Date(Date.now() - 5 * 24 * 60 * 60_000).toISOString();
+const unidentifiedRequest: Record<Locale, string> = {
+  en: "Request not identified",
+  es: "Solicitud sin identificar",
+  fr: "Demande non identifiée",
+  de: "Anfrage nicht erkannt",
+  pt: "Solicitação não identificada",
+  ru: "Запрос не определён",
+};
+const websiteWidgetSource: Record<Locale, string> = {
+  en: "Website widget",
+  es: "Widget del sitio web",
+  fr: "Widget du site",
+  de: "Website-Widget",
+  pt: "Widget do site",
+  ru: "Виджет сайта",
+};
+
+function expectedRelativeTime(locale: Locale) {
+  return new Intl.RelativeTimeFormat(intlLocale(locale), {
+    numeric: "auto",
+    style: "long",
+  }).format(-5, "day");
+}
+
+function expectedLeadValue(locale: Locale) {
+  return new Intl.NumberFormat(intlLocale(locale), {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 0,
+  }).format(1234567);
+}
 
 function lead(status = "IN_PROGRESS") {
   return {
@@ -16,18 +48,18 @@ function lead(status = "IN_PROGRESS") {
     phone: null,
     email: null,
     companyName: null,
-    source: "Website widget",
+    source: "Виджет сайта",
     channelType: "WEBSITE",
     status,
     temperature: "WARM",
     valueAmount: 1234567,
-    currency: "RUB",
-    interest: "Consultation",
-    summary: "Needs a consultation",
+    currency: "EUR",
+    interest: null,
+    summary: "Customer asks about pricing and availability",
     assignedToUserId: null,
     assignedToName: "Workspace Manager",
-    lastMessageAt: "2026-07-13T10:00:00.000Z",
-    createdAt: "2026-07-13T09:00:00.000Z",
+    lastMessageAt: relativeTimestamp,
+    createdAt: relativeTimestamp,
   };
 }
 
@@ -45,12 +77,12 @@ function conversation(status = "IN_PROGRESS") {
     },
     channelType: "WEBSITE",
     status: "OPEN",
-    subject: "Localized conversation",
-    lastMessageAt: "2026-07-13T10:00:00.000Z",
+    subject: "Customer asks about pricing and availability",
+    lastMessageAt: relativeTimestamp,
     aiEnabled: true,
     handoffRequested: false,
     lead: lead(status),
-    lastMessage: "Needs a consultation",
+    lastMessage: "Customer asks about pricing and availability",
     unreadCount: 1,
     messages: [
       {
@@ -59,13 +91,22 @@ function conversation(status = "IN_PROGRESS") {
         conversationId,
         direction: "INBOUND",
         senderType: "CUSTOMER",
-        text: "Needs a consultation",
+        text: "Customer asks about pricing and availability",
         status: "RECEIVED",
-        createdAt: "2026-07-13T10:00:00.000Z",
+        createdAt: relativeTimestamp,
         attachments: [],
       },
     ],
-    events: [],
+    events: [
+      {
+        id: "event-operational-locale",
+        leadId,
+        type: "message_received",
+        title: "Message received",
+        message: null,
+        createdAt: relativeTimestamp,
+      },
+    ],
   };
 }
 
@@ -174,6 +215,11 @@ test("Inbox, Conversation, and Pipeline render all six operational locales", asy
     await expect(page.getByText(messages[locale]["ops.inbox.title"], { exact: true }).first()).toBeVisible();
     await expect(page.getByLabel(messages[locale]["ops.inbox.searchLabel"])).toBeVisible();
     await expect(page.getByRole("button", { name: messages[locale]["ops.common.toCrm"], exact: true })).toBeVisible();
+    await expect(page.getByText(expectedRelativeTime(locale), { exact: true }).first()).toBeVisible();
+    await expect(page.getByText(messages[locale]["ops.common.service"], { exact: true })).toBeVisible();
+    await expect(page.getByText(unidentifiedRequest[locale], { exact: true })).toBeVisible();
+    await expect(page.getByText(websiteWidgetSource[locale], { exact: true }).first()).toBeVisible();
+    await expect(page.getByText(expectedLeadValue(locale), { exact: true }).first()).toBeVisible();
   }
 
   await page.goto(`${webBase}/app/inbox/${conversationId}`, { waitUntil: "domcontentloaded" });
@@ -181,6 +227,10 @@ test("Inbox, Conversation, and Pipeline render all six operational locales", asy
     await selectLocale(page, locale);
     await expect(page.getByText(messages[locale]["ops.conversation.title"], { exact: true }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: messages[locale]["ops.conversation.sendToCrm"] }).first()).toBeVisible();
+    await expect(page.getByText(expectedRelativeTime(locale), { exact: true }).first()).toBeVisible();
+    await expect(page.getByText(unidentifiedRequest[locale], { exact: true })).toBeVisible();
+    await expect(page.getByText(websiteWidgetSource[locale], { exact: true })).toBeVisible();
+    await expect(page.getByText(expectedLeadValue(locale), { exact: true })).toBeVisible();
   }
 
   await page.goto(`${webBase}/app/leads`, { waitUntil: "domcontentloaded" });
@@ -188,6 +238,7 @@ test("Inbox, Conversation, and Pipeline render all six operational locales", asy
     await selectLocale(page, locale);
     await expect(page.getByRole("heading", { name: messages[locale]["ops.pipeline.heading"] })).toBeVisible();
     await expect(page.getByRole("button", { name: messages[locale]["ops.pipeline.list"] })).toBeVisible();
+    await expect(page.getByText(expectedLeadValue(locale), { exact: true }).first()).toBeVisible();
   }
 });
 

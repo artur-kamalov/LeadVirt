@@ -22,29 +22,39 @@ export const de: Record<BaseTranslationKey, string> = {
   "landing.hero.before": "Ein KI-Administrator für",
   "landing.hero.highlight": "Leads",
   "landing.hero.after": "und Nachrichten",
-  "landing.hero.description": "Antworten rund um die Uhr, qualifizieren Kunden, buchen Services, helfen bei Bestellungen und senden Leads an Ihr CRM. Der ideale Teamkollege, der niemals schläft.",
+  "landing.hero.description":
+    "Antworten rund um die Uhr, qualifizieren Kunden, buchen Services, helfen bei Bestellungen und senden Leads an Ihr CRM. Der ideale Teamkollege, der niemals schläft.",
   "landing.hero.demo": "Demo ansehen",
   "landing.how.title": "So funktioniert es",
-  "landing.how.description": "Ein völlig autonomer Ablauf von der ersten Nachricht bis zu einer Buchung in Ihrem System.",
+  "landing.how.description":
+    "Ein völlig autonomer Ablauf von der ersten Nachricht bis zu einer Buchung in Ihrem System.",
   "landing.how.step1.title": "Kundennachrichten",
-  "landing.how.step1.description": "Über jeden geeigneten Kanal: Telegram, WhatsApp, Instagram oder Ihr Website-Widget.",
+  "landing.how.step1.description":
+    "Über jeden geeigneten Kanal: Telegram, WhatsApp, Instagram oder Ihr Website-Widget.",
   "landing.how.step2.title": "KI qualifiziert",
-  "landing.how.step2.description": "Sie stellt die richtigen Fragen, qualifiziert den Lead und identifiziert den richtigen Service.",
+  "landing.how.step2.description":
+    "Sie stellt die richtigen Fragen, qualifiziert den Lead und identifiziert den richtigen Service.",
   "landing.how.step3.title": "Buchung erstellt",
-  "landing.how.step3.description": "Es wird eine Bestellung aufgegeben oder ein Termin in Ihrem Kalender gebucht.",
+  "landing.how.step3.description":
+    "Es wird eine Bestellung aufgegeben oder ein Termin in Ihrem Kalender gebucht.",
   "landing.how.step4.title": "Bereit zum Handeln",
-  "landing.how.step4.description": "Ihr Team erhält eine strukturierte Anfrage im CRM oder Dashboard.",
+  "landing.how.step4.description":
+    "Ihr Team erhält eine strukturierte Anfrage im CRM oder Dashboard.",
   "landing.features.title": "Was der KI-Administrator leisten kann",
   "landing.features.description": "Ersetzt ein gesamtes Inbound-Response-Team.",
   "landing.features.always.title": "Antworten rund um die Uhr",
-  "landing.features.always.description": "Sofortige Antworten nachts, am Wochenende und an Feiertagen. Kein Kunde wechselt aufgrund einer langsamen Reaktion zu einem Konkurrenten.",
+  "landing.features.always.description":
+    "Sofortige Antworten nachts, am Wochenende und an Feiertagen. Kein Kunde wechselt aufgrund einer langsamen Reaktion zu einem Konkurrenten.",
   "landing.features.responseTime": "Durchschnittliche Antwortzeit: 18 Sek.",
   "landing.features.qualification.title": "Lead-Qualifizierung",
-  "landing.features.qualification.description": "Stellt die richtigen Fragen und filtert irrelevante Anfragen heraus.",
+  "landing.features.qualification.description":
+    "Stellt die richtigen Fragen und filtert irrelevante Anfragen heraus.",
   "landing.features.followup.title": "Automatisierte Nachverfolgungen",
-  "landing.features.followup.description": "Versendet Buchungserinnerungen oder bietet eine Nachbestellung im nächsten Monat an.",
+  "landing.features.followup.description":
+    "Versendet Buchungserinnerungen oder bietet eine Nachbestellung im nächsten Monat an.",
   "landing.features.crm.title": "CRM-Übergabe und -Analyse",
-  "landing.features.crm.description": "Senden Sie Leads heute über den selbst bedienbaren Webhook. Direkte CRM-Connectoren erscheinen, sobald sie verfügbar sind.",
+  "landing.features.crm.description":
+    "Senden Sie Leads heute über den selbst bedienbaren Webhook. Direkte CRM-Connectoren erscheinen, sobald sie verfügbar sind.",
   "landing.metrics.response.value": "18 Sek.",
   "landing.metrics.response.label": "Durchschnittliche Antwortzeit",
   "landing.metrics.conversion.label": "Buchungskonvertierung",
@@ -55,9 +65,11 @@ export const de: Record<BaseTranslationKey, string> = {
   "landing.metrics.auth.label": "Passwortlose Anmeldung",
   "landing.cta.title.before": "Verlieren Sie keine Kunden mehr",
   "landing.cta.title.after": "während Ihr Team beschäftigt ist",
-  "landing.cta.description": "Verbinden Sie noch heute den KI-Administrator und verwandeln Sie jede Nachricht in Umsatz.",
+  "landing.cta.description":
+    "Verbinden Sie noch heute den KI-Administrator und verwandeln Sie jede Nachricht in Umsatz.",
   "landing.cta.action": "Kostenlos starten",
-  "landing.cta.note": "Das Erstellen eines Workspace ist kostenlos. Keine Zahlungskarte erforderlich.",
+  "landing.cta.note":
+    "Das Erstellen eines Workspace ist kostenlos. Keine Zahlungskarte erforderlich.",
   "landing.footer.rights": "© 2026 LeadVirt.ai. Alle Rechte vorbehalten.",
   "hero.message.booking": "Ich möchte für morgen buchen",
   "hero.message.price": "Wie viel kostet der Service?",
@@ -67,9 +79,11 @@ export const de: Record<BaseTranslationKey, string> = {
   "hero.task.resolved": "Frage gelöst",
   "pricing.badge": "Transparente Preise",
   "pricing.title": "Wählen Sie Ihren Plan",
-  "pricing.description": "Fangen Sie klein an und skalieren Sie, während Sie wachsen. Keine versteckten Gebühren oder langen Verträge.",
+  "pricing.description":
+    "Fangen Sie klein an und skalieren Sie, während Sie wachsen. Keine versteckten Gebühren oder langen Verträge.",
   "pricing.popular": "Beliebt",
-  "pricing.note": "Zum Erstellen eines Workspace ist keine Karte erforderlich. Ein kostenpflichtiger Tarif wird nach Bestätigung und Rechnungsstellung aktiviert.",
+  "pricing.note":
+    "Zum Erstellen eines Workspace ist keine Karte erforderlich. Ein kostenpflichtiger Tarif wird nach Bestätigung und Rechnungsstellung aktiviert. Alle Preise und Rechnungen sind in russischen Rubel (RUB) angegeben.",
   "pricing.perMonth": "pro Monat",
   "pricing.start.tagline": "Für kleine Unternehmen, die einen KI-Workflow testen",
   "pricing.start.cta": "Start auswählen",
@@ -77,7 +91,7 @@ export const de: Record<BaseTranslationKey, string> = {
   "pricing.pro.cta": "Wählen Sie Professional",
   "pricing.business.tagline": "Für aktive Vertriebsteams und mehrere Geschäftsbereiche",
   "pricing.business.cta": "Wählen Sie Business",
-  "pricing.corporate.price": "ab 120.000 ₽",
+  "pricing.corporate.price": "ab {price}",
   "pricing.corporate.tagline": "Für Ketten, Kliniken, E-Commerce und Unternehmensgruppen",
   "pricing.corporate.cta": "Corporate-Tarif anfragen",
   "pricing.feature.ai500": "500 KI-Konversationen",
@@ -108,37 +122,48 @@ export const de: Record<BaseTranslationKey, string> = {
   "pricing.feature.personalManager": "Persönlicher Manager 24/7",
   "niches.title.before": "Passt perfekt zu",
   "niches.title.highlight": "jedem Unternehmen",
-  "niches.description": "KI passt sich sofort an Ihre Branche an, lernt Ihre Dienstleistungen und Preise und kommuniziert in Ihrem Tonfall.",
+  "niches.description":
+    "KI passt sich sofort an Ihre Branche an, lernt Ihre Dienstleistungen und Preise und kommuniziert in Ihrem Tonfall.",
   "niches.crmAdded": "Zu CRM hinzugefügt",
   "niches.beauty.title": "Schönheit",
   "niches.beauty.description": "Automatisierte Buchungen, Preisberatung und Terminerinnerungen.",
   "niches.beauty.user": "Hallo! Haben Sie heute Abend einen Termin für einen Friseurtermin frei?",
-  "niches.beauty.ai": "Hallo! Alex hat um 18:00 Uhr und 19:30 Uhr offene Termine. Welche Zeit soll ich für Sie buchen?",
+  "niches.beauty.ai":
+    "Hallo! Alex hat um 18:00 Uhr und 19:30 Uhr offene Termine. Welche Zeit soll ich für Sie buchen?",
   "niches.beauty.task": "Neue Buchung: Haarschnitt, 19:30 Uhr",
   "niches.medicine.title": "Gesundheitswesen",
   "niches.medicine.description": "Symptomqualifizierung, Arztbuchungen und erste Anamneseerhebung.",
   "niches.medicine.user": "Hallo. Wie kann ich einen Kardiologen buchen?",
-  "niches.medicine.ai": "Hallo! Die nächste Eröffnung von Dr. Smirnov ist morgen um 14:00 Uhr. Wünschen Sie den Terminpreis?",
+  "niches.medicine.ai":
+    "Hallo! Die nächste Eröffnung von Dr. Smirnov ist morgen um 14:00 Uhr. Wünschen Sie den Terminpreis?",
   "niches.medicine.task": "CRM-Lead: Kardiologie-Termin",
   "niches.ecom.title": "E-Commerce",
-  "niches.ecom.description": "Stock-Antworten, Größenempfehlungen und Aktualisierungen des Bestellstatus.",
+  "niches.ecom.description":
+    "Stock-Antworten, Größenempfehlungen und Aktualisierungen des Bestellstatus.",
   "niches.ecom.user": "Ist dieser Pullover in Schwarz, Größe L, erhältlich?",
-  "niches.ecom.ai": "Ja, der schwarze Pullover ist in Größe L erhältlich, es sind noch 2 übrig. Wünschen Sie eine Lieferung?",
+  "niches.ecom.ai":
+    "Ja, der schwarze Pullover ist in Größe L erhältlich, es sind noch 2 übrig. Wünschen Sie eine Lieferung?",
   "niches.ecom.task": "Neue Bestellung: Pullover (L, Schwarz)",
   "niches.education.title": "Bildung",
   "niches.education.description": "Kursverkauf, Webinar-Links und Antworten auf häufige Fragen.",
   "niches.education.user": "Wie lange dauert der Designkurs?",
-  "niches.education.ai": "Der Kurs dauert 3 Monate und findet zweimal pro Woche online statt. Soll ich Ihnen das vollständige Programm schicken?",
+  "niches.education.ai":
+    "Der Kurs dauert 3 Monate und findet zweimal pro Woche online statt. Soll ich Ihnen das vollständige Programm schicken?",
   "niches.education.task": "Anfrage: Design-Kursprogramm",
   "niches.auto.title": "Autoservice",
-  "niches.auto.description": "Wartungsbuchungen, vorläufige Kostenvoranschläge und Aktualisierungen des Reparaturstatus.",
+  "niches.auto.description":
+    "Wartungsbuchungen, vorläufige Kostenvoranschläge und Aktualisierungen des Reparaturstatus.",
   "niches.auto.user": "Wie viel kostet ein Ölwechsel für einen Toyota Camry?",
-  "niches.auto.ai": "Ein Ölwechsel mit Ihren Vorräten kostet ₽1.500. Die Arbeit mit unserem Öl beginnt bei ₽6.500. Soll ich Sie einbuchen?",
+  "niches.auto.ai":
+    "Ein Ölwechsel mit Ihren Vorräten kostet ₽1.500. Die Arbeit mit unserem Öl beginnt bei ₽6.500. Soll ich Sie einbuchen?",
   "niches.auto.task": "Lead: Ölwechsel (Camry)",
   "niches.services.title": "Dienstleistungen (B2B/B2C)",
-  "niches.services.description": "Reinigungs-, Rechts- und Reparaturdienste. Fotobasierte Kostenvoranschläge und Detailerfassung.",
-  "niches.services.user": "Ich brauche eine gründliche Reinigung für eine Zwei-Zimmer-Wohnung. Wie viel kostet das?",
-  "niches.services.ai": "Eine Grundreinigung für ein Apartment mit zwei Schlafzimmern beginnt bei ₽4.500 und dauert etwa 4 Stunden. Welcher Tag passt zu Ihnen?",
+  "niches.services.description":
+    "Reinigungs-, Rechts- und Reparaturdienste. Fotobasierte Kostenvoranschläge und Detailerfassung.",
+  "niches.services.user":
+    "Ich brauche eine gründliche Reinigung für eine Zwei-Zimmer-Wohnung. Wie viel kostet das?",
+  "niches.services.ai":
+    "Eine Grundreinigung für ein Apartment mit zwei Schlafzimmern beginnt bei ₽4.500 und dauert etwa 4 Stunden. Welcher Tag passt zu Ihnen?",
   "niches.services.task": "Lead: Tiefenreinigung (2 Schlafzimmer)",
   "auth.login.title": "Melden Sie sich bei LeadVirt.ai an",
   "auth.login.subtitle": "Code per E-Mail erhalten oder mit Telegram fortfahren.",
@@ -168,7 +193,8 @@ export const de: Record<BaseTranslationKey, string> = {
   "auth.email.requestError": "Code konnte nicht gesendet werden",
   "auth.email.verifyError": "Code konnte nicht bestätigt werden",
   "auth.email.unavailable": "E-Mail-Anmeldung ist vorübergehend nicht verfügbar",
-  "auth.hero.title": "Ihr KI-Administrator ist bereit, Leads zu empfangen und Gespräche zu verwalten.",
+  "auth.hero.title":
+    "Ihr KI-Administrator ist bereit, Leads zu empfangen und Gespräche zu verwalten.",
   "auth.hero.description": "Passwortlose Anmeldung mit einem einmaligen E-Mail-Code oder Telegram.",
   "auth.highlight.passwordless": "Passwortlos",
   "auth.highlight.telegram": "E-Mail oder Telegram",
@@ -182,7 +208,8 @@ export const de: Record<BaseTranslationKey, string> = {
   "auth.error.login": "Anmeldung nicht möglich",
   "auth.sessionChecking": "Zugriff wird geprüft...",
   "auth.sessionCheckFailed": "Zugriff konnte nicht geprüft werden",
-  "auth.sessionCheckFailedDetail": "LeadVirt kann den Server derzeit nicht erreichen. Ihre Sitzung bleibt erhalten.",
+  "auth.sessionCheckFailedDetail":
+    "LeadVirt kann den Server derzeit nicht erreichen. Ihre Sitzung bleibt erhalten.",
   "auth.sessionRetry": "Erneut versuchen",
   "product.nav.dashboard": "Übersicht",
   "product.nav.inbox": "Posteingang",
@@ -208,7 +235,8 @@ export const de: Record<BaseTranslationKey, string> = {
   "product.theme.toggle": "Design umschalten",
   "product.notifications.label": "Benachrichtigungen",
   "product.notifications.none": "Noch keine neuen Ereignisse",
-  "product.notifications.noneDetail": "Neue Leads, Buchungen und CRM-Synchronisierungsereignisse werden hier angezeigt.",
+  "product.notifications.noneDetail":
+    "Neue Leads, Buchungen und CRM-Synchronisierungsereignisse werden hier angezeigt.",
   "product.notifications.openAll": "Alle öffnen",
   "product.notifications.noNew": "keine neuen Elemente",
   "product.notifications.oneNew": "1 neues Element",
@@ -262,17 +290,20 @@ export const de: Record<BaseTranslationKey, string> = {
   "dashboard.channels.title": "Kanäle",
   "dashboard.channels.description": "Leads und Conversion",
   "dashboard.channels.empty": "Noch keine Kanäle verbunden",
-  "dashboard.channels.emptyDetail": "Verbinden Sie das Widget, Telegram oder Webhook/API in Integrationen.",
+  "dashboard.channels.emptyDetail":
+    "Verbinden Sie das Widget, Telegram oder Webhook/API in Integrationen.",
   "dashboard.channels.leads": "{count} Leads",
   "dashboard.recent.title": "Aktuelle Leads",
   "dashboard.recent.description": "Aktuelle Anfragen",
   "dashboard.recent.all": "Alle Leads",
   "dashboard.recent.empty": "Noch keine Leads",
-  "dashboard.recent.emptyDetail": "Neue Anfragen werden angezeigt, nachdem Sie einen Kanal verbunden oder einen Webhook erhalten haben.",
+  "dashboard.recent.emptyDetail":
+    "Neue Anfragen werden angezeigt, nachdem Sie einen Kanal verbunden oder einen Webhook erhalten haben.",
   "dashboard.activity.title": "Aktivität",
   "dashboard.activity.description": "Echtzeitereignisse",
   "dashboard.activity.empty": "Noch keine Ereignisse",
-  "dashboard.activity.emptyDetail": "Produkt Ereignisse werden nach neuen Leads, Aufgaben, Buchungen oder Verbindungen angezeigt.",
+  "dashboard.activity.emptyDetail":
+    "Produkt Ereignisse werden nach neuen Leads, Aufgaben, Buchungen oder Verbindungen angezeigt.",
   "dashboard.fallback.client": "LeadVirt-Kunde",
   "dashboard.fallback.lead": "Neuer Lead",
   "channel.website": "Website",
@@ -290,11 +321,16 @@ export const de: Record<BaseTranslationKey, string> = {
   "onboarding.skip": "Überspringen",
   "onboarding.back": "Zurück",
   "onboarding.next": "Weiter",
-  "onboarding.launch": "KI-Administrator starten",
+  "onboarding.launch": "Dashboard öffnen",
+  "onboarding.saving": "Wird gespeichert...",
+  "onboarding.continue.billing": "Ausgewählten Tarif prüfen",
+  "onboarding.continue.knowledge": "Unternehmensinformationen prüfen",
   "onboarding.saveError.title": "Fortschritt konnte nicht gespeichert werden",
-  "onboarding.saveError.description": "Prüfen Sie Ihre Verbindung und versuchen Sie es erneut. Ihre Antworten sind weiterhin vorhanden.",
+  "onboarding.saveError.description":
+    "Prüfen Sie Ihre Verbindung und versuchen Sie es erneut. Ihre Antworten sind weiterhin vorhanden.",
   "onboarding.business.title": "Was für ein Unternehmen ist das?",
-  "onboarding.business.description": "Wählen Sie Ihren Unternehmenstyp, damit sich KI an Ihre Branche anpassen kann",
+  "onboarding.business.description":
+    "Wählen Sie Ihren Unternehmenstyp, damit sich KI an Ihre Branche anpassen kann",
   "onboarding.business.services": "Dienstleistungen",
   "onboarding.business.beauty": "Schönheitsstudio",
   "onboarding.business.shop": "Online-Shop",
@@ -303,39 +339,54 @@ export const de: Record<BaseTranslationKey, string> = {
   "onboarding.business.auto": "Autoservice",
   "onboarding.business.local": "Lokales Unternehmen",
   "onboarding.channels.title": "Wo kontaktieren Sie Kunden?",
-  "onboarding.channels.description": "Wählen Sie die Kanäle aus, die Sie verbinden möchten",
+  "onboarding.channels.description":
+    "Wählen Sie Kanäle. Verfügbare Optionen können jetzt verbunden werden; die übrigen werden als Anfrage oder Planung gespeichert.",
+  "onboarding.availability.available": "Verfügbar",
+  "onboarding.availability.request": "Auf Anfrage",
+  "onboarding.availability.planned": "Geplant",
   "onboarding.scenario.title": "Wählen Sie einen KI-Workflow",
   "onboarding.scenario.description": "Wie soll Ihr KI-Assistent funktionieren?",
   "onboarding.scenario.booking": "Servicebuchung",
-  "onboarding.scenario.bookingDescription": "KI bucht Kunden automatisch und bestätigt Datum, Uhrzeit und Spezialisten",
+  "onboarding.scenario.bookingDescription":
+    "KI bucht Kunden automatisch und bestätigt Datum, Uhrzeit und Spezialisten",
   "onboarding.scenario.order": "Auftragsabwicklung",
-  "onboarding.scenario.orderDescription": "Nimmt Bestellungen an, bestätigt Details und sendet sie zur Bearbeitung",
+  "onboarding.scenario.orderDescription":
+    "Nimmt Bestellungen an, bestätigt Details und sendet sie zur Bearbeitung",
   "onboarding.scenario.consult": "Beratung und Qualifizierung",
-  "onboarding.scenario.consultDescription": "Beantwortet Fragen, identifiziert Bedürfnisse und qualifiziert Leads",
+  "onboarding.scenario.consultDescription":
+    "Beantwortet Fragen, identifiziert Bedürfnisse und qualifiziert Leads",
   "onboarding.scenario.support": "Kundensupport",
-  "onboarding.scenario.supportDescription": "Behandelt häufige Anfragen und reduziert die Arbeitsbelastung des Teams",
+  "onboarding.scenario.supportDescription":
+    "Behandelt häufige Anfragen und reduziert die Arbeitsbelastung des Teams",
   "onboarding.company.title": "Unternehmensinformationen",
   "onboarding.company.description": "AI verwendet diese Informationen, wenn sie mit Kunden spricht",
   "onboarding.company.name": "Firmenname",
   "onboarding.company.namePlaceholder": "Zum Beispiel: Aura Beauty Studio",
   "onboarding.company.about": "Über das Unternehmen",
-  "onboarding.company.aboutPlaceholder": "Was Ihr Unternehmen macht und was es von anderen unterscheidet...",
+  "onboarding.company.aboutPlaceholder":
+    "Was Ihr Unternehmen macht und was es von anderen unterscheidet...",
   "onboarding.company.catalog": "Katalog, Leistungen und Preise",
-  "onboarding.company.catalogPlaceholder": "Zum Beispiel: Damenhaarschnitt – ₽2.500, 60 Minuten; Färben – ab 6.000 ₽; Beratung – kostenlos.",
+  "onboarding.company.catalogPlaceholder":
+    "Zum Beispiel: Damenhaarschnitt – ₽2.500, 60 Minuten; Färben – ab 6.000 ₽; Beratung – kostenlos.",
   "onboarding.company.hours": "Geschäftszeiten",
   "onboarding.company.hoursPlaceholder": "Mo–Fr, 9:00–18:00 Uhr",
   "onboarding.company.average": "Durchschnittlicher Bestellwert",
   "onboarding.company.averagePlaceholder": "₽2.000–₽5.000",
   "onboarding.company.availability": "Verfügbarkeits- und Buchungsregeln",
-  "onboarding.company.availabilityPlaceholder": "Zum Beispiel: Öffnungszeiten Dienstag–Donnerstag, 12:00–17:00 Uhr; buchen Sie mindestens 2 Stunden im Voraus; spätestens 24 Stunden vorher einen neuen Termin vereinbaren.",
+  "onboarding.company.availabilityPlaceholder":
+    "Zum Beispiel: Öffnungszeiten Dienstag–Donnerstag, 12:00–17:00 Uhr; buchen Sie mindestens 2 Stunden im Voraus; spätestens 24 Stunden vorher einen neuen Termin vereinbaren.",
   "onboarding.company.faq": "FAQ und häufige Einwände",
-  "onboarding.company.faqPlaceholder": "Zum Beispiel: ob Kinder willkommen sind, wie lange die Ergebnisse anhalten, Kontraindikationen und was Sie von anderen unterscheidet.",
+  "onboarding.company.faqPlaceholder":
+    "Zum Beispiel: ob Kinder willkommen sind, wie lange die Ergebnisse anhalten, Kontraindikationen und was Sie von anderen unterscheidet.",
   "onboarding.company.policies": "Regeln, Einschränkungen und eingeschränkte Versprechen",
-  "onboarding.company.policiesPlaceholder": "Zum Beispiel: Versprechen Sie keinen genauen Preis ohne Rücksprache; keine medizinischen Garantien; Rabatte bedürfen der Genehmigung.",
+  "onboarding.company.policiesPlaceholder":
+    "Zum Beispiel: Versprechen Sie keinen genauen Preis ohne Rücksprache; keine medizinischen Garantien; Rabatte bedürfen der Genehmigung.",
   "onboarding.company.escalation": "Wann sollte eine Person einbezogen werden",
-  "onboarding.company.escalationPlaceholder": "Beispiel: Der Kunde ist verärgert, verlangt eine Rückerstattung, bittet um einen Sonderrabatt oder benötigt rechtliche oder medizinische Informationen.",
+  "onboarding.company.escalationPlaceholder":
+    "Beispiel: Der Kunde ist verärgert, verlangt eine Rückerstattung, bittet um einen Sonderrabatt oder benötigt rechtliche oder medizinische Informationen.",
   "onboarding.crm.title": "Wohin sollen Leads gehen?",
-  "onboarding.crm.description": "Wählen Sie ein CRM oder behalten Sie alles in LeadVirt",
+  "onboarding.crm.description":
+    "Wählen Sie Ihr bevorzugtes CRM oder behalten Sie Leads in LeadVirt. Geplante CRMs werden noch nicht verbunden.",
   "onboarding.crm.amoDescription": "Beliebtes Vertriebs-CRM in Russland",
   "onboarding.crm.bitrixDescription": "Unternehmensportal mit einer Vertriebspipeline",
   "onboarding.crm.retailDescription": "Spezialisiertes CRM für E-Commerce",
@@ -346,7 +397,8 @@ export const de: Record<BaseTranslationKey, string> = {
   "onboarding.summary.notSelected": "Nicht ausgewählt",
   "onboarding.summary.scenario": "KI-Workflow",
   "onboarding.summary.company": "Unternehmen",
-  "onboarding.ready.title": "Alles ist bereit!",
-  "onboarding.ready.description": "Der KI-Administrator ist eingerichtet und betriebsbereit",
-  "onboarding.ready.summary": "Setup-Zusammenfassung"
+  "onboarding.ready.title": "Ersteinrichtung gespeichert",
+  "onboarding.ready.description":
+    "Ihre Antworten sind gespeichert. Prüfen Sie nun die Daten, verbinden Sie einen verfügbaren Kanal und schließen Sie die Bereitschaft ab, bevor automatische Antworten aktiviert werden.",
+  "onboarding.ready.summary": "Setup-Zusammenfassung",
 };

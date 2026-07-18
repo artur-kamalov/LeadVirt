@@ -53,6 +53,9 @@ const en = {
   "dashboard.readiness.action.inbound": "Send a test message",
   "dashboard.readiness.action.ready": "Open Inbox",
   "dashboard.readiness.loading": "Checking launch readiness",
+  "dashboard.readiness.error.title": "Launch readiness could not be checked",
+  "dashboard.readiness.error.description":
+    "LeadVirt could not update these checks. Existing verified results stay visible; try again.",
   "dashboard.readiness.retry": "Check again",
 } as const;
 
@@ -120,6 +123,9 @@ export const dashboardReadinessMessages = {
     "dashboard.readiness.action.inbound": "Отправить тест",
     "dashboard.readiness.action.ready": "Открыть входящие",
     "dashboard.readiness.loading": "Проверяем готовность к запуску",
+    "dashboard.readiness.error.title": "Не удалось проверить готовность к запуску",
+    "dashboard.readiness.error.description":
+      "LeadVirt не смог обновить результаты проверки. Последние подтверждённые данные останутся на экране; повторите попытку.",
     "dashboard.readiness.retry": "Проверить снова",
   }),
   es: translated({
@@ -181,6 +187,9 @@ export const dashboardReadinessMessages = {
     "dashboard.readiness.action.inbound": "Enviar una prueba",
     "dashboard.readiness.action.ready": "Abrir bandeja de entrada",
     "dashboard.readiness.loading": "Comprobando la preparación",
+    "dashboard.readiness.error.title": "No se pudo comprobar la preparación para el lanzamiento",
+    "dashboard.readiness.error.description":
+      "LeadVirt no pudo actualizar estas comprobaciones. Los últimos resultados verificados siguen visibles; inténtalo de nuevo.",
     "dashboard.readiness.retry": "Comprobar de nuevo",
   }),
   fr: translated({
@@ -241,6 +250,9 @@ export const dashboardReadinessMessages = {
     "dashboard.readiness.action.inbound": "Envoyer un test",
     "dashboard.readiness.action.ready": "Ouvrir la boîte de réception",
     "dashboard.readiness.loading": "Vérification de la préparation",
+    "dashboard.readiness.error.title": "Impossible de vérifier la préparation au lancement",
+    "dashboard.readiness.error.description":
+      "LeadVirt n’a pas pu actualiser ces vérifications. Les derniers résultats confirmés restent visibles ; réessayez.",
     "dashboard.readiness.retry": "Vérifier à nouveau",
   }),
   de: translated({
@@ -302,6 +314,9 @@ export const dashboardReadinessMessages = {
     "dashboard.readiness.action.inbound": "Test senden",
     "dashboard.readiness.action.ready": "Posteingang öffnen",
     "dashboard.readiness.loading": "Startbereitschaft wird geprüft",
+    "dashboard.readiness.error.title": "Die Startbereitschaft konnte nicht geprüft werden",
+    "dashboard.readiness.error.description":
+      "LeadVirt konnte diese Prüfungen nicht aktualisieren. Die zuletzt bestätigten Ergebnisse bleiben sichtbar; versuchen Sie es erneut.",
     "dashboard.readiness.retry": "Erneut prüfen",
   }),
   pt: translated({
@@ -363,6 +378,9 @@ export const dashboardReadinessMessages = {
     "dashboard.readiness.action.inbound": "Enviar um teste",
     "dashboard.readiness.action.ready": "Abrir caixa de entrada",
     "dashboard.readiness.loading": "Verificando a preparação",
+    "dashboard.readiness.error.title": "Não foi possível verificar a preparação para o lançamento",
+    "dashboard.readiness.error.description":
+      "A LeadVirt não conseguiu atualizar estas verificações. Os últimos resultados confirmados continuam visíveis; tente novamente.",
     "dashboard.readiness.retry": "Verificar novamente",
   }),
 } as const;

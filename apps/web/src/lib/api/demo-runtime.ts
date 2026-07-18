@@ -1,3 +1,4 @@
+import { BILLING_PLAN_CATALOG } from "@leadvirt/types";
 import type {
   AiAuditResponse,
   AiDraftReply,
@@ -210,53 +211,7 @@ function id(prefix: string) {
 }
 
 function pricingPlans(): PricingPlan[] {
-  return [
-    {
-      code: "START",
-      name: "Старт",
-      priceMonthlyRub: 7900,
-      aiConversations: 500,
-      channelsLimit: 2,
-      usersLimit: 3,
-      scenariosLimit: 3,
-      bestFor: "Первые каналы и базовая автоматизация",
-      features: ["Website widget", "Telegram", "Базовая воронка", "Отчёты"],
-    },
-    {
-      code: "PROFESSIONAL",
-      name: "Профессиональный",
-      priceMonthlyRub: 19900,
-      aiConversations: 2500,
-      channelsLimit: 6,
-      usersLimit: 10,
-      scenariosLimit: 12,
-      popular: true,
-      bestFor: "Растущая команда продаж",
-      features: ["Все основные каналы", "AI-подсказки", "CRM-синхронизация", "Автоматизации"],
-    },
-    {
-      code: "BUSINESS",
-      name: "Бизнес",
-      priceMonthlyRub: 49900,
-      aiConversations: 10000,
-      channelsLimit: 15,
-      usersLimit: 30,
-      scenariosLimit: 40,
-      bestFor: "Несколько филиалов и ролей",
-      features: ["Расширенная аналитика", "AI audit", "Webhook/API", "Приоритетная поддержка"],
-    },
-    {
-      code: "CORPORATE",
-      name: "Корпоративный",
-      priceMonthlyRub: null,
-      aiConversations: null,
-      channelsLimit: null,
-      usersLimit: null,
-      scenariosLimit: null,
-      bestFor: "Индивидуальная инфраструктура",
-      features: ["SLA", "Выделенные лимиты", "Security review", "Кастомные интеграции"],
-    },
-  ];
+  return BILLING_PLAN_CATALOG.map((plan) => ({ ...plan, features: [...plan.features] }));
 }
 
 const plans = pricingPlans();

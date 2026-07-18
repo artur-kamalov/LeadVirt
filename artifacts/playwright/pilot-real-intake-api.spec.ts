@@ -218,25 +218,43 @@ async function assertVisibleInInbox(request: APIRequestContext, intake: IntakeRe
   const response = await request.get(`${apiBase}/inbox/conversations?search=${encodeURIComponent(intake.search)}&limit=20`);
   expect(response.ok()).toBe(true);
   const body = (await response.json()) as {
-    data?: Array<{ id?: string; leadId?: string | null; channelType?: string | null; lastMessage?: string | null; lead?: { name?: string | null } | null }>;
+    data?: Array<{
+      id?: string;
+      leadId?: string | null;
+      channelType?: string | null;
+      lastMessage?: string | null;
+      lead?: { name?: string | null; interest?: string | null } | null;
+    }>;
   };
   const row = body.data?.find((item) => item.id === intake.conversationId);
   expect(row).toBeTruthy();
   expect(row?.leadId).toBe(intake.leadId);
   expect(row?.lead?.name).toBe(intake.search);
   expect(row?.channelType).toBe(intake.channelType);
+  expect(row?.lastMessage).toBe(intake.message);
+  expect(row?.lead?.interest).toBe(intake.message.trim().slice(0, 80));
 }
 
 async function assertVisibleInPipeline(request: APIRequestContext, intake: IntakeResult) {
   const response = await request.get(`${apiBase}/leads/pipeline/summary`);
   expect(response.ok()).toBe(true);
   const body = (await response.json()) as {
-    data?: { stages?: Array<{ leads?: Array<{ id?: string; name?: string | null; channelType?: string | null }> }> };
+    data?: {
+      stages?: Array<{
+        leads?: Array<{
+          id?: string;
+          name?: string | null;
+          channelType?: string | null;
+          interest?: string | null;
+        }>;
+      }>;
+    };
   };
   const lead = body.data?.stages?.flatMap((stage) => stage.leads ?? []).find((item) => item.id === intake.leadId);
   expect(lead).toBeTruthy();
   expect(lead?.name).toBe(intake.search);
   expect(lead?.channelType).toBe(intake.channelType);
+  expect(lead?.interest).toBe(intake.message.trim().slice(0, 80));
 }
 
 async function assertWorkflowTimelineEvent(request: APIRequestContext, intake: IntakeResult, workflow: PilotWorkflow) {

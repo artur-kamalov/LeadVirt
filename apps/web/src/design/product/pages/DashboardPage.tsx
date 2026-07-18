@@ -143,7 +143,7 @@ function activityTypeFromAction(action: string): ActivityType {
 function dashboardRelativeTimeLabel(value: string, locale: Locale, t: Translate) {
   const label = relativeTimeLabel(value, locale);
   if (label === "—" || label === t("common.now")) return t("common.justNow");
-  return `${label} ${t("common.ago")}`;
+  return label;
 }
 
 function useDashboardSummaryResource() {
@@ -192,10 +192,7 @@ function leadName(lead: DashboardRecentLead, locale: Locale, t: Translate) {
 }
 
 function leadService(lead: DashboardRecentLead, locale: Locale, t: Translate) {
-  return (
-    localizeSeedText(lead.interest ?? lead.summary ?? lead.source, locale) ||
-    t("dashboard.fallback.lead")
-  );
+  return localizeSeedText(lead.interest, locale) || t("dashboard.fallback.lead");
 }
 
 function leadTime(lead: DashboardRecentLead, locale: Locale) {
@@ -252,6 +249,8 @@ export function DashboardPage() {
           <DashboardReadinessJourney
             snapshot={readinessResource.data}
             isLoading={readinessResource.isLoading}
+            isError={readinessResource.isError}
+            onRetry={readinessResource.reload}
           />
           {summaryResource.isLoading ? (
             <div className="space-y-8" data-testid="dashboard-loading">
@@ -430,6 +429,8 @@ export function DashboardPage() {
         <DashboardReadinessJourney
           snapshot={readinessResource.data}
           isLoading={readinessResource.isLoading}
+          isError={readinessResource.isError}
+          onRetry={readinessResource.reload}
         />
 
         {/* ── 2. Stat cards ── */}
@@ -669,7 +670,7 @@ export function DashboardPage() {
                         <StatusPill stage={stageFromStatus(lead.status)} />
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-semibold text-emerald-400">
-                            {formatCurrency(lead.valueAmount ?? 0)}
+                            {formatCurrency(lead.valueAmount ?? 0, lead.currency)}
                           </span>
                           <span className="text-[10px] text-zinc-600">
                             {leadTime(lead, locale)}

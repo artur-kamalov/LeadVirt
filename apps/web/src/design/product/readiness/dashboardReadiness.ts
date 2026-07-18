@@ -76,7 +76,8 @@ export interface DashboardReadinessModel {
 
 async function check<T>(promise: Promise<T>): Promise<DataCheck<T>> {
   try {
-    return { state: "available", value: await promise };
+    const value = await promise;
+    return value == null ? { state: "unavailable" } : { state: "available", value };
   } catch {
     return { state: "unavailable" };
   }

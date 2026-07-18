@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
@@ -23,6 +25,7 @@ import {
   DollarSign,
   Database,
   AlertCircle,
+  Loader2,
 } from "lucide-react";
 import { useNav } from "../nav";
 import { Button } from "../../components/ui/Button";
@@ -39,7 +42,7 @@ import {
   updateOnboardingState,
 } from "@/lib/api/onboarding";
 import { ApiClientError } from "@/lib/api/client";
-import { resolveAcquisitionIntent } from "@/lib/acquisition";
+import type { AcquisitionPlanId } from "@/lib/acquisition";
 import { useI18n } from "@/i18n/I18nProvider";
 import type { TranslationKey } from "@/i18n/messages";
 
@@ -107,24 +110,33 @@ const aiScenarios = [
 }>;
 
 const crmOptions = [
-  { id: "amo", label: "amoCRM", descriptionKey: "onboarding.crm.amoDescription", icon: Database },
+  {
+    id: "amo",
+    label: "amoCRM",
+    descriptionKey: "onboarding.crm.amoDescription",
+    icon: Database,
+    availability: "planned",
+  },
   {
     id: "bitrix",
     label: "Bitrix24",
     descriptionKey: "onboarding.crm.bitrixDescription",
     icon: Building2,
+    availability: "planned",
   },
   {
     id: "retail",
     label: "RetailCRM",
     descriptionKey: "onboarding.crm.retailDescription",
     icon: ShoppingBag,
+    availability: "planned",
   },
   {
     id: "none",
     labelKey: "onboarding.crm.none",
     descriptionKey: "onboarding.crm.noneDescription",
     icon: Bot,
+    availability: "available",
   },
 ] satisfies Array<{
   id: string;
@@ -132,6 +144,7 @@ const crmOptions = [
   labelKey?: TranslationKey;
   descriptionKey: TranslationKey;
   icon: typeof Database;
+  availability: SelectionAvailability;
 }>;
 
 const channelIds: ChannelId[] = [
@@ -144,6 +157,44 @@ const channelIds: ChannelId[] = [
   "email",
   "call",
 ];
+
+type SelectionAvailability = "available" | "request" | "planned";
+
+const channelAvailability: Record<ChannelId, SelectionAvailability> = {
+  telegram: "available",
+  website: "available",
+  webhook: "available",
+  whatsapp: "request",
+  instagram: "request",
+  vk: "planned",
+  email: "planned",
+  call: "planned",
+};
+
+const availabilityKeys: Record<SelectionAvailability, TranslationKey> = {
+  available: "onboarding.availability.available",
+  request: "onboarding.availability.request",
+  planned: "onboarding.availability.planned",
+};
+
+function AvailabilityBadge({ availability }: { availability: SelectionAvailability }) {
+  const { t } = useI18n();
+
+  return (
+    <span
+      className={cn(
+        "inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold",
+        availability === "available"
+          ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-300"
+          : availability === "request"
+            ? "border-sky-400/25 bg-sky-400/10 text-sky-300"
+            : "border-white/10 bg-white/5 text-zinc-500",
+      )}
+    >
+      {t(availabilityKeys[availability])}
+    </span>
+  );
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -205,12 +256,13 @@ function BackgroundGrid() {
   );
 }
 
-function Logo({ onClick }: { onClick: () => void }) {
+function Logo({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
   const { t } = useI18n();
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-2.5 group"
+      disabled={disabled}
+      className="group flex min-h-11 items-center gap-2.5 rounded-md disabled:cursor-wait disabled:opacity-60"
       aria-label={t("brand.name")}
     >
       <BrandMark className="h-9 w-9 rounded-xl shadow-lg shadow-emerald-500/20" />
@@ -227,8 +279,16 @@ function ProgressBar({ step }: { step: number }) {
       <span className="text-xs text-zinc-500 whitespace-nowrap">
         {t("onboarding.step", { current: step + 1, total: TOTAL_STEPS })}
       </span>
-      <div className="w-24 sm:w-40 h-1 rounded-full bg-zinc-800 overflow-hidden">
+      <div
+        className="h-1 w-24 overflow-hidden rounded-full bg-zinc-800 sm:w-40"
+        role="progressbar"
+        aria-label={t("onboarding.step", { current: step + 1, total: TOTAL_STEPS })}
+        aria-valuemin={1}
+        aria-valuemax={TOTAL_STEPS}
+        aria-valuenow={step + 1}
+      >
         <motion.div
+          aria-hidden="true"
           className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-400"
           initial={{ width: 0 }}
           animate={{ width: `${pct}%` }}
@@ -253,11 +313,13 @@ function SelectCard({
 }) {
   return (
     <motion.button
+      type="button"
       onClick={onClick}
+      aria-pressed={selected}
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.97 }}
       className={cn(
-        "relative rounded-2xl border p-4 text-left transition-all duration-200 cursor-pointer w-full",
+        "relative w-full cursor-pointer rounded-2xl border p-4 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60",
         selected
           ? "border-emerald-400/60 bg-emerald-500/10 shadow-[0_0_24px_rgba(52,211,153,0.15)]"
           : "border-white/5 bg-zinc-900/50 hover:border-white/10 hover:bg-zinc-900/80",
@@ -266,7 +328,7 @@ function SelectCard({
     >
       {selected && (
         <span className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-emerald-400 flex items-center justify-center">
-          <Check className="w-3 h-3 text-zinc-950" />
+          <Check className="w-3 h-3 text-zinc-950" aria-hidden="true" />
         </span>
       )}
       {children}
@@ -303,7 +365,11 @@ function StepBusinessType({
         </h2>
         <p className="text-zinc-400 mt-2">{t("onboarding.business.description")}</p>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      <div
+        className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+        role="group"
+        aria-label={t("onboarding.business.title")}
+      >
         {businessTypes.map((b) => {
           const Icon = b.icon;
           return (
@@ -358,7 +424,11 @@ function StepChannels({
         </h2>
         <p className="text-zinc-400 mt-2">{t("onboarding.channels.description")}</p>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      <div
+        className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+        role="group"
+        aria-label={t("onboarding.channels.title")}
+      >
         {channelIds.map((id) => {
           const ch = channels[id];
           const Icon = ch.icon;
@@ -374,13 +444,16 @@ function StepChannels({
                 >
                   <Icon className={cn("w-4 h-4", ch.color)} />
                 </div>
-                <span
-                  className={cn(
-                    "text-sm font-semibold",
-                    sel ? "text-emerald-300" : "text-zinc-200",
-                  )}
-                >
-                  {ch.labelKey ? t(ch.labelKey) : ch.label}
+                <span className="min-w-0">
+                  <span
+                    className={cn(
+                      "block truncate text-sm font-semibold",
+                      sel ? "text-emerald-300" : "text-zinc-200",
+                    )}
+                  >
+                    {ch.labelKey ? t(ch.labelKey) : ch.label}
+                  </span>
+                  <AvailabilityBadge availability={channelAvailability[id]} />
                 </span>
               </div>
             </SelectCard>
@@ -407,7 +480,11 @@ function StepScenario({
         </h2>
         <p className="text-zinc-400 mt-2">{t("onboarding.scenario.description")}</p>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div
+        className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+        role="group"
+        aria-label={t("onboarding.scenario.title")}
+      >
         {aiScenarios.map((s) => {
           const Icon = s.icon;
           const sel = value === s.id;
@@ -449,7 +526,10 @@ function StepCompanyInfo({
   onChange: (v: CompanyInfo) => void;
 }) {
   const { t } = useI18n();
+  const fieldIdPrefix = React.useId();
+  const fieldId = (key: keyof CompanyInfo) => `${fieldIdPrefix}-${key}`;
   const field = (k: keyof CompanyInfo) => ({
+    id: fieldId(k),
     value: value[k],
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       onChange({ ...value, [k]: e.target.value }),
@@ -467,28 +547,39 @@ function StepCompanyInfo({
       </div>
       <div className="space-y-4">
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
-            {t("onboarding.company.name")}
+          <label
+            htmlFor={fieldId("name")}
+            className="text-xs font-medium text-zinc-500 uppercase tracking-wider"
+          >
+            {t("onboarding.company.name")} <span aria-hidden="true">*</span>
           </label>
           <input
             {...field("name")}
+            required
             placeholder={t("onboarding.company.namePlaceholder")}
             className={inputCls}
           />
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
-            {t("onboarding.company.about")}
+          <label
+            htmlFor={fieldId("description")}
+            className="text-xs font-medium text-zinc-500 uppercase tracking-wider"
+          >
+            {t("onboarding.company.about")} <span aria-hidden="true">*</span>
           </label>
           <textarea
             {...field("description")}
+            required
             rows={3}
             placeholder={t("onboarding.company.aboutPlaceholder")}
             className={textareaCls}
           />
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
+          <label
+            htmlFor={fieldId("servicesCatalog")}
+            className="text-xs font-medium text-zinc-500 uppercase tracking-wider"
+          >
             {t("onboarding.company.catalog")}
           </label>
           <textarea
@@ -500,7 +591,10 @@ function StepCompanyInfo({
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
+            <label
+              htmlFor={fieldId("hours")}
+              className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-zinc-500"
+            >
               <Clock className="w-3 h-3" />
               {t("onboarding.company.hours")}
             </label>
@@ -511,7 +605,10 @@ function StepCompanyInfo({
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
+            <label
+              htmlFor={fieldId("avgCheck")}
+              className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-zinc-500"
+            >
               <DollarSign className="w-3 h-3" />
               {t("onboarding.company.average")}
             </label>
@@ -523,7 +620,10 @@ function StepCompanyInfo({
           </div>
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
+          <label
+            htmlFor={fieldId("availability")}
+            className="text-xs font-medium text-zinc-500 uppercase tracking-wider"
+          >
             {t("onboarding.company.availability")}
           </label>
           <textarea
@@ -534,7 +634,10 @@ function StepCompanyInfo({
           />
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
+          <label
+            htmlFor={fieldId("faq")}
+            className="text-xs font-medium text-zinc-500 uppercase tracking-wider"
+          >
             {t("onboarding.company.faq")}
           </label>
           <textarea
@@ -545,7 +648,10 @@ function StepCompanyInfo({
           />
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
+          <label
+            htmlFor={fieldId("policies")}
+            className="text-xs font-medium text-zinc-500 uppercase tracking-wider"
+          >
             {t("onboarding.company.policies")}
           </label>
           <textarea
@@ -556,7 +662,10 @@ function StepCompanyInfo({
           />
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
+          <label
+            htmlFor={fieldId("escalationRules")}
+            className="text-xs font-medium text-zinc-500 uppercase tracking-wider"
+          >
             {t("onboarding.company.escalation")}
           </label>
           <textarea
@@ -581,7 +690,11 @@ function StepCRM({ value, onChange }: { value: string | null; onChange: (v: stri
         </h2>
         <p className="text-zinc-400 mt-2">{t("onboarding.crm.description")}</p>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div
+        className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+        role="group"
+        aria-label={t("onboarding.crm.title")}
+      >
         {crmOptions.map((c) => {
           const Icon = c.icon;
           const sel = value === c.id;
@@ -603,6 +716,9 @@ function StepCRM({ value, onChange }: { value: string | null; onChange: (v: stri
                     {c.labelKey ? t(c.labelKey) : c.label}
                   </div>
                   <div className="text-xs text-zinc-500 mt-0.5">{t(c.descriptionKey)}</div>
+                  <div className="mt-2">
+                    <AvailabilityBadge availability={c.availability} />
+                  </div>
                 </div>
               </div>
             </SelectCard>
@@ -619,16 +735,20 @@ function StepLaunch({
   scenario,
   crm,
   companyName,
+  nextAction,
   onLaunch,
   disabled,
+  saving,
 }: {
   businessType: string | null;
   selectedChannels: ChannelId[];
   scenario: string | null;
   crm: string | null;
   companyName: string;
+  nextAction: "billing" | "knowledge" | "dashboard";
   onLaunch: () => void;
   disabled: boolean;
+  saving: boolean;
 }) {
   const { t } = useI18n();
   const business = businessTypes.find((item) => item.id === businessType);
@@ -636,14 +756,26 @@ function StepLaunch({
   const selectedCrm = crmOptions.find((item) => item.id === crm);
   const btLabel = business ? t(business.labelKey) : "—";
   const scenLabel = selectedScenario ? t(selectedScenario.labelKey) : "—";
-  const crmLabel = selectedCrm
+  const crmBaseLabel = selectedCrm
     ? selectedCrm.labelKey
       ? t(selectedCrm.labelKey)
       : selectedCrm.label
     : "—";
-  const channelLabels = selectedChannels.map((id) =>
-    channels[id].labelKey ? t(channels[id].labelKey) : channels[id].label,
-  );
+  const crmLabel =
+    selectedCrm && selectedCrm.availability !== "available"
+      ? `${crmBaseLabel} · ${t(availabilityKeys[selectedCrm.availability])}`
+      : crmBaseLabel;
+  const channelLabels = selectedChannels.map((id) => {
+    const label = channels[id].labelKey ? t(channels[id].labelKey) : channels[id].label;
+    const availability = channelAvailability[id];
+    return availability === "available" ? label : `${label} · ${t(availabilityKeys[availability])}`;
+  });
+  const actionLabel =
+    nextAction === "billing"
+      ? t("onboarding.continue.billing")
+      : nextAction === "knowledge"
+        ? t("onboarding.continue.knowledge")
+        : t("onboarding.launch");
 
   const summaryItems = [
     { label: t("onboarding.summary.business"), value: btLabel },
@@ -698,8 +830,9 @@ function StepLaunch({
           disabled={disabled}
           className="gap-2 shadow-xl shadow-emerald-500/20"
         >
-          {t("onboarding.launch")}
-          <ChevronRight className="w-5 h-5" />
+          {saving ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> : null}
+          {saving ? t("onboarding.saving") : actionLabel}
+          {!saving ? <ChevronRight className="w-5 h-5" aria-hidden="true" /> : null}
         </Button>
       </div>
     </div>
@@ -710,7 +843,11 @@ function StepLaunch({
 /* Main page                                                            */
 /* ------------------------------------------------------------------ */
 
-export function OnboardingPage() {
+export function OnboardingPage({
+  selectedPlan = null,
+}: {
+  selectedPlan?: AcquisitionPlanId | null;
+}) {
   const { t } = useI18n();
   const { go, mode } = useNav();
   const router = useRouter();
@@ -911,9 +1048,6 @@ export function OnboardingPage() {
       go("dashboard");
       return;
     }
-    const selectedPlan = resolveAcquisitionIntent({
-      plan: new URLSearchParams(window.location.search).get("plan"),
-    }).plan;
     if (selectedPlan) {
       router.push(`/app/billing?plan=${encodeURIComponent(selectedPlan)}`);
       return;
@@ -941,8 +1075,10 @@ export function OnboardingPage() {
             scenario={scenario}
             crm={crm}
             companyName={companyInfo.name}
+            nextAction={mode === "demo" ? "dashboard" : selectedPlan ? "billing" : "knowledge"}
             onLaunch={() => void handleLaunch()}
             disabled={saving || persistenceConflict}
+            saving={saving}
           />
         );
       default:
@@ -958,7 +1094,7 @@ export function OnboardingPage() {
 
       {/* ---- Top bar ---- */}
       <header className="relative z-10 flex items-center justify-between px-4 sm:px-8 py-4 border-b border-white/5 bg-zinc-950/95">
-        <Logo onClick={() => go("landing")} />
+        <Logo onClick={() => go("landing")} disabled={saving} />
         {loadStatus === "success" ? (
           <ProgressBar step={step} />
         ) : loadStatus === "loading" ? (
@@ -971,10 +1107,13 @@ export function OnboardingPage() {
         <div className="flex items-center gap-2">
           <LanguageSwitcher compact />
           <button
+            type="button"
             onClick={() => go("dashboard")}
-            className="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
+            disabled={saving}
+            aria-label={t("onboarding.skip")}
+            className="flex h-11 min-w-11 items-center justify-center gap-1.5 rounded-md px-2 text-sm text-zinc-500 transition-colors hover:bg-white/5 hover:text-zinc-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 disabled:cursor-wait disabled:opacity-60"
           >
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4" aria-hidden="true" />
             <span className="hidden sm:inline">{t("onboarding.skip")}</span>
           </button>
         </div>
@@ -1014,6 +1153,10 @@ export function OnboardingPage() {
                   <Card className="p-6 sm:p-8">{renderStep()}</Card>
                 </motion.div>
               </AnimatePresence>
+
+              <p className="sr-only" role="status" aria-live="polite">
+                {saving ? t("onboarding.saving") : ""}
+              </p>
 
               {persistenceError && (
                 <div
@@ -1074,7 +1217,7 @@ export function OnboardingPage() {
                     disabled={step === 0 || saving || persistenceConflict}
                     className="gap-1.5"
                   >
-                    <ChevronLeft className="w-4 h-4" />
+                    <ChevronLeft className="w-4 h-4" aria-hidden="true" />
                     {t("onboarding.back")}
                   </Button>
                   <Button
@@ -1083,8 +1226,11 @@ export function OnboardingPage() {
                     disabled={!isStepValid() || saving || persistenceConflict}
                     className="gap-1.5"
                   >
-                    {t("onboarding.next")}
-                    <ChevronRight className="w-4 h-4" />
+                    {saving ? (
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    ) : null}
+                    {saving ? t("onboarding.saving") : t("onboarding.next")}
+                    {!saving ? <ChevronRight className="w-4 h-4" aria-hidden="true" /> : null}
                   </Button>
                 </div>
               )}
@@ -1101,10 +1247,17 @@ export function OnboardingPage() {
               size="lg"
               onClick={() => void handleLaunch()}
               disabled={saving || persistenceConflict}
-              className="w-full gap-2 shadow-xl shadow-emerald-500/20"
+              className="min-h-11 w-full gap-2 shadow-xl shadow-emerald-500/20"
             >
-              {t("onboarding.launch")}
-              <ChevronRight className="w-5 h-5" />
+              {saving ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> : null}
+              {saving
+                ? t("onboarding.saving")
+                : mode === "demo"
+                  ? t("onboarding.launch")
+                  : selectedPlan
+                    ? t("onboarding.continue.billing")
+                    : t("onboarding.continue.knowledge")}
+              {!saving ? <ChevronRight className="w-5 h-5" aria-hidden="true" /> : null}
             </Button>
           ) : (
             <div className="flex items-center gap-3">
@@ -1112,19 +1265,21 @@ export function OnboardingPage() {
                 variant="outline"
                 onClick={handleBack}
                 disabled={step === 0 || saving || persistenceConflict}
+                aria-label={t("onboarding.back")}
                 className="h-12 w-12 shrink-0 p-0 flex items-center justify-center"
               >
-                <ChevronLeft className="w-5 h-5" />
+                <ChevronLeft className="w-5 h-5" aria-hidden="true" />
               </Button>
               <Button
                 variant="primary"
                 size="lg"
                 onClick={() => void handleNext()}
                 disabled={!isStepValid() || saving || persistenceConflict}
-                className="flex-1 gap-1.5"
+                className="min-h-11 flex-1 gap-1.5"
               >
-                {t("onboarding.next")}
-                <ChevronRight className="w-5 h-5" />
+                {saving ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> : null}
+                {saving ? t("onboarding.saving") : t("onboarding.next")}
+                {!saving ? <ChevronRight className="w-5 h-5" aria-hidden="true" /> : null}
               </Button>
             </div>
           )}

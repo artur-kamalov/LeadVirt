@@ -1,5 +1,55 @@
 # Decision Log
 
+## 2026-07-18: Keep Business Information Canonical
+
+Decision: Business Information in Knowledge is the only editor for business identity, type, description, and timezone. Settings shows those fields read-only and edits only workspace logo and contact details.
+
+Context: Two editors exposed different business-type and timezone choices and could overwrite the same canonical profile with stale or incomplete values.
+
+Consequences:
+
+- Business-profile writes retain their ETag-fenced workflow in Business Information.
+- Settings contact and logo writes omit canonical business fields and do not require the profile ETag.
+- Settings links directly to the canonical editor in app and demo modes.
+
+## 2026-07-18: Share One RUB Billing Catalog
+
+Decision: The public pricing page, billing API, and demo runtime derive plans from one catalog in `@leadvirt/types`. Until a global currency strategy is implemented, published prices and invoices are explicitly Russian rubles (`RUB`).
+
+Context: Public, API, and demo prices and limits had diverged, and the Corporate price wrapped its currency onto a separate line.
+
+Consequences:
+
+- Plan codes, prices, limits, and popularity cannot drift between the three surfaces without changing the shared catalog.
+- Public prices use locale-aware number formatting with an explicit `RUB` code.
+- Operational lead values preserve their own currency and mixed-currency pipeline totals are never summed together.
+
+## 2026-07-18: Preserve The First Customer Request
+
+Decision: Telegram, webhook, and website-widget intake stores the first shortened inbound message as the lead's customer request. Later messages update the conversation but do not overwrite that request.
+
+Context: The UI called the field a service even though intake continuously replaced it with raw message text. Removing the value entirely would also break request visibility because no automatic lead-classification writer exists yet.
+
+Consequences:
+
+- Operational UI labels the field as Customer request and falls back explicitly when it is unavailable.
+- The conversation remains the source for the latest message.
+- A future classifier or a manager can refine the lead request through the normal lead update path without later inbound messages undoing it.
+
+## 2026-07-18: Keep Onboarding Canonical, Protected, And Truthful
+
+Decision: `/onboarding` is the single auth-gated onboarding route. It preserves only an allowlisted acquisition plan through login or signup, records requested channels and CRM preferences without claiming unavailable integrations are connected, and describes completion as saved initial setup. The next real action is Billing when a plan was selected and Knowledge otherwise; `/app/onboarding` redirects to the canonical route.
+
+Context: Two onboarding URLs could diverge, an expired session lost acquisition intent, planned integrations looked selectable as if available, and the final screen claimed the AI administrator was ready before business information, publication, channel connection, and inbound evidence were complete.
+
+Consequences:
+
+- Children do not load onboarding state until the current session passes the shared auth check.
+- Only the canonical route interprets acquisition intent; malformed plans are removed before auth and routing.
+- Selecting a requested or planned integration saves intent only and never counts as a live connection.
+- Onboarding completion hands the customer to the next verifiable setup step instead of claiming automatic replies are ready.
+- Progress, selection state, required fields, save activity, and mobile navigation expose accessible semantics.
+
 ## 2026-07-18: Deliver Manual Billing Requests Before Confirming Them
 
 Decision: A manual plan selection succeeds only after LeadVirt sends an operational email containing the workspace, requested plan, and available requester contact details. The request is then stored as an audit record. Subscription state and limits remain unchanged until an operator activates the plan, and the API returns no invoice rows without actual invoice or payment evidence.

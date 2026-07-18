@@ -460,7 +460,6 @@ export class WebhookService {
             ...(inbound.customerName ? { name: inbound.customerName } : {}),
             ...(inbound.customerPhone ? { phone: inbound.customerPhone } : {}),
             ...(inbound.customerEmail ? { email: inbound.customerEmail } : {}),
-            interest: shortSubject(inbound.text),
           },
         });
       }

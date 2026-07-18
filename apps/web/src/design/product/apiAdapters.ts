@@ -89,8 +89,11 @@ export function relativeTimeLabel(value?: string | null, locale: Locale = "en") 
   if (!Number.isFinite(timestamp)) return "—";
 
   const diffMinutes = Math.max(0, Math.round((Date.now() - timestamp) / 60000));
-  const formatter = new Intl.RelativeTimeFormat(intlLocale(locale), { numeric: "auto", style: "narrow" });
-  if (diffMinutes < 1) return formatter.format(0, "minute");
+  const formatter = new Intl.RelativeTimeFormat(intlLocale(locale), {
+    numeric: "auto",
+    style: "long",
+  });
+  if (diffMinutes < 1) return formatter.format(0, "second");
   if (diffMinutes < 60) return formatter.format(-diffMinutes, "minute");
 
   const diffHours = Math.round(diffMinutes / 60);
@@ -101,14 +104,10 @@ export function relativeTimeLabel(value?: string | null, locale: Locale = "en") 
 }
 
 export function formatMessageTime(value?: string | null, locale: Locale = "en") {
-  if (!value) {
-    return new Date().toLocaleTimeString(intlLocale(locale), { hour: "2-digit", minute: "2-digit" });
-  }
+  if (!value) return "—";
 
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return new Date().toLocaleTimeString(intlLocale(locale), { hour: "2-digit", minute: "2-digit" });
-  }
+  if (Number.isNaN(date.getTime())) return "—";
 
   return date.toLocaleTimeString(intlLocale(locale), { hour: "2-digit", minute: "2-digit" });
 }
@@ -149,22 +148,85 @@ export function localizeSeedText(value?: string | null, locale: Locale = "en") {
   return exact[value] ?? value;
 }
 
+const knownSourceKeyByLabel: Record<string, "widget" | "telegramBot" | "integrations" | "partnerLanding"> = {
+  "Website widget": "widget",
+  "Виджет сайта": "widget",
+  "Telegram bot": "telegramBot",
+  "Telegram-бот": "telegramBot",
+  "LeadVirt.ai integrations page": "integrations",
+  "Страница интеграций LeadVirt.ai": "integrations",
+  "Partner landing form": "partnerLanding",
+  "Партнерская лендинг-форма": "partnerLanding",
+};
+
+const knownSourceLabels: Record<
+  "widget" | "telegramBot" | "integrations" | "partnerLanding",
+  Record<Locale, string>
+> = {
+  widget: {
+    en: "Website widget",
+    es: "Widget del sitio web",
+    fr: "Widget du site",
+    de: "Website-Widget",
+    pt: "Widget do site",
+    ru: "Виджет сайта",
+  },
+  telegramBot: {
+    en: "Telegram bot",
+    es: "Bot de Telegram",
+    fr: "Bot Telegram",
+    de: "Telegram-Bot",
+    pt: "Bot do Telegram",
+    ru: "Telegram-бот",
+  },
+  integrations: {
+    en: "LeadVirt.ai integrations page",
+    es: "Página de integraciones de LeadVirt.ai",
+    fr: "Page des intégrations LeadVirt.ai",
+    de: "LeadVirt.ai-Integrationsseite",
+    pt: "Página de integrações da LeadVirt.ai",
+    ru: "Страница интеграций LeadVirt.ai",
+  },
+  partnerLanding: {
+    en: "Partner landing form",
+    es: "Formulario de la página de socio",
+    fr: "Formulaire de la page partenaire",
+    de: "Formular der Partnerseite",
+    pt: "Formulário da página de parceiro",
+    ru: "Партнерская лендинг-форма",
+  },
+};
+
+function localizeSource(value?: string | null, locale: Locale = "en") {
+  if (!value) return "";
+  const sourceKey = knownSourceKeyByLabel[value];
+  return sourceKey ? knownSourceLabels[sourceKey][locale] : localizeSeedText(value, locale);
+}
+
+function currencyCode(value?: string | null) {
+  const normalized = value?.trim().toUpperCase();
+  return normalized && /^[A-Z]{3}$/u.test(normalized) ? normalized : "RUB";
+}
+
 type LeadFallbacks = {
   client: string;
   conversation: string;
-  lead: string;
+  interest: string;
 };
 
-const defaultLeadFallbacks: LeadFallbacks = {
-  client: "LeadVirt customer",
-  conversation: "Inbound conversation",
-  lead: "Inbound lead",
+const leadFallbacks: Record<Locale, LeadFallbacks> = {
+  en: { client: "Customer", conversation: "Inbound conversation", interest: "Request not identified" },
+  es: { client: "Cliente", conversation: "Conversación entrante", interest: "Solicitud sin identificar" },
+  fr: { client: "Client", conversation: "Conversation entrante", interest: "Demande non identifiée" },
+  de: { client: "Kunde", conversation: "Eingehende Konversation", interest: "Anfrage nicht erkannt" },
+  pt: { client: "Cliente", conversation: "Conversa recebida", interest: "Solicitação não identificada" },
+  ru: { client: "Клиент", conversation: "Входящий диалог", interest: "Запрос не определён" },
 };
 
 export function leadFromConversation(
   conversation: ConversationDetail,
   locale: Locale = "en",
-  fallbacks: LeadFallbacks = defaultLeadFallbacks,
+  fallbacks: LeadFallbacks = leadFallbacks[locale],
 ): Lead {
   const lead = conversation.lead;
   const channelType = lead?.channelType ?? conversation.channelType ?? conversation.channel?.type;
@@ -178,10 +240,11 @@ export function leadFromConversation(
     channel: channelIdFromType(channelType),
     stage: stageFromStatus(lead?.status, conversation.status),
     temp: tempFromTemperature(lead?.temperature),
-    source: localizeSeedText(lead?.source ?? conversation.channel?.name ?? conversation.subject, locale) || "LeadVirt",
+    source: localizeSource(lead?.source ?? conversation.channel?.name ?? conversation.subject, locale) || "LeadVirt",
     value: lead?.valueAmount ?? 0,
+    currency: currencyCode(lead?.currency),
     manager: lead?.assignedToName ?? "—",
-    service: localizeSeedText(lead?.interest ?? conversation.subject, locale) || fallbacks.conversation,
+    service: localizeSeedText(lead?.interest, locale) || fallbacks.interest,
     lastMessage: localizeSeedText(conversation.lastMessage ?? lead?.summary, locale) || fallbacks.conversation,
     time: relativeTimeLabel(lastMessageAt, locale),
     unread: conversation.unreadCount ?? 0,
@@ -193,7 +256,7 @@ export function leadFromApiLead(
   lead: ApiLead,
   conversationId?: string,
   locale: Locale = "en",
-  fallbacks: LeadFallbacks = defaultLeadFallbacks,
+  fallbacks: LeadFallbacks = leadFallbacks[locale],
 ): Lead {
   return {
     id: lead.id,
@@ -203,11 +266,12 @@ export function leadFromApiLead(
     channel: channelIdFromType(lead.channelType),
     stage: stageFromStatus(lead.status),
     temp: tempFromTemperature(lead.temperature),
-    source: localizeSeedText(lead.source, locale) || "LeadVirt",
+    source: localizeSource(lead.source, locale) || "LeadVirt",
     value: lead.valueAmount ?? 0,
+    currency: currencyCode(lead.currency),
     manager: lead.assignedToName ?? "—",
-    service: localizeSeedText(lead.interest ?? lead.summary, locale) || fallbacks.lead,
-    lastMessage: localizeSeedText(lead.summary ?? lead.interest, locale) || fallbacks.lead,
+    service: localizeSeedText(lead.interest, locale) || fallbacks.interest,
+    lastMessage: localizeSeedText(lead.summary ?? lead.interest, locale) || fallbacks.conversation,
     time: relativeTimeLabel(lead.lastMessageAt ?? lead.createdAt, locale),
     unread: 0,
     ai: true,

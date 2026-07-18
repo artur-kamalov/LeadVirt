@@ -10,6 +10,7 @@ export interface Lead {
   temp: Temp;
   source: string;
   value: number;
+  currency: string;
   manager: string;
   service: string;
   lastMessage: string;

@@ -1,55 +1,19 @@
-import type { PricingPlan, PricingPlanCode } from "@leadvirt/types";
+import {
+  BILLING_PLAN_CATALOG,
+  type PricingPlan,
+  type PricingPlanCode,
+} from "@leadvirt/types";
 
-const plans: Record<PricingPlanCode, PricingPlan> = {
-  START: {
-    code: "START",
-    name: "Start",
-    priceMonthlyRub: 9900,
-    aiConversations: 500,
-    channelsLimit: 2,
-    usersLimit: 3,
-    scenariosLimit: 3,
-    features: [],
-  },
-  PROFESSIONAL: {
-    code: "PROFESSIONAL",
-    name: "Professional",
-    priceMonthlyRub: 24900,
-    aiConversations: 2500,
-    channelsLimit: 5,
-    usersLimit: 10,
-    scenariosLimit: 15,
-    popular: true,
-    features: [],
-  },
-  BUSINESS: {
-    code: "BUSINESS",
-    name: "Business",
-    priceMonthlyRub: 59900,
-    aiConversations: 10000,
-    channelsLimit: 10,
-    usersLimit: 25,
-    scenariosLimit: 50,
-    features: [],
-  },
-  CORPORATE: {
-    code: "CORPORATE",
-    name: "Corporate",
-    priceMonthlyRub: 120000,
-    aiConversations: null,
-    channelsLimit: null,
-    usersLimit: null,
-    scenariosLimit: null,
-    features: [],
-  },
-};
+const plans = Object.fromEntries(
+  BILLING_PLAN_CATALOG.map((plan) => [plan.code, plan]),
+) as Record<PricingPlanCode, PricingPlan>;
 
 function clonePlan(plan: PricingPlan): PricingPlan {
   return { ...plan, features: [...plan.features] };
 }
 
 export function billingPlanCatalog(): PricingPlan[] {
-  return [plans.START, plans.PROFESSIONAL, plans.BUSINESS, plans.CORPORATE].map(clonePlan);
+  return BILLING_PLAN_CATALOG.map(clonePlan);
 }
 
 export function billingPlanByCode(code: PricingPlanCode): PricingPlan {

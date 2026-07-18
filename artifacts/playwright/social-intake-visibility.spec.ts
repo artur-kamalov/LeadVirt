@@ -128,7 +128,7 @@ test("social-source leads stay traceable in inbox and pipeline", async ({ page }
 
   await expect(page.getByText("Telegram Pilot").first()).toBeVisible();
   await expect(page.getByText("Хочу записаться на пробный визит").first()).toBeVisible();
-  await expect(page.getByText("Telegram-бот").first()).toBeVisible();
+  await expect(page.getByText("Telegram bot").first()).toBeVisible();
   await expect(page.getByText("Telegram").first()).toBeVisible();
 
   await page.getByText("Instagram Pilot").first().click();
@@ -138,7 +138,7 @@ test("social-source leads stay traceable in inbox and pipeline", async ({ page }
   await page.goto(`${webBase}/app/leads`, { waitUntil: "networkidle" });
 
   await expect(page.getByText("Telegram Pilot").first()).toBeVisible();
-  await expect(page.getByText("Telegram-бот").first()).toBeVisible();
+  await expect(page.getByText("Telegram bot").first()).toBeVisible();
   await expect(page.getByText("Instagram Pilot").first()).toBeVisible();
   await expect(page.getByText("Instagram Direct").first()).toBeVisible();
 });

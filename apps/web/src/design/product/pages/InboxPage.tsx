@@ -280,7 +280,10 @@ function LeadSummary({ lead }: { lead: Lead }) {
     { label: t("ops.common.source"), value: lead.source },
     { label: t("ops.common.service"), value: lead.service },
     { label: t("ops.common.manager"), value: lead.manager },
-    { label: t("ops.common.value"), value: lead.value === 0 ? "—" : formatCurrency(lead.value) },
+    {
+      label: t("ops.common.value"),
+      value: lead.value === 0 ? "—" : formatCurrency(lead.value, lead.currency),
+    },
     {
       label: t("ops.common.channel"),
       value: channels[lead.channel].labelKey

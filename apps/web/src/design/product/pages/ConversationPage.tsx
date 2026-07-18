@@ -476,7 +476,7 @@ function LeadInfoPanel({
           </InfoRow>
           <InfoRow label={t("ops.common.value")}>
             <span className="text-sm font-semibold text-emerald-400">
-              {lead.value > 0 ? formatCurrency(lead.value) : "—"}
+              {lead.value > 0 ? formatCurrency(lead.value, lead.currency) : "—"}
             </span>
           </InfoRow>
           <InfoRow label={t("ops.common.channel")}>

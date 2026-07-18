@@ -891,10 +891,10 @@ async function main() {
     const sameSecondInbox = await conversations.list(context, { page: 1, limit: 50 });
     assert(
       sameSecondMessages.length === 2 &&
-        sameSecondConversation.lead?.interest === sameSecondMessages[0]?.text &&
+        sameSecondConversation.lead?.interest === concurrentConversation.lead?.interest &&
         sameSecondInbox.data.find((item) => item.id === conversation.id)?.lastMessage ===
           sameSecondMessages[0]?.text,
-      "Same-second Telegram ordering did not use the canonical (createdAt, id) tuple.",
+      "Same-second Telegram ordering did not preserve classified interest and the canonical latest message.",
     );
 
     const queuedLeadEventsBeforeRejection = await prisma.leadEvent.count({

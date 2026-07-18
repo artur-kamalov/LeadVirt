@@ -37,7 +37,6 @@ test("interactive demo routes use local browser data only", async ({ page }) => 
     "/demo/automations",
     "/demo/analytics",
     "/demo/knowledge",
-    "/demo/audit",
     "/demo/integrations",
     "/demo/settings",
   ] as const;
@@ -62,6 +61,13 @@ test("interactive demo routes use local browser data only", async ({ page }) => 
 
   await page.goto(`${webBase}/demo/leads`, { waitUntil: "domcontentloaded" });
   await expect(page.locator("main")).not.toBeEmpty({ timeout: 20_000 });
+
+  await page.goto(`${webBase}/demo/billing`, { waitUntil: "domcontentloaded" });
+  await expect(page.getByText("RUB 24,900", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("/ 2,500", { exact: true })).toBeVisible();
+  await expect(page.getByText("/ 5", { exact: true })).toBeVisible();
+  await expect(page.getByText("/ 10", { exact: true })).toBeVisible();
+  await expect(page.getByText("/ 15", { exact: true })).toBeVisible();
 
   expect(apiCalls).toEqual([]);
 });

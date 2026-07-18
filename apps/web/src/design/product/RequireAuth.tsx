@@ -11,7 +11,13 @@ import { CurrentUserProvider } from "./CurrentUser";
 
 type AuthCheckStatus = "checking" | "authorized" | "error";
 
-export function RequireAuth({ children }: { children: React.ReactNode }) {
+export function RequireAuth({
+  children,
+  unauthorizedHref = "/login",
+}: {
+  children: React.ReactNode;
+  unauthorizedHref?: string;
+}) {
   const router = useRouter();
   const { t } = useI18n();
   const [status, setStatus] = React.useState<AuthCheckStatus>("checking");
@@ -36,7 +42,7 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
       .catch((error: unknown) => {
         if (!active) return;
         if (error instanceof ApiClientError && error.status === 401) {
-          router.replace("/login");
+          router.replace(unauthorizedHref);
           return;
         }
         setStatus("error");
@@ -45,7 +51,7 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
     return () => {
       active = false;
     };
-  }, [attempt, router]);
+  }, [attempt, router, unauthorizedHref]);
 
   if (status !== "authorized" || !user) {
     return (
@@ -53,6 +59,8 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
         <div
           className="flex max-w-md items-start gap-3 border border-white/10 bg-white/[0.03] px-5 py-4"
           data-testid={status === "error" ? "auth-check-error" : "auth-check-loading"}
+          role={status === "error" ? "alert" : "status"}
+          aria-live={status === "error" ? "assertive" : "polite"}
         >
           <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-emerald-400 text-zinc-950">
             {status === "error" ? (

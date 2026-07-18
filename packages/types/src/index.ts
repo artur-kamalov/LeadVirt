@@ -811,6 +811,50 @@ export interface PricingPlan {
   features: string[];
 }
 
+export const BILLING_PLAN_CATALOG: ReadonlyArray<PricingPlan> = [
+  {
+    code: "START",
+    name: "Start",
+    priceMonthlyRub: 9900,
+    aiConversations: 500,
+    channelsLimit: 2,
+    usersLimit: 3,
+    scenariosLimit: 3,
+    features: [],
+  },
+  {
+    code: "PROFESSIONAL",
+    name: "Professional",
+    priceMonthlyRub: 24900,
+    aiConversations: 2500,
+    channelsLimit: 5,
+    usersLimit: 10,
+    scenariosLimit: 15,
+    popular: true,
+    features: [],
+  },
+  {
+    code: "BUSINESS",
+    name: "Business",
+    priceMonthlyRub: 59900,
+    aiConversations: 10000,
+    channelsLimit: 10,
+    usersLimit: 25,
+    scenariosLimit: 50,
+    features: [],
+  },
+  {
+    code: "CORPORATE",
+    name: "Corporate",
+    priceMonthlyRub: 120000,
+    aiConversations: null,
+    channelsLimit: null,
+    usersLimit: null,
+    scenariosLimit: null,
+    features: [],
+  },
+];
+
 export interface Subscription {
   id: string;
   status: string;

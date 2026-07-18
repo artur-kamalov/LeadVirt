@@ -198,6 +198,28 @@ test.describe("telegram auth flow", () => {
         json: { data: { ...authResponse.data, isNewUser: true } },
       });
     });
+    await page.route("**/api/auth/me", async (route) => {
+      await route.fulfill({
+        headers: apiMockHeaders,
+        json: { data: { ...authResponse.data, isNewUser: undefined } },
+      });
+    });
+    await page.route("**/api/onboarding/state", async (route) => {
+      await route.fulfill({
+        headers: apiMockHeaders,
+        json: {
+          data: {
+            businessProfileVersion: 1,
+            businessProfileEtag: '"business-profile-auth-telegram-1"',
+            businessProfileUpdatedAt: "2026-07-17T20:10:00.000Z",
+            currentStep: "business",
+            completedSteps: [],
+            data: {},
+            completedAt: null,
+          },
+        },
+      });
+    });
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`${webBase}/signup`, { waitUntil: "networkidle" });
@@ -344,6 +366,28 @@ test.describe("email OTP auth flow", () => {
       await route.fulfill({
         headers: apiMockHeaders,
         json: { data: { ...emailAuthResponse.data, isNewUser: true } },
+      });
+    });
+    await page.route("**/api/auth/me", async (route) => {
+      await route.fulfill({
+        headers: apiMockHeaders,
+        json: { data: { ...emailAuthResponse.data, isNewUser: undefined } },
+      });
+    });
+    await page.route("**/api/onboarding/state", async (route) => {
+      await route.fulfill({
+        headers: apiMockHeaders,
+        json: {
+          data: {
+            businessProfileVersion: 1,
+            businessProfileEtag: '"business-profile-auth-email-1"',
+            businessProfileUpdatedAt: "2026-07-17T20:10:00.000Z",
+            currentStep: "business",
+            completedSteps: [],
+            data: {},
+            completedAt: null,
+          },
+        },
       });
     });
 
