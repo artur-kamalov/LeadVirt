@@ -1,6 +1,14 @@
 # Email Authentication
 
-LeadVirt supports passwordless email authentication alongside Telegram and provider-delivered password recovery for credential accounts.
+LeadVirt uses passwordless email authentication for the public login and signup UI, plus provider-delivered password recovery for credential accounts.
+
+## Current Product Contract
+
+- `/login` and `/signup` expose email OTP only. An unavailable email provider produces a retryable error and never falls back to Telegram account authentication.
+- Telegram account authentication is a legacy server capability. It is disabled by default and requires explicit server-side enablement; it is not offered in the public UI.
+- Existing sessions with `authMode: "telegram"` remain recognizable during the migration window. This compatibility does not permit creating a new Telegram-authenticated session while the capability is disabled.
+- Telegram bot integrations for customer conversations are a separate product boundary. Bot connection, webhook ingress, Inbox delivery, and outbound replies are unchanged.
+- The 2026-07-19 production predeploy inventory found 2 legacy Telegram-authenticated users and 21 sessions. Each user needs a verified deliverable email mapping or explicit retirement, and the sessions need an explicit revoke-or-expire decision before legacy compatibility can be removed.
 
 ## Flow
 
@@ -71,6 +79,7 @@ Before enabling production:
 2. Verify SMTP authentication without sending a message.
 3. Run a real inbox delivery smoke.
 4. Confirm one-time code consumption and `/api/auth/me` returns `authMode: "email"`.
+5. Re-run the legacy Telegram identity/session inventory and resolve every remaining user and session explicitly.
 
 UniSender enforces at least 60 seconds between emails to one recipient. The classic API also adds recipients to the configured list; move to UniSender Go if authentication volume or transactional-delivery requirements outgrow this API.
 

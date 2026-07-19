@@ -13,10 +13,14 @@ const ThemeContext = React.createContext<ThemeState | null>(null);
 const STORAGE_KEY = "ai-admin-theme";
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = React.useState<Theme>(() => {
-    if (typeof window === "undefined") return "dark";
-    return (window.localStorage.getItem(STORAGE_KEY) as Theme) || "dark";
-  });
+  const [theme, setThemeState] = React.useState<Theme>("dark");
+
+  React.useEffect(() => {
+    const storedTheme = window.localStorage.getItem(STORAGE_KEY);
+    if (storedTheme === "light" || storedTheme === "dark") {
+      setThemeState(storedTheme);
+    }
+  }, []);
 
   const setTheme = React.useCallback((t: Theme) => {
     setThemeState(t);
@@ -32,9 +36,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <ThemeContext.Provider value={{ theme, toggle, setTheme }}>
-      {children}
-    </ThemeContext.Provider>
+    <ThemeContext.Provider value={{ theme, toggle, setTheme }}>{children}</ThemeContext.Provider>
   );
 }
 

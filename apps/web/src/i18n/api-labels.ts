@@ -100,18 +100,12 @@ const activityLabels: Record<Locale, Record<string, string>> = {
 };
 
 export function dashboardActivityLabel(
-  activity: { id?: string; action: string; title?: string },
+  activity: { action: string; title?: string },
   locale: Locale,
 ) {
-  const demoFixture =
-    activity.id === "demo-activity-1" ||
-    activity.id === "demo-activity-2" ||
-    activity.id === "demo-activity-3" ||
-    activity.id === "demo-activity-4";
-
   return (
-    (demoFixture ? activityLabels[locale][activity.action] : activity.title) ||
     activityLabels[locale][activity.action] ||
+    activity.title ||
     activity.action.replaceAll(".", " ")
   );
 }
@@ -125,8 +119,7 @@ const analyticsInsightLabels: Record<Locale, Record<string, string>> = {
     PRICE_FOLLOWUP: "Follow-up recovers warm leads who disengaged after a pricing question.",
   },
   es: {
-    CHANNEL_VALUE:
-      "El widget web y Telegram generaron más leads cualificados esta semana.",
+    CHANNEL_VALUE: "El widget web y Telegram generaron más leads cualificados esta semana.",
     HIGH_RISK_HANDOFF:
       "Deriva las consultas médicas y legales a un gestor antes de que responda la IA.",
     EARLY_BOOKING_TIME:
@@ -155,8 +148,7 @@ const analyticsInsightLabels: Record<Locale, Record<string, string>> = {
       "Nachfassaktionen gewinnen warme Leads zurück, die nach einer Preisfrage abgesprungen sind.",
   },
   pt: {
-    CHANNEL_VALUE:
-      "O widget do site e o Telegram geraram mais leads qualificados nesta semana.",
+    CHANNEL_VALUE: "O widget do site e o Telegram geraram mais leads qualificados nesta semana.",
     HIGH_RISK_HANDOFF: "Encaminhe dúvidas médicas e jurídicas a um gestor antes da resposta da IA.",
     EARLY_BOOKING_TIME:
       "Fluxos de reserva convertem melhor quando a IA pergunta o horário preferido mais cedo.",

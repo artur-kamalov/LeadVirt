@@ -1,5 +1,60 @@
 # Decision Log
 
+## 2026-07-19: Make Onboarding Patches Exact And Step Advances Atomic
+
+Decision: Onboarding normalizes class-transformed request data by recursively removing omitted `undefined` properties before field classification and merge. The client advances a step through one transactional endpoint; the server validates ordered prerequisites, saves that step's data, completes it, and derives the next step.
+
+Context: Production channel selection issued repeated `428` responses because optional nested DTO properties existed as own properties with `undefined` values after transformation. They were incorrectly classified as Business Profile writes requiring `If-Match`, while the former three-request advance flow could leave data, completion, and current-step state partially updated.
+
+Consequences:
+
+- Channel, scenario, and CRM advances do not require a Business Profile ETag; business and company changes remain revision-fenced.
+- Omitted fields cannot erase saved profile data, structured services, or weekly schedules.
+- A step cannot complete before its prerequisites or without valid data; launch revalidates all five setup steps and preserves its first completion timestamp on retries.
+- Skip/logo exits save every dirty draft without completing any additional step.
+- Onboarding presents curated business/scenario/CRM choices while keeping stored custom legacy values visible and recoverable; it also captures an explicit IANA timezone, enforces the same role boundary as the API, reports field errors inline, and focuses each entered step heading.
+- CI exercises the real Nest validation/HTTP boundary through `qa:onboarding:http` in addition to service and browser coverage.
+
+## 2026-07-19: Reconcile Knowledge Capability Defaults After Concurrent Creation
+
+Decision: Initialize server-owned Knowledge capability and requirement defaults with idempotent bulk inserts, then read the persisted rows and verify that the complete expected set exists before returning it.
+
+Context: Concurrent first requests for a tenant could race through row-by-row upserts during cold capability initialization. Each request needs to accept another request winning an insert while still proving that initialization did not leave a partial capability graph.
+
+Consequences:
+
+- Duplicate concurrent inserts are ignored only at the declared unique boundaries; missing capabilities or requirements fail explicitly after reconciliation.
+- Requirement defaults bind to the capability IDs actually persisted by the winning request.
+- The API smoke issues eight concurrent cold overview requests and verifies one complete set of 8 capabilities and 36 requirements.
+
+## 2026-07-19: Give Knowledge V2 Validation An Explicit Runtime Type
+
+Decision: Knowledge V2 paginated controller parameters use validation pipes with an explicit DTO `expectedType`, while retaining the existing whitelist, unknown-field rejection, conversion, and structured error contract.
+
+Context: The local `tsx` watch runtime does not emit Nest parameter-type metadata. Query values such as `limit=25` therefore remained strings and could reach Prisma with an invalid `take` value, even though the compiled production runtime emitted the required metadata.
+
+Consequences:
+
+- Sources, documents, revisions, facts, guidance, publications, review items, conflicts, test cases, and evaluation-run lists convert and validate query values consistently in local and compiled runtimes.
+- The focused validation smoke covers valid conversion plus malformed, zero, and unknown-field rejection without relying on reflected parameter metadata.
+- This is a scoped compatibility measure. Replacing the development runner with a metadata-preserving runtime and validating DTO conversion across the API remains an explicit follow-up.
+
+## 2026-07-19: Make Public Account Authentication Email-Only
+
+Decision: Public login and signup expose only Email OTP. Telegram account authentication is an explicit server capability that is disabled by default, while already-issued Telegram sessions remain recognizable during a controlled migration. Telegram bot integrations for customer conversations are a separate boundary and remain unchanged.
+
+Context: Telegram account authentication added a second identity path to the public AuthFlow and could be mistaken for the business bot integration. Removing all Telegram-shaped data immediately would also strand legacy identities. The production predeploy inventory found 2 Telegram-authenticated users and 21 sessions that still require an explicit disposition.
+
+Consequences:
+
+- Email provider failure is retryable and never activates a Telegram fallback in `/login` or `/signup`.
+- New Telegram account sessions require explicit server-side enablement; absence of that permission fails closed.
+- Legacy `authMode: "telegram"` sessions remain readable until their users receive verified deliverable email mappings or are explicitly retired.
+- The 2 legacy users must be mapped or retired, and the 21 sessions must be deliberately revoked or allowed to expire. The inventory is rerun before removing compatibility.
+- Telegram bot connection, relay, webhook security, inbound Inbox processing, and outbound customer replies remain LIVE and keep their existing regression coverage.
+- The standalone Telegram account-auth smoke is retired; email OTP, disabled-capability, and legacy-session migration regressions own this contract.
+- Strict production readiness requires explicit email-enabled and Telegram-auth-disabled flags. Before cutover, the isolated candidate API must also report email OTP ready and Telegram account auth disabled without exposing bot identifiers.
+
 ## 2026-07-18: Request Managed Integrations Without Inventing Connectivity
 
 Decision: Non-self-serve integrations accept an owner/admin connection request, notify a monitored operator recipient, and expose only the durable requested state. Requests serialize per tenant and provider, preserve any historical integration status/settings, and may be submitted again only after the requested lifecycle is explicitly cleared.

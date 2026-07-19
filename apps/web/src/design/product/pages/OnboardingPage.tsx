@@ -34,14 +34,11 @@ import { BrandMark } from "../../components/BrandMark";
 import { LanguageSwitcher } from "../../components/LanguageSwitcher";
 import { BrandWordmark } from "../../components/BrandWordmark";
 import { Card, channels } from "../shared";
-import { Skeleton } from "../ui";
+import { Select, Skeleton } from "../ui";
 import { ResourceErrorState } from "../ResourceErrorState";
+import { useProductPermissions } from "../CurrentUser";
 import { cn } from "../../lib/utils";
-import {
-  completeOnboardingStep,
-  getOnboardingState,
-  updateOnboardingState,
-} from "@/lib/api/onboarding";
+import { advanceOnboarding, getOnboardingState, updateOnboardingState } from "@/lib/api/onboarding";
 import { ApiClientError } from "@/lib/api/client";
 import type { AcquisitionPlanId } from "@/lib/acquisition";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -68,6 +65,28 @@ interface CompanyInfo {
 
 const TOTAL_STEPS = 6;
 const stepIds = ["business", "channels", "scenario", "company", "crm", "launch"] as const;
+type OnboardingStepId = (typeof stepIds)[number];
+const onboardingTimezones = [
+  "UTC",
+  "Europe/London",
+  "Europe/Paris",
+  "Europe/Berlin",
+  "Europe/Moscow",
+  "Europe/Samara",
+  "Asia/Dubai",
+  "Asia/Tbilisi",
+  "Asia/Almaty",
+  "Asia/Tashkent",
+  "Asia/Yekaterinburg",
+  "Asia/Novosibirsk",
+  "Asia/Vladivostok",
+  "America/New_York",
+  "America/Chicago",
+  "America/Los_Angeles",
+] as const;
+
+type CompanyField = keyof CompanyInfo | "timezone";
+type CompanyFieldErrors = Partial<Record<CompanyField, string>>;
 
 const businessTypes = [
   { id: "services", labelKey: "onboarding.business.services", icon: Briefcase },
@@ -216,6 +235,14 @@ function stringFromData(data: Record<string, unknown>, key: string) {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
+function browserTimezone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    return "UTC";
+  }
+}
+
 function channelsFromData(data: Record<string, unknown>): ChannelId[] {
   const value = data.selectedChannels;
   return Array.isArray(value) ? value.filter(isChannelId) : [];
@@ -355,6 +382,19 @@ function SelectCard({
   );
 }
 
+function SavedCustomOption({ value }: { value: string }) {
+  return (
+    <SelectCard selected onClick={() => undefined}>
+      <div className="flex min-w-0 flex-col gap-2 pr-4">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-400/20">
+          <Database className="h-4.5 w-4.5 text-emerald-400" aria-hidden="true" />
+        </div>
+        <span className="break-words text-sm font-semibold text-emerald-300">{value}</span>
+      </div>
+    </SelectCard>
+  );
+}
+
 /* Step slide variants */
 const slideVariants = {
   enter: (dir: number) => ({ x: dir > 0 ? 60 : -60, opacity: 0 }),
@@ -376,10 +416,15 @@ function StepBusinessType({
   onChange: (v: string) => void;
 }) {
   const { t } = useI18n();
+  const customValue = value && !businessTypes.some((option) => option.id === value) ? value : null;
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-400 bg-clip-text text-transparent">
+        <h2
+          data-onboarding-step-heading
+          tabIndex={-1}
+          className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-400 bg-clip-text text-transparent outline-none"
+        >
           {t("onboarding.business.title")}
         </h2>
         <p className="text-zinc-400 mt-2">{t("onboarding.business.description")}</p>
@@ -419,6 +464,7 @@ function StepBusinessType({
             </SelectCard>
           );
         })}
+        {customValue ? <SavedCustomOption value={customValue} /> : null}
       </div>
     </div>
   );
@@ -438,7 +484,11 @@ function StepChannels({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-400 bg-clip-text text-transparent">
+        <h2
+          data-onboarding-step-heading
+          tabIndex={-1}
+          className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-400 bg-clip-text text-transparent outline-none"
+        >
           {t("onboarding.channels.title")}
         </h2>
         <p className="text-zinc-400 mt-2">{t("onboarding.channels.description")}</p>
@@ -491,10 +541,15 @@ function StepScenario({
   onChange: (v: string) => void;
 }) {
   const { t } = useI18n();
+  const customValue = value && !aiScenarios.some((option) => option.id === value) ? value : null;
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-400 bg-clip-text text-transparent">
+        <h2
+          data-onboarding-step-heading
+          tabIndex={-1}
+          className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-400 bg-clip-text text-transparent outline-none"
+        >
           {t("onboarding.scenario.title")}
         </h2>
         <p className="text-zinc-400 mt-2">{t("onboarding.scenario.description")}</p>
@@ -532,6 +587,7 @@ function StepScenario({
             </SelectCard>
           );
         })}
+        {customValue ? <SavedCustomOption value={customValue} /> : null}
       </div>
     </div>
   );
@@ -539,27 +595,56 @@ function StepScenario({
 
 function StepCompanyInfo({
   value,
+  timezone,
   onChange,
+  onTimezoneChange,
+  errors,
 }: {
   value: CompanyInfo;
+  timezone: string;
   onChange: (v: CompanyInfo) => void;
+  onTimezoneChange: (v: string) => void;
+  errors: CompanyFieldErrors;
 }) {
   const { t } = useI18n();
   const fieldIdPrefix = React.useId();
-  const fieldId = (key: keyof CompanyInfo) => `${fieldIdPrefix}-${key}`;
+  const fieldId = (key: CompanyField) => `${fieldIdPrefix}-${key}`;
   const field = (k: keyof CompanyInfo) => ({
     id: fieldId(k),
     value: value[k],
+    "aria-invalid": Boolean(errors[k]),
+    "aria-describedby": errors[k] ? `${fieldId(k)}-error` : undefined,
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       onChange({ ...value, [k]: e.target.value }),
   });
+  const fieldError = (key: CompanyField) =>
+    errors[key] ? (
+      <p
+        id={`${fieldId(key)}-error`}
+        role="alert"
+        aria-live="assertive"
+        className="text-xs text-red-300"
+      >
+        {errors[key]}
+      </p>
+    ) : null;
+  const timezoneOptions = React.useMemo(() => {
+    const values = [timezone, ...onboardingTimezones].filter(
+      (item, index, all) => item && all.indexOf(item) === index,
+    );
+    return values.map((item) => ({ value: item, label: item.replaceAll("_", " ") }));
+  }, [timezone]);
   const inputCls =
     "w-full h-11 bg-white/5 border border-white/5 rounded-xl px-4 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500/50 focus:bg-white/[0.07] transition-colors";
   const textareaCls = cn(inputCls, "h-auto py-3 resize-none leading-relaxed");
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-400 bg-clip-text text-transparent">
+        <h2
+          data-onboarding-step-heading
+          tabIndex={-1}
+          className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-400 bg-clip-text text-transparent outline-none"
+        >
           {t("onboarding.company.title")}
         </h2>
         <p className="text-zinc-400 mt-2">{t("onboarding.company.description")}</p>
@@ -575,9 +660,11 @@ function StepCompanyInfo({
           <input
             {...field("name")}
             required
+            maxLength={160}
             placeholder={t("onboarding.company.namePlaceholder")}
             className={inputCls}
           />
+          {fieldError("name")}
         </div>
         <div className="space-y-1.5">
           <label
@@ -589,10 +676,33 @@ function StepCompanyInfo({
           <textarea
             {...field("description")}
             required
+            maxLength={4_000}
             rows={3}
             placeholder={t("onboarding.company.aboutPlaceholder")}
             className={textareaCls}
           />
+          {fieldError("description")}
+        </div>
+        <div className="space-y-1.5">
+          <label
+            htmlFor={fieldId("timezone")}
+            className="text-xs font-medium text-zinc-500 uppercase tracking-wider"
+          >
+            {t("businessProfile.timezone")} <span aria-hidden="true">*</span>
+          </label>
+          <div id={fieldId("timezone")}>
+            <Select
+              value={timezone}
+              options={timezoneOptions}
+              ariaLabel={t("businessProfile.timezone")}
+              ariaInvalid={Boolean(errors.timezone)}
+              ariaDescribedBy={errors.timezone ? `${fieldId("timezone")}-error` : undefined}
+              testId="onboarding-timezone"
+              className={cn(errors.timezone && "border-red-500/60")}
+              onValueChange={onTimezoneChange}
+            />
+          </div>
+          {fieldError("timezone")}
         </div>
         <div className="space-y-1.5">
           <label
@@ -603,10 +713,12 @@ function StepCompanyInfo({
           </label>
           <textarea
             {...field("servicesCatalog")}
+            maxLength={20_000}
             rows={5}
             placeholder={t("onboarding.company.catalogPlaceholder")}
             className={textareaCls}
           />
+          {fieldError("servicesCatalog")}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
@@ -619,9 +731,11 @@ function StepCompanyInfo({
             </label>
             <input
               {...field("hours")}
+              maxLength={4_000}
               placeholder={t("onboarding.company.hoursPlaceholder")}
               className={inputCls}
             />
+            {fieldError("hours")}
           </div>
           <div className="space-y-1.5">
             <label
@@ -633,9 +747,11 @@ function StepCompanyInfo({
             </label>
             <input
               {...field("avgCheck")}
+              maxLength={500}
               placeholder={t("onboarding.company.averagePlaceholder")}
               className={inputCls}
             />
+            {fieldError("avgCheck")}
           </div>
         </div>
         <div className="space-y-1.5">
@@ -647,10 +763,12 @@ function StepCompanyInfo({
           </label>
           <textarea
             {...field("availability")}
+            maxLength={10_000}
             rows={4}
             placeholder={t("onboarding.company.availabilityPlaceholder")}
             className={textareaCls}
           />
+          {fieldError("availability")}
         </div>
         <div className="space-y-1.5">
           <label
@@ -661,10 +779,12 @@ function StepCompanyInfo({
           </label>
           <textarea
             {...field("faq")}
+            maxLength={20_000}
             rows={4}
             placeholder={t("onboarding.company.faqPlaceholder")}
             className={textareaCls}
           />
+          {fieldError("faq")}
         </div>
         <div className="space-y-1.5">
           <label
@@ -675,10 +795,12 @@ function StepCompanyInfo({
           </label>
           <textarea
             {...field("policies")}
+            maxLength={20_000}
             rows={4}
             placeholder={t("onboarding.company.policiesPlaceholder")}
             className={textareaCls}
           />
+          {fieldError("policies")}
         </div>
         <div className="space-y-1.5">
           <label
@@ -689,10 +811,12 @@ function StepCompanyInfo({
           </label>
           <textarea
             {...field("escalationRules")}
+            maxLength={20_000}
             rows={3}
             placeholder={t("onboarding.company.escalationPlaceholder")}
             className={textareaCls}
           />
+          {fieldError("escalationRules")}
         </div>
       </div>
     </div>
@@ -701,10 +825,15 @@ function StepCompanyInfo({
 
 function StepCRM({ value, onChange }: { value: string | null; onChange: (v: string) => void }) {
   const { t } = useI18n();
+  const customValue = value && !crmOptions.some((option) => option.id === value) ? value : null;
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-400 bg-clip-text text-transparent">
+        <h2
+          data-onboarding-step-heading
+          tabIndex={-1}
+          className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-400 bg-clip-text text-transparent outline-none"
+        >
           {t("onboarding.crm.title")}
         </h2>
         <p className="text-zinc-400 mt-2">{t("onboarding.crm.description")}</p>
@@ -743,6 +872,7 @@ function StepCRM({ value, onChange }: { value: string | null; onChange: (v: stri
             </SelectCard>
           );
         })}
+        {customValue ? <SavedCustomOption value={customValue} /> : null}
       </div>
     </div>
   );
@@ -755,6 +885,7 @@ function StepLaunch({
   crm,
   companyName,
   nextAction,
+  onBack,
   onLaunch,
   onRestart,
   disabled,
@@ -766,6 +897,7 @@ function StepLaunch({
   crm: string | null;
   companyName: string;
   nextAction: "billing" | "knowledge" | "dashboard";
+  onBack: () => void;
   onLaunch: () => void;
   onRestart?: () => void;
   disabled: boolean;
@@ -775,13 +907,13 @@ function StepLaunch({
   const business = businessTypes.find((item) => item.id === businessType);
   const selectedScenario = aiScenarios.find((item) => item.id === scenario);
   const selectedCrm = crmOptions.find((item) => item.id === crm);
-  const btLabel = business ? t(business.labelKey) : "—";
-  const scenLabel = selectedScenario ? t(selectedScenario.labelKey) : "—";
+  const btLabel = business ? t(business.labelKey) : (businessType?.trim() ?? "—");
+  const scenLabel = selectedScenario ? t(selectedScenario.labelKey) : (scenario?.trim() ?? "—");
   const crmBaseLabel = selectedCrm
     ? selectedCrm.labelKey
       ? t(selectedCrm.labelKey)
       : selectedCrm.label
-    : "—";
+    : (crm?.trim() ?? "—");
   const crmLabel =
     selectedCrm && selectedCrm.availability !== "available"
       ? `${crmBaseLabel} · ${t(availabilityKeys[selectedCrm.availability])}`
@@ -821,7 +953,11 @@ function StepLaunch({
           <Check className="w-10 h-10 text-zinc-950 stroke-[2.5]" />
         </motion.div>
         <div>
-          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-50">
+          <h2
+            data-onboarding-step-heading
+            tabIndex={-1}
+            className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-50 outline-none"
+          >
             {t("onboarding.ready.title")}
           </h2>
           <p className="text-zinc-400 mt-2">{t("onboarding.ready.description")}</p>
@@ -845,6 +981,10 @@ function StepLaunch({
 
       {/* Launch button (desktop) */}
       <div className="hidden justify-center gap-3 sm:flex">
+        <Button variant="ghost" size="lg" onClick={onBack} disabled={saving} className="gap-2">
+          <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+          {t("onboarding.back")}
+        </Button>
         {onRestart ? (
           <Button
             variant="outline"
@@ -884,18 +1024,22 @@ export function OnboardingPage({
 }) {
   const { locale, t } = useI18n();
   const { go, mode } = useNav();
+  const permissions = useProductPermissions();
   const router = useRouter();
 
   const [step, setStep] = useState(0);
   const [dir, setDir] = useState(1); // slide direction
   const [saving, setSaving] = useState(false);
   const [persistenceError, setPersistenceError] = useState(false);
+  const [persistenceErrorMessage, setPersistenceErrorMessage] = useState<string | null>(null);
   const [persistenceConflict, setPersistenceConflict] = useState(false);
   const [loadStatus, setLoadStatus] = useState<"loading" | "success" | "error">("loading");
   const [loadRevision, setLoadRevision] = useState(0);
   const hasLocalChangesRef = useRef(false);
+  const dirtyStepsRef = useRef<Set<OnboardingStepId>>(new Set());
   const businessProfileEtagRef = useRef<string | null>(null);
   const localeRef = useRef(locale);
+  const stepPanelRef = useRef<HTMLDivElement | null>(null);
 
   // Step state
   const [businessType, setBusinessType] = useState<string | null>(null);
@@ -912,6 +1056,8 @@ export function OnboardingPage({
     policies: "",
     escalationRules: "",
   });
+  const [timezone, setTimezone] = useState("UTC");
+  const [companyFieldErrors, setCompanyFieldErrors] = useState<CompanyFieldErrors>({});
   const [crm, setCrm] = useState<string | null>(null);
 
   useEffect(() => {
@@ -919,6 +1065,14 @@ export function OnboardingPage({
     if (mode !== "demo" || loadStatus !== "success" || hasLocalChangesRef.current) return;
     setCompanyInfo((current) => localizeCompanyInfo(current, locale));
   }, [loadStatus, locale, mode]);
+
+  useEffect(() => {
+    const firstInvalidField =
+      stepPanelRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
+    if (!firstInvalidField) return;
+    firstInvalidField.focus();
+    firstInvalidField.scrollIntoView({ block: "center" });
+  }, [companyFieldErrors]);
 
   useEffect(() => {
     let active = true;
@@ -933,6 +1087,7 @@ export function OnboardingPage({
           setBusinessType(stringFromData(data, "businessType"));
           setSelectedChannels(channelsFromData(data));
           setScenario(stringFromData(data, "scenario"));
+          setTimezone(stringFromData(data, "timezone") ?? browserTimezone());
           const loadedCompanyInfo = companyInfoFromData(data);
           setCompanyInfo(
             mode === "demo"
@@ -960,32 +1115,61 @@ export function OnboardingPage({
     setStep(nextStep);
   };
 
-  const markLocalChange = () => {
+  const markLocalChange = (stepId: OnboardingStepId) => {
+    dirtyStepsRef.current.add(stepId);
     hasLocalChangesRef.current = true;
   };
 
+  const markStepPersisted = (stepId: OnboardingStepId) => {
+    dirtyStepsRef.current.delete(stepId);
+    hasLocalChangesRef.current = dirtyStepsRef.current.size > 0;
+  };
+
+  const clearLocalChanges = () => {
+    dirtyStepsRef.current.clear();
+    hasLocalChangesRef.current = false;
+  };
+
   const updateBusinessType = (value: string) => {
-    markLocalChange();
+    markLocalChange("business");
     setBusinessType(value);
   };
 
   const updateSelectedChannels = (value: ChannelId[]) => {
-    markLocalChange();
+    markLocalChange("channels");
     setSelectedChannels(value);
   };
 
   const updateScenario = (value: string) => {
-    markLocalChange();
+    markLocalChange("scenario");
     setScenario(value);
   };
 
   const updateCompanyInfo = (value: CompanyInfo) => {
-    markLocalChange();
+    markLocalChange("company");
+    setCompanyFieldErrors((current) => {
+      const next = { ...current };
+      for (const key of Object.keys(value) as Array<keyof CompanyInfo>) {
+        if (value[key] !== companyInfo[key]) delete next[key];
+      }
+      return next;
+    });
     setCompanyInfo(value);
   };
 
+  const updateTimezone = (value: string) => {
+    markLocalChange("company");
+    setCompanyFieldErrors((current) => {
+      if (!current.timezone) return current;
+      const next = { ...current };
+      delete next.timezone;
+      return next;
+    });
+    setTimezone(value);
+  };
+
   const updateCrm = (value: string) => {
-    markLocalChange();
+    markLocalChange("crm");
     setCrm(value);
   };
 
@@ -998,7 +1182,7 @@ export function OnboardingPage({
       case "scenario":
         return { scenario };
       case "company":
-        return { companyInfo };
+        return { companyInfo, timezone };
       case "crm":
         return { crm };
       case "launch":
@@ -1010,36 +1194,40 @@ export function OnboardingPage({
     businessProfileEtagRef.current = etag;
   };
 
-  const persistProgress = async (
-    completedStepId: (typeof stepIds)[number],
-    nextStepId: (typeof stepIds)[number],
-  ) => {
+  const persistProgress = async (completedStepId: (typeof stepIds)[number]) => {
     setPersistenceError(false);
+    setPersistenceErrorMessage(null);
     setPersistenceConflict(false);
+    setCompanyFieldErrors({});
 
     try {
       const stepData = onboardingDataForStep(completedStepId);
       const profileAffectingStep = completedStepId === "business" || completedStepId === "company";
-      const updated = await updateOnboardingState(
-        {
-          currentStep: completedStepId,
-          ...(Object.keys(stepData).length > 0 ? { data: stepData } : {}),
-        },
+      const updated = await advanceOnboarding(
+        completedStepId,
+        stepData,
         profileAffectingStep ? { ifMatch: businessProfileEtagRef.current ?? undefined } : undefined,
       );
       if (profileAffectingStep) rememberBusinessProfileEtag(updated.businessProfileEtag);
-
-      await completeOnboardingStep(completedStepId);
-
-      if (nextStepId !== completedStepId) {
-        await updateOnboardingState({ currentStep: nextStepId });
-      }
-      hasLocalChangesRef.current = false;
+      markStepPersisted(completedStepId);
       return true;
     } catch (error) {
-      if (error instanceof ApiClientError && error.status === 412) {
+      if (error instanceof ApiClientError && (error.status === 412 || error.status === 428)) {
         setPersistenceConflict(true);
       } else {
+        if (error instanceof ApiClientError && error.fieldErrors) {
+          const fields: CompanyFieldErrors = {};
+          for (const fieldError of error.fieldErrors) {
+            const field = fieldError.field.split(".").at(-1);
+            if (field && ([...Object.keys(companyInfo), "timezone"] as string[]).includes(field)) {
+              fields[field as CompanyField] = fieldError.message;
+            }
+          }
+          setCompanyFieldErrors(fields);
+        }
+        setPersistenceErrorMessage(
+          error instanceof ApiClientError && error.status === 400 ? error.message : null,
+        );
         setPersistenceError(true);
       }
       return false;
@@ -1048,20 +1236,88 @@ export function OnboardingPage({
 
   const reloadAfterConflict = () => {
     businessProfileEtagRef.current = null;
-    hasLocalChangesRef.current = false;
+    clearLocalChanges();
     setPersistenceConflict(false);
     setPersistenceError(false);
+    setPersistenceErrorMessage(null);
     setLoadRevision((current) => current + 1);
   };
 
   const isStepValid = () => {
-    if (step === 0) return !!businessType;
+    const hasBusinessType = Boolean(businessType?.trim());
+    const hasScenario = Boolean(scenario?.trim());
+    const hasCrm = Boolean(crm?.trim());
+
+    if (step === 0) return hasBusinessType;
     if (step === 1) return selectedChannels.length > 0;
-    if (step === 2) return !!scenario;
+    if (step === 2) return hasScenario;
     if (step === 3)
-      return companyInfo.name.trim().length > 0 && companyInfo.description.trim().length > 0;
-    if (step === 4) return !!crm;
-    return true;
+      return (
+        companyInfo.name.trim().length > 0 &&
+        companyInfo.description.trim().length > 0 &&
+        timezone.trim().length > 0
+      );
+    if (step === 4) return hasCrm;
+    return Boolean(
+      hasBusinessType &&
+      selectedChannels.length > 0 &&
+      hasScenario &&
+      companyInfo.name.trim() &&
+      companyInfo.description.trim() &&
+      timezone.trim() &&
+      hasCrm,
+    );
+  };
+
+  const draftDataForStep = (stepId: OnboardingStepId) => {
+    if (stepId !== "company") return onboardingDataForStep(stepId);
+    const draftCompanyInfo: Partial<CompanyInfo> = { ...companyInfo };
+    if (!draftCompanyInfo.name?.trim()) delete draftCompanyInfo.name;
+    return { companyInfo: draftCompanyInfo, timezone };
+  };
+
+  const dirtyDraftData = () => {
+    const dirtyData: Record<string, unknown> = {};
+    for (const stepId of dirtyStepsRef.current) {
+      Object.assign(dirtyData, draftDataForStep(stepId));
+    }
+    return dirtyData;
+  };
+
+  const handleExit = async (destination: "landing" | "dashboard") => {
+    if (saving) return;
+    if (!hasLocalChangesRef.current) {
+      go(destination);
+      return;
+    }
+
+    setSaving(true);
+    setPersistenceError(false);
+    setPersistenceErrorMessage(null);
+    setPersistenceConflict(false);
+    try {
+      const stepId = stepIds[step] ?? "business";
+      const profileAffectingStep =
+        dirtyStepsRef.current.has("business") || dirtyStepsRef.current.has("company");
+      const updated = await updateOnboardingState(
+        { currentStep: stepId, data: dirtyDraftData() },
+        profileAffectingStep ? { ifMatch: businessProfileEtagRef.current ?? undefined } : undefined,
+      );
+      if (profileAffectingStep) rememberBusinessProfileEtag(updated.businessProfileEtag);
+      clearLocalChanges();
+      go(destination);
+    } catch (error) {
+      if (error instanceof ApiClientError && (error.status === 412 || error.status === 428)) {
+        setPersistenceConflict(true);
+      } else {
+        setPersistenceErrorMessage(
+          error instanceof ApiClientError && error.status === 400 ? error.message : null,
+        );
+        setPersistenceError(true);
+      }
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleNext = async () => {
@@ -1070,7 +1326,7 @@ export function OnboardingPage({
     if (step < TOTAL_STEPS - 1) {
       const nextStep = step + 1;
       setSaving(true);
-      const persisted = await persistProgress(stepIds[step], stepIds[nextStep]);
+      const persisted = await persistProgress(stepIds[step] ?? "business");
       setSaving(false);
       if (!persisted) return;
       navigate(nextStep);
@@ -1085,9 +1341,9 @@ export function OnboardingPage({
   };
 
   const handleLaunch = async () => {
-    if (saving || persistenceConflict) return;
+    if (saving || persistenceConflict || !isStepValid()) return;
     setSaving(true);
-    const persisted = await persistProgress("launch", "launch");
+    const persisted = await persistProgress("launch");
     setSaving(false);
     if (!persisted) return;
     if (mode === "demo") {
@@ -1105,6 +1361,7 @@ export function OnboardingPage({
     if (mode !== "demo" || saving || persistenceConflict) return;
     setSaving(true);
     setPersistenceError(false);
+    setPersistenceErrorMessage(null);
     try {
       await updateOnboardingState({ currentStep: "business" });
       hasLocalChangesRef.current = false;
@@ -1125,7 +1382,15 @@ export function OnboardingPage({
       case 2:
         return <StepScenario value={scenario} onChange={updateScenario} />;
       case 3:
-        return <StepCompanyInfo value={companyInfo} onChange={updateCompanyInfo} />;
+        return (
+          <StepCompanyInfo
+            value={companyInfo}
+            timezone={timezone}
+            errors={companyFieldErrors}
+            onChange={updateCompanyInfo}
+            onTimezoneChange={updateTimezone}
+          />
+        );
       case 4:
         return <StepCRM value={crm} onChange={updateCrm} />;
       case 5:
@@ -1137,9 +1402,10 @@ export function OnboardingPage({
             crm={crm}
             companyName={companyInfo.name}
             nextAction={mode === "demo" ? "dashboard" : selectedPlan ? "billing" : "knowledge"}
+            onBack={handleBack}
             onLaunch={() => void handleLaunch()}
             onRestart={mode === "demo" ? () => void handleRestart() : undefined}
-            disabled={saving || persistenceConflict}
+            disabled={saving || persistenceConflict || !isStepValid()}
             saving={saving}
           />
         );
@@ -1149,6 +1415,7 @@ export function OnboardingPage({
   };
 
   const isLastStep = step === TOTAL_STEPS - 1;
+  const canEditOnboarding = mode === "demo" || permissions.canManageAccount;
 
   return (
     <div className="relative min-h-screen bg-zinc-950 text-zinc-50 flex flex-col overflow-x-hidden">
@@ -1156,7 +1423,7 @@ export function OnboardingPage({
 
       {/* ---- Top bar ---- */}
       <header className="relative z-10 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-2 border-b border-white/5 bg-zinc-950/95 px-4 py-3 sm:flex sm:justify-between sm:px-8 sm:py-4">
-        <Logo onClick={() => go("landing")} disabled={saving} />
+        <Logo onClick={() => void handleExit("landing")} disabled={saving} />
         <div className="order-3 col-span-2 flex min-w-0 justify-center sm:order-none sm:col-span-1 sm:block">
           {loadStatus === "success" ? (
             <ProgressBar step={step} />
@@ -1172,7 +1439,7 @@ export function OnboardingPage({
           <LanguageSwitcher compact className="h-11" />
           <button
             type="button"
-            onClick={() => go("dashboard")}
+            onClick={() => void handleExit("dashboard")}
             disabled={saving}
             aria-label={t("onboarding.skip")}
             className="flex h-11 min-w-11 items-center justify-center gap-1.5 rounded-md px-2 text-sm text-zinc-500 transition-colors hover:bg-white/5 hover:text-zinc-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 disabled:cursor-wait disabled:opacity-60"
@@ -1201,11 +1468,35 @@ export function OnboardingPage({
                 onRetry={() => setLoadRevision((current) => current + 1)}
               />
             </Card>
+          ) : !canEditOnboarding ? (
+            <Card className="p-6 sm:p-8" data-testid="onboarding-role-boundary">
+              <div className="flex gap-3" role="alert">
+                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />
+                <div>
+                  <h2 className="text-base font-semibold text-zinc-100">
+                    {t("onboarding.permission.title")}
+                  </h2>
+                  <p className="mt-1 text-sm text-zinc-400">
+                    {t("onboarding.permission.description")}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="mt-4"
+                    onClick={() => go("dashboard")}
+                  >
+                    {t("product.nav.dashboard")}
+                  </Button>
+                </div>
+              </div>
+            </Card>
           ) : (
             <>
               <AnimatePresence mode="wait" custom={dir}>
                 <motion.div
+                  ref={stepPanelRef}
                   data-testid="onboarding-step-panel"
+                  data-onboarding-step={step}
                   key={step}
                   custom={dir}
                   variants={slideVariants}
@@ -1213,8 +1504,21 @@ export function OnboardingPage({
                   animate="center"
                   exit="exit"
                   transition={transition}
+                  onAnimationComplete={() => {
+                    const panel = stepPanelRef.current;
+                    if (panel?.dataset.onboardingStep !== String(step)) return;
+                    panel.querySelector<HTMLElement>("[data-onboarding-step-heading]")?.focus();
+                  }}
                 >
-                  <Card className="p-6 sm:p-8">{renderStep()}</Card>
+                  <Card className="p-6 sm:p-8">
+                    <fieldset
+                      disabled={saving}
+                      aria-busy={saving}
+                      className="m-0 min-w-0 border-0 p-0 disabled:cursor-wait disabled:opacity-70"
+                    >
+                      {renderStep()}
+                    </fieldset>
+                  </Card>
                 </motion.div>
               </AnimatePresence>
 
@@ -1222,7 +1526,7 @@ export function OnboardingPage({
                 {saving ? t("onboarding.saving") : ""}
               </p>
 
-              {persistenceError && (
+              {persistenceError && Object.keys(companyFieldErrors).length === 0 && (
                 <div
                   role="alert"
                   aria-live="assertive"
@@ -1236,7 +1540,7 @@ export function OnboardingPage({
                   <div>
                     <p className="text-sm font-semibold">{t("onboarding.saveError.title")}</p>
                     <p className="mt-1 text-sm text-red-200/80">
-                      {t("onboarding.saveError.description")}
+                      {persistenceErrorMessage ?? t("onboarding.saveError.description")}
                     </p>
                   </div>
                 </div>
@@ -1304,10 +1608,21 @@ export function OnboardingPage({
       </main>
 
       {/* ---- Mobile sticky bottom bar ---- */}
-      {loadStatus === "success" && (
+      {loadStatus === "success" && canEditOnboarding && (
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-white/5 bg-zinc-950 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:hidden">
           {isLastStep ? (
             <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                onClick={handleBack}
+                disabled={saving}
+                aria-label={t("onboarding.back")}
+                title={t("onboarding.back")}
+                className="flex h-12 w-12 shrink-0 items-center justify-center p-0"
+                data-testid="onboarding-back-mobile"
+              >
+                <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+              </Button>
               {mode === "demo" ? (
                 <Button
                   variant="outline"
@@ -1324,7 +1639,7 @@ export function OnboardingPage({
               <Button
                 size="lg"
                 onClick={() => void handleLaunch()}
-                disabled={saving || persistenceConflict}
+                disabled={saving || persistenceConflict || !isStepValid()}
                 className="min-h-11 flex-1 gap-2 shadow-xl shadow-emerald-500/20"
               >
                 {saving ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> : null}

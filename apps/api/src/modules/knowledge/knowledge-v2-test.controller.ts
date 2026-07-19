@@ -28,12 +28,16 @@ import {
 } from "./dto/knowledge-v2-test.dto.js";
 import { requireIdempotencyKey, requireIfMatch } from "./knowledge-v2-http.js";
 import { KnowledgeV2TestService } from "./knowledge-v2-test.service.js";
-import { knowledgeV2ValidationPipe } from "./knowledge-v2-validation.pipe.js";
+import {
+  createKnowledgeV2ValidationPipe,
+  knowledgeV2ValidationPipe,
+} from "./knowledge-v2-validation.pipe.js";
 
 type HeaderValue = string | string[] | undefined;
 
 const testReadRoles = ["OWNER", "ADMIN", "MANAGER"] as const;
 const testMutationRoles = ["OWNER", "ADMIN"] as const;
+const testCaseListQueryPipe = createKnowledgeV2ValidationPipe(KnowledgeV2TestCaseListQueryDto);
 
 function mutationHeaders(idempotencyKey: HeaderValue, ifMatch: HeaderValue) {
   return {
@@ -55,7 +59,7 @@ export class KnowledgeV2TestController {
   @Get()
   async list(
     @CurrentContext() context: RequestContext,
-    @Query() query: KnowledgeV2TestCaseListQueryDto,
+    @Query(testCaseListQueryPipe) query: KnowledgeV2TestCaseListQueryDto,
   ) {
     return { data: await this.tests.listTestCases(context, query) };
   }

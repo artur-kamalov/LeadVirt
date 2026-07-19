@@ -260,7 +260,10 @@ test("landing scenarios avoid unsupported automation claims in English and Russi
     for (const [title, outcome] of copy.scenarios) {
       const niche = niches.getByRole("button").filter({ hasText: title });
       await expect(niche).toHaveCount(1);
+      await expect(niche).toHaveAttribute("type", "button");
       await niche.click();
+      await expect(niche).toHaveAttribute("aria-pressed", "true");
+      await expect(niches.locator('button[aria-pressed="true"]')).toHaveCount(1);
       await expect(niches).toContainText(outcome);
       expect(
         await page.evaluate(

@@ -88,6 +88,8 @@ async function main() {
   const dispatcher = new TestDispatcher();
   let tenantId: string | null = null;
   let userId: string | null = null;
+  let advanceTenantId: string | null = null;
+  let advanceUserId: string | null = null;
 
   try {
     const user = await prisma.user.create({
@@ -317,16 +319,117 @@ async function main() {
       "The durable outbox event was not left pending for retry.",
     );
 
+    const advanceUser = await prisma.user.create({
+      data: { email: `onboarding-advance-${suffix}@example.test`, name: "Advance Owner" },
+    });
+    advanceUserId = advanceUser.id;
+    const advanceTenant = await prisma.tenant.create({
+      data: { name: "Advance Business", slug: `onboarding-advance-${suffix}`, timezone: "UTC" },
+    });
+    advanceTenantId = advanceTenant.id;
+    await prisma.membership.create({
+      data: { tenantId: advanceTenant.id, userId: advanceUser.id, role: "OWNER" },
+    });
+    await prisma.knowledgeV2Settings.create({ data: { tenantId: advanceTenant.id } });
+    await prisma.knowledgeCorpusSelector.create({
+      data: {
+        tenantId: advanceTenant.id,
+        corpusKind: "LEGACY_V1",
+        selectedByUserId: advanceUser.id,
+      },
+    });
+    const advanceContext: RequestContext = {
+      tenantId: advanceTenant.id,
+      userId: advanceUser.id,
+      role: "OWNER",
+      authMode: "credentials",
+      tenant: {
+        id: advanceTenant.id,
+        name: advanceTenant.name,
+        slug: advanceTenant.slug,
+        status: advanceTenant.status,
+        businessType: advanceTenant.businessType,
+        timezone: advanceTenant.timezone,
+      },
+      user: {
+        id: advanceUser.id,
+        email: advanceUser.email,
+        phone: advanceUser.phone,
+        name: advanceUser.name,
+        avatarUrl: advanceUser.avatarUrl,
+        passwordChangeRequired: advanceUser.passwordChangeRequired,
+      },
+    };
+    const advanceInitial = await onboarding.state(advanceContext);
+    const business = await onboarding.advance(
+      advanceContext,
+      { step: "business", data: { businessType: "services" } },
+      advanceInitial.businessProfileEtag,
+    );
+    const channels = await onboarding.advance(advanceContext, {
+      step: "channels",
+      data: { selectedChannels: ["telegram", "website"] },
+    });
+    const scenario = await onboarding.advance(advanceContext, {
+      step: "scenario",
+      data: { scenario: "consult" },
+    });
+    const company = await onboarding.advance(
+      advanceContext,
+      {
+        step: "company",
+        data: {
+          companyInfo: {
+            name: "Advance Business",
+            description: "Atomic advance path coverage.",
+          },
+          timezone: "Europe/Paris",
+        },
+      },
+      scenario.businessProfileEtag,
+    );
+    const crm = await onboarding.advance(advanceContext, {
+      step: "crm",
+      data: { crm: "none" },
+    });
+    const launched = await onboarding.advance(advanceContext, { step: "launch", data: {} });
+    const replayed = await onboarding.advance(advanceContext, {
+      step: "scenario",
+      data: { scenario: "support" },
+    });
+    assert(business.currentStep === "channels", "Business advance did not navigate to channels.");
+    assert(channels.currentStep === "scenario", "Channel advance did not navigate to scenario.");
+    assert(scenario.currentStep === "company", "Scenario advance did not navigate to company.");
+    assert(company.currentStep === "crm", "Company advance did not navigate to CRM.");
+    assert(crm.currentStep === "launch", "CRM advance did not navigate to launch.");
+    assert(
+      launched.currentStep === "launch" && launched.completedAt !== null,
+      "Launch advance did not complete onboarding.",
+    );
+    assert(
+      JSON.stringify(launched.completedSteps) ===
+        JSON.stringify(["business", "channels", "scenario", "company", "crm", "launch"]),
+      "Atomic advance did not complete all steps in order.",
+    );
+    assert(
+      replayed.currentStep === "launch" && replayed.completedAt === launched.completedAt,
+      "An older-step replay regressed or recompleted onboarding.",
+    );
+
     console.log(
       JSON.stringify({
         ok: true,
-        assertions: 28,
+        assertions: 36,
         sources: sources.length,
         audits: auditCount,
         outboxEvents: outboxCount,
       }),
     );
   } finally {
+    if (advanceTenantId)
+      await prisma.tenant.delete({ where: { id: advanceTenantId } }).catch(() => undefined);
+    if (advanceUserId)
+      await prisma.user.delete({ where: { id: advanceUserId } }).catch(() => undefined);
     if (tenantId) await prisma.tenant.delete({ where: { id: tenantId } }).catch(() => undefined);
     if (userId) await prisma.user.delete({ where: { id: userId } }).catch(() => undefined);
     await prisma.$disconnect();

@@ -22,3 +22,15 @@ export function completeOnboardingStep(step: string) {
     ...jsonBody({ step }),
   });
 }
+
+export function advanceOnboarding(
+  step: string,
+  data: Record<string, unknown>,
+  options: { ifMatch?: string } = {},
+) {
+  return apiData<OnboardingState>("/onboarding/advance", {
+    method: "POST",
+    ...(options.ifMatch ? { headers: { "If-Match": options.ifMatch } } : {}),
+    ...jsonBody({ step, data }),
+  });
+}

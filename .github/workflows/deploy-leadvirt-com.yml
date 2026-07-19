@@ -28,7 +28,6 @@ env:
   NEXT_PUBLIC_APP_URL: https://leadvirt.com
   NEXT_PUBLIC_WEB_URL: https://leadvirt.com
   NEXT_PUBLIC_DEMO_MODE: "false"
-  NEXT_PUBLIC_TELEGRAM_LOGIN_BOT: LeadVirtAi_bot
   EXPECTED_TELEGRAM_BOT_API_BASE_URL: https://147-90-14-240.sslip.io:8443/telegram
   EXPECTED_TELEGRAM_WEBHOOK_BASE_URL: https://147-90-14-240.sslip.io:8443/telegram-webhook
 
@@ -70,7 +69,7 @@ jobs:
       APP_URL: http://localhost:3001
       API_URL: http://localhost:4001
       CORS_ORIGINS: http://localhost:3001
-      TELEGRAM_LOGIN_BOT_TOKEN: 123456:leadvirt-test-token
+      AUTH_TELEGRAM_ENABLED: "false"
       AI_PROVIDER: mock
       AI_ENABLE_REAL_PROVIDER: "false"
       AI_REPLY_MODE: queue
@@ -189,6 +188,7 @@ jobs:
           corepack pnpm run qa:knowledge:v2:conflict-hydration
           corepack pnpm run qa:knowledge:v2:bulk-review
           corepack pnpm run qa:knowledge:v2:test-cases
+          corepack pnpm run qa:knowledge:v2:validation-pipe
           corepack pnpm run qa:knowledge:v2:processor-query-admission
           corepack pnpm run qa:knowledge:v2:query-key-registry
           corepack pnpm run qa:knowledge:v2:operational-query
@@ -202,6 +202,8 @@ jobs:
           corepack pnpm run qa:knowledge:file-admission
           corepack pnpm run qa:knowledge:v2:file-ingestion
           corepack pnpm run qa:onboarding:atomic
+          corepack pnpm run qa:onboarding:http
+          corepack pnpm run qa:onboarding:user-smoke
           corepack pnpm run qa:operator:operations
           corepack pnpm run qa:knowledge:v2:hybrid-qdrant
           corepack pnpm run qa:knowledge:v2:hybrid-qdrant-real
@@ -926,6 +928,17 @@ jobs:
             fi
             sleep 2
           done
+          if ! docker exec "$candidate_api_container" \
+            node -e "fetch('http://127.0.0.1:4001/api/auth/email-otp/config').then(async r=>({ok:r.ok,v:await r.json()})).then(x=>process.exit(x.ok&&x.v.data?.enabled===true?0:1)).catch(()=>process.exit(1))"; then
+            echo "Candidate API email OTP authentication is not enabled and ready." >&2
+            exit 1
+          fi
+          if ! docker exec "$candidate_api_container" \
+            node -e "fetch('http://127.0.0.1:4001/api/auth/telegram/config').then(async r=>({ok:r.ok,v:await r.json()})).then(x=>process.exit(x.ok&&x.v.data?.enabled===false&&x.v.data?.botId===null&&x.v.data?.botUsername===null?0:1)).catch(()=>process.exit(1))"; then
+            echo "Candidate API Telegram account authentication is not explicitly disabled." >&2
+            exit 1
+          fi
+          echo "DEPLOY_GATE: candidate-email-otp-enabled-and-telegram-auth-disabled"
           for attempt in $(seq 1 30); do
             if docker exec "$candidate_worker_container" \
               node -e "fetch('http://127.0.0.1:4002/health/ready').then(async r=>({ok:r.ok,v:await r.json()})).then(x=>process.exit(x.ok&&x.v.ready&&!x.v.active&&x.v.deploymentPaused?0:1)).catch(()=>process.exit(1))"; then

@@ -3,7 +3,10 @@ import { HttpException } from "@nestjs/common";
 import { BusinessProfilePatchRequestDto } from "../../apps/api/src/modules/business-profile/dto/business-profile.dto.js";
 import { createKnowledgeV2ValidationPipe } from "../../apps/api/src/modules/knowledge/knowledge-v2-validation.pipe.js";
 import { onboardingKnowledgeInput } from "../../apps/api/src/modules/knowledge/onboarding-knowledge-input.js";
-import { UpdateOnboardingDto } from "../../apps/api/src/modules/onboarding/dto/update-onboarding.dto.js";
+import {
+  normalizeOnboardingUpdate,
+  UpdateOnboardingDto,
+} from "../../apps/api/src/modules/onboarding/dto/update-onboarding.dto.js";
 import { UpdateAccountSettingsDto } from "../../apps/api/src/modules/settings/dto/update-account-settings.dto.js";
 
 let checks = 0;
@@ -158,6 +161,35 @@ async function main() {
     },
   });
   assert(validOnboarding instanceof UpdateOnboardingDto, "Valid onboarding was not transformed.");
+  const customOnboarding = await validateOnboarding({
+    data: { businessType: "consulting", scenario: "sales", crm: "spreadsheet" },
+  });
+  assert(
+    customOnboarding.data?.businessType === "consulting" &&
+      customOnboarding.data.scenario === "sales" &&
+      customOnboarding.data.crm === "spreadsheet",
+    "Existing custom onboarding values were rejected or rewritten.",
+  );
+  const transformedChannelPatch = await validateOnboarding({
+    currentStep: "channels",
+    data: { selectedChannels: ["telegram"] },
+  });
+  const normalizedChannelPatch = normalizeOnboardingUpdate(transformedChannelPatch);
+  assert(
+    JSON.stringify(Object.keys(normalizedChannelPatch.data ?? {}).sort()) ===
+      JSON.stringify(["selectedChannels"]),
+    "A class-transformed channel patch retained omitted profile fields.",
+  );
+  const transformedCompanyPatch = await validateOnboarding({
+    currentStep: "company",
+    data: { companyInfo: { description: "Updated description." } },
+  });
+  const normalizedCompanyPatch = normalizeOnboardingUpdate(transformedCompanyPatch);
+  assert(
+    JSON.stringify(Object.keys(normalizedCompanyPatch.data?.companyInfo ?? {}).sort()) ===
+      JSON.stringify(["description"]),
+    "A class-transformed company patch retained omitted structured fields.",
+  );
   await expectInvalidOnboarding(
     { data: { companyInfo: { name: "Studio", internal: true } } },
     "internal",

@@ -505,7 +505,7 @@ export function DashboardPage() {
                 action={
                   <Link
                     href={hrefForRoute("analytics", {}, mode)}
-                    className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1"
+                    className="flex min-h-11 items-center gap-1 text-xs text-emerald-400 transition-colors hover:text-emerald-300"
                   >
                     {t("dashboard.chart.details")} <ChevronRight className="w-3.5 h-3.5" />
                   </Link>
@@ -671,7 +671,7 @@ export function DashboardPage() {
                 action={
                   <Link
                     href={hrefForRoute("inbox", {}, mode)}
-                    className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1"
+                    className="flex min-h-11 items-center gap-1 text-xs text-emerald-400 transition-colors hover:text-emerald-300"
                   >
                     {t("dashboard.recent.all")} <ChevronRight className="w-3.5 h-3.5" />
                   </Link>

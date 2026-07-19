@@ -304,6 +304,9 @@ test("mobile dashboard and conversation actions keep 44px targets", async ({ pag
   for (const testId of ["dashboard-open-inbox", "dashboard-scenarios", "dashboard-analytics"]) {
     await expectTouchTarget(page.getByTestId(testId));
   }
+  for (const name of ["Details", "All leads"]) {
+    await expectTouchTarget(page.getByRole("link", { name, exact: true }));
+  }
 
   await page.goto(`${webBase}/demo/inbox`, { waitUntil: "domcontentloaded" });
   const inboxSearch = page.getByTestId("inbox-search-input");

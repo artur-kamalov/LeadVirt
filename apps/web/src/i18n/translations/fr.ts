@@ -81,8 +81,7 @@ export const fr: Record<BaseTranslationKey, string> = {
   "pricing.title": "Choisissez votre forfait",
   "pricing.description":
     "Commencez petit et évoluez au fur et à mesure de votre croissance. Pas de frais cachés ni de contrats longs.",
-  "pricing.currencyNotice":
-    "Tous les prix et factures sont indiqués en roubles russes (RUB).",
+  "pricing.currencyNotice": "Tous les prix et factures sont indiqués en roubles russes (RUB).",
   "pricing.popular": "Populaires",
   "pricing.note":
     "Aucune carte n’est requise pour créer un espace de travail. Un forfait payant est activé après confirmation et facturation.",
@@ -132,7 +131,8 @@ export const fr: Record<BaseTranslationKey, string> = {
   "niches.beauty.title": "Beauté",
   "niches.beauty.description":
     "Réponses sur les services, les tarifs et les horaires, avec les demandes de rendez-vous transmises à l'équipe.",
-  "niches.beauty.user": "Bonjour ! Combien coûte une coupe et jusqu'à quelle heure êtes-vous ouvert aujourd'hui ?",
+  "niches.beauty.user":
+    "Bonjour ! Combien coûte une coupe et jusqu'à quelle heure êtes-vous ouvert aujourd'hui ?",
   "niches.beauty.ai":
     "Une coupe coûte 2 800 ₽ et le salon ferme à 21h00. Je peux transmettre à l'équipe l'horaire que vous préférez.",
   "niches.beauty.task": "Demande : coupe ce soir",
@@ -173,24 +173,21 @@ export const fr: Record<BaseTranslationKey, string> = {
     "Le tarif publié commence à 4 500 ₽ et le service dure environ 4 heures. Je peux transmettre les détails à un spécialiste pour confirmation.",
   "niches.services.task": "Demande : nettoyage en profondeur, 2 chambres",
   "auth.login.title": "Connectez-vous à LeadVirt.ai",
-  "auth.login.subtitle": "Recevez un code par e-mail ou continuez avec Telegram.",
-  "auth.login.primary": "Connectez-vous avec Telegram",
+  "auth.login.subtitle":
+    "Recevez un code de connexion à usage unique sur votre e-mail professionnel.",
   "auth.login.secondaryText": "Nouveau compte ?",
   "auth.login.secondaryAction": "Inscrivez-vous",
   "auth.signup.title": "Démarrez LeadVirt.ai",
-  "auth.signup.subtitle": "Créez un espace de travail avec e-mail ou Telegram.",
+  "auth.signup.subtitle": "Créez votre espace de travail avec votre e-mail professionnel.",
   "auth.plan.selected": "Forfait sélectionné",
   "auth.plan.change": "Changer de forfait",
-  "auth.signup.primary": "Continuer avec Telegram",
   "auth.signup.secondaryText": "Vous avez déjà accès ?",
   "auth.signup.secondaryAction": "Connectez-vous",
   "auth.website": "Retour au site",
   "auth.method.email": "E-mail",
-  "auth.method.telegram": "Telegram",
-  "auth.telegram.signupExplanation":
-    "Telegram vérifie votre identité via le bot d’authentification LeadVirt. Vous connecterez ensuite le canal ou le bot de votre entreprise.",
   "auth.email.label": "E-mail professionnel",
   "auth.email.placeholder": "nom@entreprise.com",
+  "auth.email.invalid": "Saisissez une adresse e-mail valide, par exemple nom@entreprise.com.",
   "auth.email.send": "Envoyer le code",
   "auth.email.sending": "Envoi du code...",
   "auth.email.codeLabel": "Code reçu par e-mail",
@@ -203,18 +200,15 @@ export const fr: Record<BaseTranslationKey, string> = {
   "auth.email.sent": "Code envoyé",
   "auth.email.requestError": "Impossible d'envoyer le code",
   "auth.email.verifyError": "Impossible de vérifier le code",
-  "auth.email.unavailable": "La connexion par e-mail est temporairement indisponible",
+  "auth.email.disabled": "La connexion par e-mail est actuellement désactivée pour ce service",
+  "auth.email.unavailable": "Impossible de vérifier la disponibilité de la connexion par e-mail",
   "auth.hero.title":
     "Votre administrateur IA est prêt à recevoir des pistes et à gérer des conversations.",
   "auth.hero.description":
-    "Connectez-vous sans mot de passe avec un code e-mail à usage unique ou Telegram.",
+    "Connectez-vous sans mot de passe avec un code à usage unique envoyé à votre e-mail professionnel.",
   "auth.highlight.passwordless": "Sans mot de passe",
-  "auth.highlight.telegram": "E-mail ou Telegram",
+  "auth.highlight.email": "Codes sécurisés par e-mail",
   "auth.highlight.database": "Un espace de travail pour votre entreprise",
-  "auth.telegram.invalid": "Telegram a renvoyé une réponse non valide",
-  "auth.telegram.preparing": "Préparation de la connexion à Telegram...",
-  "auth.telegram.missing": "Le nom d'utilisateur du robot Telegram n'est pas configuré sur l'API.",
-  "auth.telegram.verifying": "Vérification du télégramme...",
   "auth.toast.created": "Espace de travail créé",
   "auth.toast.welcome": "Bienvenue à nouveau",
   "auth.error.login": "Impossible de se connecter",
@@ -342,6 +336,9 @@ export const fr: Record<BaseTranslationKey, string> = {
   "onboarding.saveError.title": "Nous n'avons pas pu enregistrer votre progression",
   "onboarding.saveError.description":
     "Vérifiez votre connexion et réessayez. Vos réponses sont toujours là.",
+  "onboarding.permission.title": "La configuration n'est pas disponible pour votre rôle",
+  "onboarding.permission.description":
+    "Demandez à un propriétaire, administrateur ou responsable de terminer la configuration initiale.",
   "onboarding.business.title": "De quel type d'entreprise s'agit-il ?",
   "onboarding.business.description":
     "Choisissez votre type d'activité pour que l'IA puisse s'adapter à votre secteur d'activité",

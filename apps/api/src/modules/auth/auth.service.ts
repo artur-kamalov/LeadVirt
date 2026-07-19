@@ -11,6 +11,7 @@ import {
   ConflictException,
   Inject,
   Injectable,
+  NotFoundException,
   ServiceUnavailableException,
   UnauthorizedException,
 } from "@nestjs/common";
@@ -211,8 +212,18 @@ function credentialsAuthEnabled() {
   return envFlag(process.env.AUTH_CREDENTIALS_ENABLED) ?? process.env.NODE_ENV !== "production";
 }
 
+function telegramAuthEnabled() {
+  return envFlag(process.env.AUTH_TELEGRAM_ENABLED) === true;
+}
+
+function requireTelegramAuthEnabled() {
+  if (!telegramAuthEnabled()) {
+    throw new NotFoundException("Telegram authentication is disabled.");
+  }
+}
+
 function telegramBotToken() {
-  return (process.env.TELEGRAM_LOGIN_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN || "").trim();
+  return (process.env.TELEGRAM_LOGIN_BOT_TOKEN || "").trim();
 }
 
 function telegramBotId() {
@@ -223,13 +234,7 @@ function telegramBotId() {
 }
 
 function telegramBotUsername() {
-  const configured = (
-    process.env.TELEGRAM_LOGIN_BOT_USERNAME ||
-    process.env.NEXT_PUBLIC_TELEGRAM_LOGIN_BOT ||
-    ""
-  )
-    .trim()
-    .replace(/^@/, "");
+  const configured = (process.env.TELEGRAM_LOGIN_BOT_USERNAME || "").trim().replace(/^@/, "");
   return /^[a-zA-Z][a-zA-Z0-9_]{3,31}$/.test(configured) ? configured : null;
 }
 
@@ -489,7 +494,7 @@ export class AuthService {
 
   async login(dto: LoginDto, meta: AuthMeta = {}) {
     if (!credentialsAuthEnabled()) {
-      throw new BadRequestException("Password login is disabled. Use Telegram login.");
+      throw new BadRequestException("Password login is disabled. Use email sign-in.");
     }
 
     const identifier = parseAuthIdentifier(dto.email);
@@ -565,7 +570,7 @@ export class AuthService {
 
   async signup(dto: SignupDto, meta: AuthMeta = {}) {
     if (!credentialsAuthEnabled()) {
-      throw new BadRequestException("Password signup is disabled. Use Telegram login.");
+      throw new BadRequestException("Password signup is disabled. Use email sign-in.");
     }
 
     const identifier = parseAuthIdentifier(dto.email);
@@ -661,6 +666,7 @@ export class AuthService {
   }
 
   async loginWithTelegram(dto: TelegramAuthDto, meta: AuthMeta = {}) {
+    requireTelegramAuthEnabled();
     verifyTelegramHash(dto);
 
     return this.loginWithTelegramIdentity(
@@ -679,6 +685,7 @@ export class AuthService {
   }
 
   async loginWithTelegramOidc(dto: TelegramOidcAuthDto, meta: AuthMeta = {}) {
+    requireTelegramAuthEnabled();
     const claims = await verifyTelegramOidcToken(dto);
     const telegramId = numberClaim(claims.id);
     if (!telegramId) {
@@ -711,7 +718,10 @@ export class AuthService {
   }
 
   telegramLoginConfig() {
-    return { botId: telegramBotId(), botUsername: telegramBotUsername() };
+    if (!telegramAuthEnabled()) {
+      return { enabled: false, botId: null, botUsername: null };
+    }
+    return { enabled: true, botId: telegramBotId(), botUsername: telegramBotUsername() };
   }
 
   emailOtpConfig() {
@@ -1066,7 +1076,7 @@ export class AuthService {
 
   async requestPasswordReset(dto: RequestPasswordResetDto, meta: AuthMeta = {}) {
     if (!credentialsAuthEnabled()) {
-      throw new BadRequestException("Password reset is disabled. Use Telegram login.");
+      throw new BadRequestException("Password reset is disabled. Use email sign-in.");
     }
 
     const delivery = this.emailDelivery.requirePasswordResetDelivery();

@@ -1,10 +1,14 @@
-import { createHash, createHmac, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { Queue } from "bullmq";
 import { loadEnvFile } from "@leadvirt/config";
 import { prisma } from "@leadvirt/db";
 import { KnowledgeV2HybridQdrantClient } from "../../packages/knowledge/src/v2-hybrid-qdrant.js";
 
 loadEnvFile();
+
+if (process.env.NODE_ENV === "production") {
+  throw new Error("qa:ai:acceptance requires the non-production mock email OTP provider.");
+}
 
 const apiBaseUrl = (
   process.env.LEADVIRT_API_BASE ??
@@ -14,12 +18,6 @@ const apiBaseUrl = (
 const apiOrigin = apiBaseUrl.replace(/\/api$/, "");
 const redisUrl = process.env.REDIS_URL ?? "redis://localhost:6380";
 const workerMetricsUrl = process.env.WORKER_METRICS_URL ?? "http://localhost:4002/metrics";
-const telegramBotToken = (
-  process.env.TELEGRAM_LOGIN_BOT_TOKEN ||
-  process.env.TELEGRAM_BOT_TOKEN ||
-  process.env.LEADVIRT_TELEGRAM_AUTH_TEST_TOKEN ||
-  ""
-).trim();
 const expectedAnswer = "Polar Lantern Studio's signature service code is AURORA-7291.";
 
 type JsonRecord = Record<string, unknown>;
@@ -30,36 +28,6 @@ function assert(condition: unknown, message: string): asserts condition {
 
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function dataCheckString(payload: JsonRecord) {
-  return Object.entries(payload)
-    .filter(
-      ([key, value]) => key !== "hash" && value !== undefined && value !== null && value !== "",
-    )
-    .map(([key, value]) => [key, String(value)] as const)
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([key, value]) => `${key}=${value}`)
-    .join("\n");
-}
-
-function signedTelegramPayload(id: number) {
-  assert(
-    telegramBotToken.length > 0,
-    "TELEGRAM_LOGIN_BOT_TOKEN or TELEGRAM_BOT_TOKEN is required for Telegram acceptance smoke.",
-  );
-  const payload = {
-    id,
-    first_name: "Acceptance",
-    last_name: "Smoke",
-    username: `leadvirt_acceptance_${id}`,
-    auth_date: Math.floor(Date.now() / 1000),
-  };
-  const secret = createHash("sha256").update(telegramBotToken).digest();
-  return {
-    ...payload,
-    hash: createHmac("sha256", secret).update(dataCheckString(payload)).digest("hex"),
-  };
 }
 
 function cookieFromResponse(response: Response) {
@@ -313,9 +281,10 @@ async function deleteQdrantSnapshots(tenantId: string) {
   }
 }
 
-async function cleanupTelegramUser(telegramId: number) {
+async function cleanupEmailUser(email: string) {
+  await prisma.authEmailOtpChallenge.deleteMany({ where: { email } });
   const user = await prisma.user.findUnique({
-    where: { externalAuthId: `telegram:${telegramId}` },
+    where: { email },
     select: { id: true, memberships: { select: { tenantId: true } } },
   });
   if (!user) return;
@@ -362,7 +331,7 @@ async function main() {
   assert(health?.ok, `LeadVirt API is not running at ${apiOrigin}.`);
 
   const suffix = `${Date.now()}-${randomUUID().slice(0, 8)}`.replace(/[^a-zA-Z0-9-]/g, "-");
-  const telegramId = Number(`${Date.now()}`.slice(-9));
+  const email = `ai-acceptance-${suffix}@example.com`;
   const publicKey = `lvwd_accept_${suffix.replace(/-/g, "_")}`;
   const connection = acceptanceRedisConnection(redisUrl);
   const aiQueue = new Queue("ai.reply", { connection });
@@ -371,17 +340,35 @@ async function main() {
   let aiJobId: string | null = null;
 
   try {
-    await cleanupTelegramUser(telegramId);
+    await cleanupEmailUser(email);
 
-    const login = await apiJson("/auth/telegram", {
+    const otpRequest = getData(
+      (
+        await apiJson("/auth/email-otp/request", {
+          method: "POST",
+          body: JSON.stringify({ email, locale: "en" }),
+        })
+      ).payload,
+    );
+    assert(isRecord(otpRequest), "Email OTP request data is not an object.");
+    assert(typeof otpRequest.challengeId === "string", "Email OTP challenge id is missing.");
+    assert(
+      typeof otpRequest.debugCode === "string" && /^\d{6}$/u.test(otpRequest.debugCode),
+      "Mock email OTP code is missing.",
+    );
+
+    const login = await apiJson("/auth/email-otp/verify", {
       method: "POST",
-      body: JSON.stringify(signedTelegramPayload(telegramId)),
+      body: JSON.stringify({
+        challengeId: otpRequest.challengeId,
+        code: otpRequest.debugCode,
+      }),
     });
     const cookie = cookieFromResponse(login.response);
     const loginData = getData(login.payload);
-    assert(isRecord(loginData), "Telegram login data is not an object.");
-    assert(loginData.isNewUser === true, "Expected Telegram auth to create a clean user.");
-    assert(loginData.authMode === "telegram", "Expected Telegram authMode.");
+    assert(isRecord(loginData), "Email OTP login data is not an object.");
+    assert(loginData.isNewUser === true, "Expected email OTP auth to create a clean user.");
+    assert(loginData.authMode === "email", "Expected email authMode.");
 
     const me = getData((await apiJson("/auth/me", { headers: { cookie } })).payload);
     assert(isRecord(me), "Auth me response is not an object.");
@@ -730,7 +717,7 @@ async function main() {
         metadata.knowledgeRetrieval.corpusKind === "STRUCTURED_V2" &&
         metadata.knowledgeRetrieval.snapshotKind === "PUBLICATION" &&
         metadata.knowledgeRetrieval.publicationId === publication.id &&
-      metadata.knowledgeRetrieval.gateOutcome === "AUTO_SEND" &&
+        metadata.knowledgeRetrieval.gateOutcome === "AUTO_SEND" &&
         Array.isArray(metadata.knowledgeRetrieval.citationKeys) &&
         metadata.knowledgeRetrieval.citationKeys.length > 0,
       `AI metadata did not preserve the structured publication retrieval: ${JSON.stringify(
@@ -895,7 +882,7 @@ async function main() {
     const job = aiJobId ? await aiQueue.getJob(aiJobId).catch(() => null) : null;
     await job?.remove().catch(() => undefined);
     await aiQueue.close().catch(() => undefined);
-    await cleanupTelegramUser(telegramId).catch(() => undefined);
+    await cleanupEmailUser(email).catch(() => undefined);
     await prisma.$disconnect();
   }
 }

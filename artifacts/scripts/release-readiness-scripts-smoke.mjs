@@ -595,6 +595,13 @@ try {
       authStagingReadiness.includes("managed integration requests fail closed"),
     "Expected strict auth readiness to validate the managed-integration operator recipient.",
   );
+  assert(
+    authStagingReadiness.includes('emailOtpFlag === "true"') &&
+      authStagingReadiness.includes('"AUTH_EMAIL_OTP_ENABLED"') &&
+      authStagingReadiness.includes('telegramAuthFlag === "false"') &&
+      authStagingReadiness.includes('"AUTH_TELEGRAM_ENABLED"'),
+    "Expected strict auth readiness to require explicit email-only authentication flags.",
+  );
 
   assert(
     publicAppAnchor.length > 0 &&
@@ -919,6 +926,31 @@ try {
       stagingCompose.includes('API_DEPLOYMENT_PREFLIGHT: "false"') &&
       apiHealth.includes("deploymentPreflight: isApiDeploymentPreflight()"),
     "Expected candidate and canonical API health checks to prove opposite deployment modes.",
+  );
+  assert(
+    deployStepScript.includes("http://127.0.0.1:4001/api/auth/email-otp/config") &&
+      deployStepScript.includes("x.ok&&x.v.data?.enabled===true") &&
+      deployStepScript.includes("Candidate API email OTP authentication is not enabled and ready.") &&
+      deployStepScript.includes("http://127.0.0.1:4001/api/auth/telegram/config") &&
+      deployStepScript.includes(
+        "x.ok&&x.v.data?.enabled===false&&x.v.data?.botId===null&&x.v.data?.botUsername===null",
+      ) &&
+      deployStepScript.includes(
+        "Candidate API Telegram account authentication is not explicitly disabled.",
+      ),
+    "Expected isolated candidate API checks to prove the email-only authentication contract.",
+  );
+  assertOrdered(
+    deployStepScript,
+    [
+      "http://127.0.0.1:4001/health/ready",
+      "http://127.0.0.1:4001/api/auth/email-otp/config",
+      "http://127.0.0.1:4001/api/auth/telegram/config",
+      "DEPLOY_GATE: candidate-email-otp-enabled-and-telegram-auth-disabled",
+      "DEPLOY_GATE: isolated-candidate-api-worker-and-web-ready",
+      "DEPLOY_GATE: exact-prior-writers-drained",
+    ],
+    "Expected candidate auth checks before draining the prior release",
   );
   assert(
     apiPreflight.includes("API_DEPLOYMENT_PREFLIGHT?.trim().toLowerCase()") &&

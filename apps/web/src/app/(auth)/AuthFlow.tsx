@@ -10,27 +10,18 @@ import {
   KeyRound,
   Loader2,
   Mail,
-  Send,
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
-import {
-  getEmailOtpConfig,
-  getTelegramLoginConfig,
-  loginWithTelegram,
-  requestEmailOtp,
-  verifyEmailOtp,
-  type AuthMe,
-  type TelegramAuthPayload,
-} from "@/lib/api/auth";
+import { getEmailOtpConfig, requestEmailOtp, verifyEmailOtp, type AuthMe } from "@/lib/api/auth";
 import { BrandMark } from "@/design/components/BrandMark";
 import { LanguageSwitcher } from "@/design/components/LanguageSwitcher";
 import { BrandWordmark } from "@/design/components/BrandWordmark";
 import { Button } from "@/design/components/ui/Button";
+import { cn } from "@/design/lib/utils";
 import { plans } from "@/design/product/plans";
 import { useI18n } from "@/i18n/I18nProvider";
-import type { Locale } from "@/i18n/config";
 import type { TranslationKey } from "@/i18n/messages";
 import { authHref, resolveAcquisitionIntent, type AcquisitionIntent } from "@/lib/acquisition";
 
@@ -41,7 +32,6 @@ const modeCopyKeys: Record<
   {
     title: TranslationKey;
     subtitle: TranslationKey;
-    primaryAction: TranslationKey;
     secondaryHref: string;
     secondaryText: TranslationKey;
     secondaryAction: TranslationKey;
@@ -50,7 +40,6 @@ const modeCopyKeys: Record<
   login: {
     title: "auth.login.title",
     subtitle: "auth.login.subtitle",
-    primaryAction: "auth.login.primary",
     secondaryHref: "/signup",
     secondaryText: "auth.login.secondaryText",
     secondaryAction: "auth.login.secondaryAction",
@@ -58,7 +47,6 @@ const modeCopyKeys: Record<
   signup: {
     title: "auth.signup.title",
     subtitle: "auth.signup.subtitle",
-    primaryAction: "auth.signup.primary",
     secondaryHref: "/login",
     secondaryText: "auth.signup.secondaryText",
     secondaryAction: "auth.signup.secondaryAction",
@@ -67,180 +55,12 @@ const modeCopyKeys: Record<
 
 const highlightKeys: TranslationKey[] = [
   "auth.highlight.passwordless",
-  "auth.highlight.telegram",
+  "auth.highlight.email",
   "auth.highlight.database",
 ];
-const telegramWidgetScriptSrc = "https://telegram.org/js/telegram-widget.js?22";
-const allowLocalTelegramMock = process.env.NODE_ENV !== "production";
 
-declare global {
-  interface Window {
-    __leadvirtTelegramAuth?: (payload: unknown) => void;
-  }
-}
-
-function normalizeTelegramBotUsername(value: string | null | undefined) {
-  const normalized = value?.trim().replace(/^@/, "") ?? "";
-  return /^[a-zA-Z][a-zA-Z0-9_]{3,31}$/.test(normalized) ? normalized : null;
-}
-
-function optionalString(value: unknown) {
-  return typeof value === "string" && value.trim() ? value.trim() : undefined;
-}
-
-function normalizeTelegramWidgetPayload(value: unknown): TelegramAuthPayload | null {
-  if (!value || typeof value !== "object") return null;
-  const data = value as Record<string, unknown>;
-  const id = Number(data.id);
-  const authDate = Number(data.auth_date);
-  const hash = optionalString(data.hash);
-  if (!Number.isSafeInteger(id) || !Number.isSafeInteger(authDate) || !hash) return null;
-  return {
-    id,
-    first_name: optionalString(data.first_name),
-    last_name: optionalString(data.last_name),
-    username: optionalString(data.username),
-    photo_url: optionalString(data.photo_url),
-    auth_date: authDate,
-    hash,
-  };
-}
-
-function mountTelegramWidget(host: HTMLDivElement, botUsername: string, locale: Locale) {
-  host.innerHTML = "";
-  const script = document.createElement("script");
-  script.src = telegramWidgetScriptSrc;
-  script.async = true;
-  script.setAttribute("data-telegram-login", botUsername);
-  script.setAttribute("data-size", "large");
-  script.setAttribute("data-userpic", "false");
-  script.setAttribute("data-radius", "12");
-  script.setAttribute("data-request-access", "write");
-  script.setAttribute("data-lang", locale);
-  script.setAttribute("data-onauth", "window.__leadvirtTelegramAuth(user)");
-  host.appendChild(script);
-}
-
-function TelegramLoginButton({
-  label,
-  loading,
-  onAuth,
-}: {
-  label: string;
-  loading: boolean;
-  onAuth: (payload: TelegramAuthPayload) => void;
-}) {
-  const { locale, t } = useI18n();
-  const [telegramBotUsername, setTelegramBotUsername] = React.useState<string | null>(null);
-  const [configLoaded, setConfigLoaded] = React.useState(false);
-  const widgetHostRef = React.useRef<HTMLDivElement | null>(null);
-
-  React.useEffect(() => {
-    window.__leadvirtTelegramAuth = (rawPayload) => {
-      const payload = normalizeTelegramWidgetPayload(rawPayload);
-      if (!payload) {
-        toast.error(t("auth.telegram.invalid"));
-        return;
-      }
-      onAuth(payload);
-    };
-    return () => {
-      delete window.__leadvirtTelegramAuth;
-    };
-  }, [onAuth, t]);
-
-  React.useEffect(() => {
-    let cancelled = false;
-    const publicBotUsername = normalizeTelegramBotUsername(
-      process.env.NEXT_PUBLIC_TELEGRAM_LOGIN_BOT,
-    );
-    getTelegramLoginConfig()
-      .then((config) => {
-        if (cancelled) return;
-        setTelegramBotUsername(
-          normalizeTelegramBotUsername(config.botUsername) ?? publicBotUsername,
-        );
-        setConfigLoaded(true);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setTelegramBotUsername(publicBotUsername);
-          setConfigLoaded(true);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  React.useEffect(() => {
-    const host = widgetHostRef.current;
-    if (!host || !telegramBotUsername) return;
-    mountTelegramWidget(host, telegramBotUsername, locale);
-    return () => {
-      host.innerHTML = "";
-    };
-  }, [locale, telegramBotUsername]);
-
-  if (allowLocalTelegramMock && configLoaded && !telegramBotUsername) {
-    return (
-      <Button
-        type="button"
-        data-testid="telegram-auth-button"
-        className="h-12 w-full rounded-2xl text-sm font-semibold"
-        disabled={loading}
-        onClick={() => {
-          onAuth({
-            id: 100000001,
-            first_name: "Local",
-            last_name: "Telegram",
-            username: "leadvirt_local",
-            auth_date: Math.floor(Date.now() / 1000),
-            hash: "local-playwright-mock",
-          });
-        }}
-      >
-        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-        {label}
-      </Button>
-    );
-  }
-
-  const statusText = !configLoaded
-    ? t("auth.telegram.preparing")
-    : !telegramBotUsername
-      ? t("auth.telegram.missing")
-      : "";
-
-  return (
-    <div className="space-y-3 text-center">
-      {configLoaded && telegramBotUsername ? (
-        <div className="relative mx-auto h-12 w-[238px] max-w-full">
-          <div
-            data-testid="telegram-auth-button"
-            ref={widgetHostRef}
-            aria-label={label}
-            className="absolute inset-0 z-10 [&_iframe]:absolute [&_iframe]:inset-0 [&_iframe]:h-full [&_iframe]:w-full [&_iframe]:opacity-0"
-          />
-          <div
-            aria-hidden="true"
-            data-testid="telegram-brand-button"
-            className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-5 text-sm font-semibold text-zinc-950 shadow-lg shadow-emerald-950/30"
-          >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            {label}
-          </div>
-        </div>
-      ) : null}
-      {loading ? (
-        <p className="flex items-center justify-center gap-2 text-xs text-zinc-500">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          {t("auth.telegram.verifying")}
-        </p>
-      ) : null}
-      {statusText ? <p className="text-xs text-zinc-500">{statusText}</p> : null}
-    </div>
-  );
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()) && value.trim().length <= 180;
 }
 
 function OtpCodeInput({
@@ -320,17 +140,16 @@ export function AuthFlow({ mode, intent }: { mode: AuthMode; intent?: Acquisitio
   const copy = {
     title: t(copyKeys.title),
     subtitle: t(copyKeys.subtitle),
-    primaryAction: t(copyKeys.primaryAction),
     secondaryHref: authHref(copyKeys.secondaryHref as "/login" | "/signup", intent),
     secondaryText: t(copyKeys.secondaryText),
     secondaryAction: t(copyKeys.secondaryAction),
   };
-  const [method, setMethod] = React.useState<"email" | "telegram">("email");
   const [emailOtpStatus, setEmailOtpStatus] = React.useState<
     "loading" | "enabled" | "disabled" | "error"
   >("loading");
   const [emailStep, setEmailStep] = React.useState<"address" | "code">("address");
   const [email, setEmail] = React.useState("");
+  const [emailTouched, setEmailTouched] = React.useState(false);
   const [challengeId, setChallengeId] = React.useState("");
   const [code, setCode] = React.useState("");
   const [resendSeconds, setResendSeconds] = React.useState(0);
@@ -348,6 +167,8 @@ export function AuthFlow({ mode, intent }: { mode: AuthMode; intent?: Acquisitio
         })
       : formatCurrency(selectedPlan.priceMonthlyRub)
     : null;
+  const emailValid = isValidEmail(email);
+  const showEmailValidation = emailTouched && Boolean(email.trim()) && !emailValid;
 
   const loadEmailOtpConfig = React.useCallback(async () => {
     const requestId = emailOtpConfigRequestRef.current + 1;
@@ -357,7 +178,6 @@ export function AuthFlow({ mode, intent }: { mode: AuthMode; intent?: Acquisitio
       const config = await getEmailOtpConfig();
       if (emailOtpConfigRequestRef.current !== requestId) return;
       setEmailOtpStatus(config.enabled ? "enabled" : "disabled");
-      if (!config.enabled) setMethod("telegram");
     } catch {
       if (emailOtpConfigRequestRef.current === requestId) {
         setEmailOtpStatus("error");
@@ -387,32 +207,9 @@ export function AuthFlow({ mode, intent }: { mode: AuthMode; intent?: Acquisitio
     [acquisition.returnTo, router, t],
   );
 
-  const handleTelegramAuth = React.useCallback(
-    async (payload: TelegramAuthPayload) => {
-      setError("");
-      setLoading(true);
-
-      try {
-        const me = await loginWithTelegram(payload);
-        completeAuth(me);
-      } catch (caught) {
-        setError(caught instanceof Error ? caught.message : t("auth.error.login"));
-      } finally {
-        setLoading(false);
-      }
-    },
-    [completeAuth, t],
-  );
-  const handleTelegramAuthStart = React.useCallback(
-    (payload: TelegramAuthPayload) => {
-      void handleTelegramAuth(payload);
-    },
-    [handleTelegramAuth],
-  );
-
   const requestCode = React.useCallback(async () => {
     const normalizedEmail = email.trim().toLowerCase();
-    if (!normalizedEmail) return;
+    if (!isValidEmail(normalizedEmail)) return;
     setError("");
     setLoading(true);
     try {
@@ -433,9 +230,11 @@ export function AuthFlow({ mode, intent }: { mode: AuthMode; intent?: Acquisitio
   const handleEmailRequest = React.useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
+      setEmailTouched(true);
+      if (!emailValid) return;
       void requestCode();
     },
-    [requestCode],
+    [emailValid, requestCode],
   );
 
   const handleEmailVerify = React.useCallback(
@@ -561,50 +360,7 @@ export function AuthFlow({ mode, intent }: { mode: AuthMode; intent?: Acquisitio
               ) : null}
 
               <div className="space-y-4">
-                <div
-                  className="grid grid-cols-2 gap-1 rounded-lg border border-white/10 bg-zinc-950/70 p-1"
-                  role="group"
-                  aria-label={copy.title}
-                >
-                  <button
-                    type="button"
-                    data-testid="auth-method-email"
-                    aria-pressed={method === "email"}
-                    disabled={emailOtpStatus !== "enabled" || loading}
-                    onClick={() => {
-                      setMethod("email");
-                      setError("");
-                    }}
-                    className={`flex h-11 items-center justify-center gap-2 rounded-md px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 disabled:cursor-not-allowed disabled:opacity-40 ${
-                      method === "email"
-                        ? "bg-white/10 text-zinc-50"
-                        : "text-zinc-400 hover:text-zinc-200"
-                    }`}
-                  >
-                    <Mail className="h-4 w-4" aria-hidden="true" />
-                    {t("auth.method.email")}
-                  </button>
-                  <button
-                    type="button"
-                    data-testid="auth-method-telegram"
-                    aria-pressed={method === "telegram"}
-                    disabled={loading}
-                    onClick={() => {
-                      setMethod("telegram");
-                      setError("");
-                    }}
-                    className={`flex h-11 items-center justify-center gap-2 rounded-md px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 disabled:cursor-not-allowed disabled:opacity-40 ${
-                      method === "telegram"
-                        ? "bg-white/10 text-zinc-50"
-                        : "text-zinc-400 hover:text-zinc-200"
-                    }`}
-                  >
-                    <Send className="h-4 w-4" aria-hidden="true" />
-                    {t("auth.method.telegram")}
-                  </button>
-                </div>
-
-                {method === "email" && emailOtpStatus === "loading" ? (
+                {emailOtpStatus === "loading" ? (
                   <div
                     role="status"
                     data-testid="email-otp-config-loading"
@@ -614,7 +370,17 @@ export function AuthFlow({ mode, intent }: { mode: AuthMode; intent?: Acquisitio
                   </div>
                 ) : null}
 
-                {method === "email" && emailOtpStatus === "error" ? (
+                {emailOtpStatus === "disabled" ? (
+                  <div
+                    role="alert"
+                    data-testid="email-otp-config-disabled"
+                    className="rounded-md border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100"
+                  >
+                    {t("auth.email.disabled")}
+                  </div>
+                ) : null}
+
+                {emailOtpStatus === "error" ? (
                   <div
                     role="alert"
                     data-testid="email-otp-config-error"
@@ -632,7 +398,7 @@ export function AuthFlow({ mode, intent }: { mode: AuthMode; intent?: Acquisitio
                   </div>
                 ) : null}
 
-                {method === "email" && emailOtpStatus === "enabled" && emailStep === "address" ? (
+                {emailOtpStatus === "enabled" && emailStep === "address" ? (
                   <form
                     className="space-y-4"
                     data-testid="email-otp-request-form"
@@ -650,20 +416,40 @@ export function AuthFlow({ mode, intent }: { mode: AuthMode; intent?: Acquisitio
                           name="email"
                           autoComplete="email"
                           required
+                          maxLength={180}
                           autoFocus
                           value={email}
                           disabled={loading}
                           onChange={(event) => setEmail(event.target.value)}
+                          onBlur={() => setEmailTouched(true)}
+                          aria-invalid={showEmailValidation}
+                          aria-describedby={
+                            showEmailValidation ? "email-otp-address-error" : undefined
+                          }
                           placeholder={t("auth.email.placeholder")}
-                          className="h-12 w-full rounded-md border border-white/10 bg-zinc-950/80 pl-10 pr-3 text-sm text-zinc-50 outline-none transition-colors placeholder:text-zinc-600 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20 disabled:opacity-60"
+                          className={cn(
+                            "h-12 w-full rounded-md border bg-zinc-950/80 pl-10 pr-3 text-sm text-zinc-50 outline-none transition-colors placeholder:text-zinc-600 focus:ring-2 disabled:opacity-60",
+                            showEmailValidation
+                              ? "border-amber-400/70 focus:border-amber-400 focus:ring-amber-400/20"
+                              : "border-white/10 focus:border-emerald-400 focus:ring-emerald-400/20",
+                          )}
                         />
                       </span>
+                      {showEmailValidation ? (
+                        <span
+                          id="email-otp-address-error"
+                          data-testid="email-otp-address-error"
+                          className="block text-xs leading-5 text-amber-300"
+                        >
+                          {t("auth.email.invalid")}
+                        </span>
+                      ) : null}
                     </label>
                     <Button
                       type="submit"
                       data-testid="email-otp-request"
                       className="h-12 w-full rounded-md text-sm font-semibold"
-                      disabled={loading || !email.trim()}
+                      disabled={loading || !emailValid}
                     >
                       {loading ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -675,7 +461,7 @@ export function AuthFlow({ mode, intent }: { mode: AuthMode; intent?: Acquisitio
                   </form>
                 ) : null}
 
-                {method === "email" && emailOtpStatus === "enabled" && emailStep === "code" ? (
+                {emailOtpStatus === "enabled" && emailStep === "code" ? (
                   <form
                     className="space-y-4"
                     data-testid="email-otp-verify-form"
@@ -737,24 +523,6 @@ export function AuthFlow({ mode, intent }: { mode: AuthMode; intent?: Acquisitio
                         : t("auth.email.resend")}
                     </button>
                   </form>
-                ) : null}
-
-                {method === "telegram" ? (
-                  <div className="space-y-3">
-                    {mode === "signup" ? (
-                      <p
-                        data-testid="telegram-signup-explanation"
-                        className="text-xs leading-5 text-zinc-400"
-                      >
-                        {t("auth.telegram.signupExplanation")}
-                      </p>
-                    ) : null}
-                    <TelegramLoginButton
-                      label={copy.primaryAction}
-                      loading={loading}
-                      onAuth={handleTelegramAuthStart}
-                    />
-                  </div>
                 ) : null}
 
                 {error ? (

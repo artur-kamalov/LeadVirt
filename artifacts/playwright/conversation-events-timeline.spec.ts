@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { messages } from "../../apps/web/src/i18n/messages";
 import { loginAsCleanUser } from "./helpers/auth";
 
 const webBase = process.env.LEADVIRT_WEB_BASE ?? "http://localhost:3001";
@@ -88,7 +89,9 @@ function conversation() {
   };
 }
 
-test("conversation side panel renders API lead events in the timeline", async ({ page }) => {
+test("conversation timeline localizes known system events and preserves unknown API titles", async ({
+  page,
+}) => {
   await page.route(`**/api/conversations/${conversationId}`, async (route) => {
     await route.fulfill({ json: { data: conversation() } });
   });
@@ -97,8 +100,9 @@ test("conversation side panel renders API lead events in the timeline", async ({
   await page.goto(`${webBase}/app/inbox/${conversationId}`, { waitUntil: "networkidle" });
 
   await expect(page.getByText("Events API Client")).toBeVisible();
-  await expect(page.getByText("API событие CRM")).toBeVisible();
+  await expect(
+    page.getByText(messages.ru["ops.conversation.eventCrm"], { exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("API запись создана")).toBeVisible();
   await expect(page.getByText("Создан лид")).toHaveCount(0);
 });
-

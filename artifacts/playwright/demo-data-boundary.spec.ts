@@ -16,6 +16,26 @@ test("unauthenticated app visit redirects to login", async ({ page }) => {
   await expect(page).toHaveURL(/\/login/, { timeout: 45_000 });
 });
 
+test("demo product shell restores the saved theme after hydration", async ({ page }) => {
+  const hydrationErrors: string[] = [];
+  const recordHydrationError = (message: string) => {
+    if (/hydration|server rendered html|did not match/i.test(message)) {
+      hydrationErrors.push(message);
+    }
+  };
+
+  page.on("console", (message) => {
+    if (message.type() === "error") recordHydrationError(message.text());
+  });
+  page.on("pageerror", (error) => recordHydrationError(error.message));
+  await page.addInitScript(() => window.localStorage.setItem("ai-admin-theme", "light"));
+
+  await page.goto(`${webBase}/demo`, { waitUntil: "domcontentloaded" });
+
+  await expect(page.getByTestId("product-shell")).toHaveClass(/theme-light/);
+  expect(hydrationErrors).toEqual([]);
+});
+
 test("interactive demo routes use local browser data only", async ({ page }) => {
   test.setTimeout(180_000);
   const apiCalls: string[] = [];

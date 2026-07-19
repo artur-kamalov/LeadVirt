@@ -1,9 +1,16 @@
 # LeadVirt Checklist
 
-Last updated: 2026-07-18
+Last updated: 2026-07-19
 
 ## Next
 
+- [x] Made the email-only production gate fail closed: strict auth readiness requires explicit `AUTH_EMAIL_OTP_ENABLED=true` and `AUTH_TELEGRAM_ENABLED=false`, and the isolated candidate API proves email delivery readiness plus a redacted disabled Telegram auth config before the prior release is drained. Verified script syntax, scoped diff checks, and `qa:release-readiness`.
+- [x] Defined the current account-auth contract as email-only in public UI, with Telegram account auth disabled by default, legacy Telegram sessions recognized during migration, and business Telegram bot integrations unchanged. Removed the obsolete standalone Telegram account-auth smoke command and documented the migration boundary. Verified Types/API/Worker/Web checks, email OTP `11/11`, auth/CSP Playwright `11/11`, release readiness, and all four Telegram business-channel regression suites.
+- [x] Fixed production onboarding persistence and completed the six-step UX contract: nested DTOs omit transformed `undefined` fields before profile classification/merge, step advances are atomic and ordered, launch is idempotent, and business/company optimistic concurrency remains explicit. Added role gating, timezone capture, inline validation, focus management, all-dirty-draft exit persistence, and recoverable custom legacy business/scenario/CRM values. Verified onboarding HTTP `23/23`, business-profile contract `37/37`, API `46/46`, atomic `36/36`, direct QA provisioner `31/31`, and clean combined browser coverage `20/20`, including the real local API.
+- [x] Completed the 2026-07-19 desktop/mobile UX inventory documented in `docs/UX_AUDIT_2026-07-19.md`: 40 public/demo route-viewports exposed 479 interactables and 20 authenticated route-viewports exposed 486 visible controls, without global horizontal overflow, failed requests, or delayed first-frame wheel response in the exercised states. Fixed saved-theme hydration, selection semantics, inline email validation, 14 mobile touch targets, five notification-switch names, stable Dashboard activity localization, and metadata-less Knowledge V2 query conversion. Verified the effective API-facing browser matrix `197/197`, UI smoke `14/14`, onboarding browser matrix `20/20`, focused UX regressions, production builds, package checks, and release readiness.
+- [ ] Replace the API `tsx` development runner with a metadata-preserving compile/runtime path, then regression-test DTO conversion across all modules and remove endpoint-level `expectedType` workarounds only when global reflected metadata is proven.
+- [ ] Resolve the production predeploy legacy inventory before removing compatibility: map the 2 Telegram-authenticated users to verified deliverable emails or explicitly retire them, decide whether the 21 sessions are revoked or allowed to expire, then re-run and record the inventory.
+- [ ] Provision an isolated synthetic production tenant and WEBSITE channel, then add a non-destructive postdeploy widget-to-AI smoke that needs no account session or OTP secret. Keep real email delivery/login as a manual monitored-inbox check.
 - [x] Completed the 2026-07-18 client-eye accessibility and localization pass: narrow RU/FR landing CTAs and RU Pipeline statistics no longer clip; demo Settings stays inside demo routes and localizes seeded channels/widget content; keyboard focus, readable contrast, progress semantics, chart focus, Inbox search, and high-frequency touch targets are accessible; and the mobile product drawer releases focus and scroll lock immediately. Verified Web typecheck and focused Playwright coverage `35/35` before release checks.
 - [x] Closed the 2026-07-18 client-eye UX follow-up: mobile Knowledge uses an explicit localized view selector; demo Team no longer crashes without an authenticated-user provider; Pipeline List exposes every lead field through responsive cards; conversation replay preserves reader scroll and clears fixed navigation; empty Analytics recommendations are omitted; pricing CTAs use 44px targets; and Telegram signup distinguishes identity authentication from business-channel setup. Verified Web typecheck/lint/build, focused desktop/mobile screenshots, and combined Playwright coverage `11/11` plus affected regression suites.
 - [x] Closed the production mobile/demo UX follow-up: the 320px onboarding header remains operable, readiness and recent leads are compact, Business Profile progressively discloses long fields, Inbox filters reflect observed conversations with an overflow affordance, integration cards expose truthful demo signup actions, and the demo readiness evidence is internally consistent. Verified Web/Types typechecks, Web lint, and affected Playwright suites.
@@ -765,7 +772,6 @@ corepack pnpm run qa:tenant:lifecycle
 corepack pnpm run qa:auth:team-security
 corepack pnpm run qa:auth:rate-limit
 corepack pnpm run qa:auth:identifier-policy
-corepack pnpm run qa:auth:telegram
 corepack pnpm run qa:auth:staging-ready
 corepack pnpm run qa:ai:provider
 corepack pnpm run qa:ai:graph

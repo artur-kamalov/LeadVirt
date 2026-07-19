@@ -57,7 +57,10 @@ import {
 import { requireIdempotencyKey, requireIfMatch } from "./knowledge-v2-http.js";
 import { KnowledgeV2PublicationService } from "./knowledge-v2-publication.service.js";
 import { KnowledgeV2CapabilityService } from "./knowledge-v2-capability.service.js";
-import { knowledgeV2ValidationPipe } from "./knowledge-v2-validation.pipe.js";
+import {
+  createKnowledgeV2ValidationPipe,
+  knowledgeV2ValidationPipe,
+} from "./knowledge-v2-validation.pipe.js";
 import { KnowledgeV2Service } from "./knowledge-v2.service.js";
 import { KnowledgeV2SourceService } from "./knowledge-v2-source.service.js";
 import { KnowledgeV2FileUploadService } from "./knowledge-v2-file-upload.service.js";
@@ -69,6 +72,14 @@ const publisherRoles = ["OWNER", "ADMIN"] as const;
 const sourceMutationRoles = ["OWNER", "ADMIN"] as const;
 const sourceReadRoles = ["OWNER", "ADMIN", "MANAGER", "AGENT", "VIEWER"] as const;
 const sourcePreviewRoles = ["OWNER", "ADMIN", "MANAGER", "AGENT"] as const;
+const sourceListQueryPipe = createKnowledgeV2ValidationPipe(KnowledgeV2SourceListQueryDto);
+const documentListQueryPipe = createKnowledgeV2ValidationPipe(KnowledgeV2DocumentListQueryDto);
+const revisionListQueryPipe = createKnowledgeV2ValidationPipe(KnowledgeV2RevisionListQueryDto);
+const factListQueryPipe = createKnowledgeV2ValidationPipe(KnowledgeV2FactListQueryDto);
+const guidanceListQueryPipe = createKnowledgeV2ValidationPipe(KnowledgeV2GuidanceListQueryDto);
+const publicationListQueryPipe = createKnowledgeV2ValidationPipe(
+  KnowledgeV2PublicationListQueryDto,
+);
 
 function setEtag(response: Response, etag: string) {
   response.setHeader("ETag", etag);
@@ -130,7 +141,7 @@ export class KnowledgeV2Controller {
   @Get("sources")
   async sourceList(
     @CurrentContext() context: RequestContext,
-    @Query() query: KnowledgeV2SourceListQueryDto,
+    @Query(sourceListQueryPipe) query: KnowledgeV2SourceListQueryDto,
   ) {
     return { data: await this.sources.listSources(context, query) };
   }
@@ -312,7 +323,7 @@ export class KnowledgeV2Controller {
   @Get("documents")
   async documents(
     @CurrentContext() context: RequestContext,
-    @Query() query: KnowledgeV2DocumentListQueryDto,
+    @Query(documentListQueryPipe) query: KnowledgeV2DocumentListQueryDto,
   ) {
     return { data: await this.sources.listDocuments(context, query) };
   }
@@ -334,7 +345,7 @@ export class KnowledgeV2Controller {
   async documentRevisions(
     @CurrentContext() context: RequestContext,
     @Param("documentId") documentId: string,
-    @Query() query: KnowledgeV2RevisionListQueryDto,
+    @Query(revisionListQueryPipe) query: KnowledgeV2RevisionListQueryDto,
   ) {
     return { data: await this.sources.listDocumentRevisions(context, documentId, query) };
   }
@@ -433,7 +444,7 @@ export class KnowledgeV2Controller {
   @Get("facts")
   async facts(
     @CurrentContext() context: RequestContext,
-    @Query() query: KnowledgeV2FactListQueryDto,
+    @Query(factListQueryPipe) query: KnowledgeV2FactListQueryDto,
   ) {
     return { data: await this.knowledge.listFacts(context, query) };
   }
@@ -527,7 +538,7 @@ export class KnowledgeV2Controller {
   @Get("guidance")
   async guidance(
     @CurrentContext() context: RequestContext,
-    @Query() query: KnowledgeV2GuidanceListQueryDto,
+    @Query(guidanceListQueryPipe) query: KnowledgeV2GuidanceListQueryDto,
   ) {
     return { data: await this.knowledge.listGuidance(context, query) };
   }
@@ -654,7 +665,7 @@ export class KnowledgeV2Controller {
   @Get("publications")
   async publicationHistory(
     @CurrentContext() context: RequestContext,
-    @Query() query: KnowledgeV2PublicationListQueryDto,
+    @Query(publicationListQueryPipe) query: KnowledgeV2PublicationListQueryDto,
   ) {
     return { data: await this.publications.listPublications(context, query) };
   }

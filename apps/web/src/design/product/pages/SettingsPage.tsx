@@ -118,17 +118,21 @@ function Toggle({
   onChange,
   disabled = false,
   ariaLabel,
+  ariaLabelledBy,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
   disabled?: boolean;
   ariaLabel?: string;
+  ariaLabelledBy?: string;
 }) {
   return (
     <button
+      type="button"
       role="switch"
       aria-checked={checked}
       aria-label={ariaLabel}
+      aria-labelledby={ariaLabelledBy}
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={cn(
@@ -2731,10 +2735,19 @@ function NotificationsTab() {
         {notifItems.map((item) => (
           <div key={item.id} className="flex items-center gap-4 px-5 py-4">
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-zinc-100">{t(item.labelKey)}</p>
+              <p
+                id={`settings-notification-${item.id}-label`}
+                className="text-sm font-semibold text-zinc-100"
+              >
+                {t(item.labelKey)}
+              </p>
               <p className="text-xs text-zinc-500 mt-0.5">{t(item.descKey)}</p>
             </div>
-            <Toggle checked={toggles[item.id]} onChange={(v) => void handleToggle(item.id, v)} />
+            <Toggle
+              ariaLabelledBy={`settings-notification-${item.id}-label`}
+              checked={toggles[item.id]}
+              onChange={(v) => void handleToggle(item.id, v)}
+            />
           </div>
         ))}
       </Card>

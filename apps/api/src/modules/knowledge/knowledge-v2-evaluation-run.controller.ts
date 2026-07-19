@@ -26,9 +26,17 @@ import {
 } from "./dto/knowledge-v2-evaluation-run.dto.js";
 import { requireIdempotencyKey } from "./knowledge-v2-http.js";
 import { KnowledgeV2TestRunService } from "./knowledge-v2-test-run.service.js";
-import { knowledgeV2ValidationPipe } from "./knowledge-v2-validation.pipe.js";
+import {
+  createKnowledgeV2ValidationPipe,
+  knowledgeV2ValidationPipe,
+} from "./knowledge-v2-validation.pipe.js";
 
 type HeaderValue = string | string[] | undefined;
+
+const createEvaluationRunPipe = createKnowledgeV2ValidationPipe(KnowledgeV2CreateEvaluationRunDto);
+const listEvaluationRunsPipe = createKnowledgeV2ValidationPipe(
+  KnowledgeV2EvaluationRunListQueryDto,
+);
 
 @UseGuards(WorkspaceAuthGuard, RolesGuard)
 @UsePipes(knowledgeV2ValidationPipe)
@@ -45,7 +53,7 @@ export class KnowledgeV2EvaluationRunController {
   @HttpCode(HttpStatus.ACCEPTED)
   async create(
     @CurrentContext() context: RequestContext,
-    @Body() dto: KnowledgeV2CreateEvaluationRunDto,
+    @Body(createEvaluationRunPipe) dto: KnowledgeV2CreateEvaluationRunDto,
     @Headers("idempotency-key") idempotencyKey: HeaderValue,
     @Res({ passthrough: true }) response: Response,
   ) {
@@ -62,7 +70,7 @@ export class KnowledgeV2EvaluationRunController {
   @Get()
   async list(
     @CurrentContext() context: RequestContext,
-    @Query() query: KnowledgeV2EvaluationRunListQueryDto,
+    @Query(listEvaluationRunsPipe) query: KnowledgeV2EvaluationRunListQueryDto,
   ) {
     return { data: await this.runs.listEvaluationRuns(context, query) };
   }

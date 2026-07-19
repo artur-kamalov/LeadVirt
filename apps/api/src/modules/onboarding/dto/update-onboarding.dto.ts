@@ -149,3 +149,29 @@ export class CompleteOnboardingStepDto {
   @IsIn(STEPS)
   step!: string;
 }
+
+export class AdvanceOnboardingDto {
+  @IsIn(STEPS)
+  step!: string;
+
+  @ValidateIf((_object, value: unknown) => value !== undefined)
+  @IsObject()
+  @ValidateNested()
+  @Type(() => OnboardingDataDto)
+  data?: OnboardingDataDto;
+}
+
+function omitUndefined(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(omitUndefined);
+  if (typeof value !== "object" || value === null) return value;
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([, entry]) => entry !== undefined)
+      .map(([key, entry]) => [key, omitUndefined(entry)]),
+  );
+}
+
+export function normalizeOnboardingUpdate<T extends UpdateOnboardingDto>(dto: T): T {
+  return omitUndefined(dto) as T;
+}

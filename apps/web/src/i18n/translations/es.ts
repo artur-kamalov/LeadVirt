@@ -82,8 +82,7 @@ export const es: Record<BaseTranslationKey, string> = {
   "pricing.title": "Elige tu plan",
   "pricing.description":
     "Comience poco a poco y escale a medida que crece. Sin tarifas ocultas ni contratos largos.",
-  "pricing.currencyNotice":
-    "Todos los precios y facturas se indican en rublos rusos (RUB).",
+  "pricing.currencyNotice": "Todos los precios y facturas se indican en rublos rusos (RUB).",
   "pricing.popular": "Popular",
   "pricing.note":
     "No se requiere tarjeta para crear un espacio de trabajo. El plan de pago se activa tras la confirmación y la factura.",
@@ -173,24 +172,20 @@ export const es: Record<BaseTranslationKey, string> = {
     "El precio publicado parte de 4500 ₽ y el servicio dura unas 4 horas. Puedo pasar los detalles a un especialista para confirmarlos.",
   "niches.services.task": "Solicitud: limpieza profunda, 2 dormitorios",
   "auth.login.title": "Inicie sesión en LeadVirt.ai",
-  "auth.login.subtitle": "Recibe un código por email o continúa con Telegram.",
-  "auth.login.primary": "Iniciar sesión con Telegram",
+  "auth.login.subtitle": "Recibe un código de acceso de un solo uso en tu email de trabajo.",
   "auth.login.secondaryText": "¿Nueva cuenta?",
   "auth.login.secondaryAction": "Registrarse",
   "auth.signup.title": "Inicie LeadVirt.ai",
-  "auth.signup.subtitle": "Crea un espacio de trabajo con email o Telegram.",
+  "auth.signup.subtitle": "Crea tu espacio de trabajo con tu email de trabajo.",
   "auth.plan.selected": "Plan seleccionado",
   "auth.plan.change": "Cambiar plan",
-  "auth.signup.primary": "Continuar con Telegram",
   "auth.signup.secondaryText": "¿Ya tienes acceso?",
   "auth.signup.secondaryAction": "Iniciar sesión",
   "auth.website": "Volver al sitio",
   "auth.method.email": "Email",
-  "auth.method.telegram": "Telegram",
-  "auth.telegram.signupExplanation":
-    "Telegram verifica tu identidad mediante el bot de acceso de LeadVirt. Conectarás después el canal o bot de tu negocio.",
   "auth.email.label": "Email de trabajo",
   "auth.email.placeholder": "nombre@empresa.com",
+  "auth.email.invalid": "Introduce un email válido, por ejemplo nombre@empresa.com.",
   "auth.email.send": "Enviar código de acceso",
   "auth.email.sending": "Enviando código...",
   "auth.email.codeLabel": "Código del email",
@@ -203,19 +198,15 @@ export const es: Record<BaseTranslationKey, string> = {
   "auth.email.sent": "Código enviado",
   "auth.email.requestError": "No se pudo enviar el código",
   "auth.email.verifyError": "No se pudo verificar el código",
-  "auth.email.unavailable": "El acceso por email no está disponible temporalmente",
+  "auth.email.disabled": "El acceso por email está desactivado actualmente para este servicio",
+  "auth.email.unavailable": "No pudimos comprobar la disponibilidad del acceso por email",
   "auth.hero.title":
     "Su administrador de IA está listo para recibir clientes potenciales y administrar conversaciones.",
   "auth.hero.description":
-    "Accede sin contraseña con un código de email de un solo uso o Telegram.",
+    "Accede sin contraseña con un código de un solo uso enviado a tu email de trabajo.",
   "auth.highlight.passwordless": "Sin contraseña",
-  "auth.highlight.telegram": "Email o Telegram",
+  "auth.highlight.email": "Códigos seguros por email",
   "auth.highlight.database": "Un espacio de trabajo para tu negocio",
-  "auth.telegram.invalid": "Telegram devolvió una respuesta no válida",
-  "auth.telegram.preparing": "Preparando el inicio de sesión de Telegram...",
-  "auth.telegram.missing":
-    "El nombre de usuario del bot de Telegram no está configurado en la API.",
-  "auth.telegram.verifying": "Verificando Telegram...",
   "auth.toast.created": "Espacio de trabajo creado",
   "auth.toast.welcome": "Bienvenido de nuevo",
   "auth.error.login": "No se pudo iniciar sesión",
@@ -342,6 +333,9 @@ export const es: Record<BaseTranslationKey, string> = {
   "onboarding.saveError.title": "No pudimos guardar tu progreso",
   "onboarding.saveError.description":
     "Comprueba tu conexión e inténtalo de nuevo. Tus respuestas siguen aquí.",
+  "onboarding.permission.title": "La configuración no está disponible para tu rol",
+  "onboarding.permission.description":
+    "Pide a un propietario, administrador o gerente que complete la configuración inicial.",
   "onboarding.business.title": "¿Qué tipo de negocio es este?",
   "onboarding.business.description":
     "Elija su tipo de negocio para que la IA pueda adaptarse a su industria",

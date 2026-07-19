@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { messages } from "../../apps/web/src/i18n/messages";
 
 const webBase = process.env.LEADVIRT_WEB_BASE ?? "http://localhost:3001";
 
@@ -115,6 +116,61 @@ async function installSettingsProfileDependencies(page: Page) {
     });
   });
 }
+
+test("notification switches use their visible localized labels as accessible names", async ({
+  page,
+}) => {
+  await installSettingsProfileDependencies(page);
+  await page.route("**/api/settings/account", async (route) => {
+    await route.fulfill({ json: accountSettings() });
+  });
+
+  const state: Record<string, boolean> = {
+    new_lead: true,
+    no_reply: true,
+    booking: true,
+    daily: false,
+    tg_summary: true,
+  };
+  const patches: Record<string, boolean>[] = [];
+  await page.route("**/api/settings/notifications", async (route) => {
+    if (route.request().method() === "PATCH") {
+      const patch = route.request().postDataJSON() as Record<string, boolean>;
+      patches.push(patch);
+      Object.assign(state, patch);
+    }
+    await route.fulfill({ json: { data: state } });
+  });
+
+  await page.goto(`${webBase}/app/settings?tab=notifications`, { waitUntil: "networkidle" });
+
+  const controls = [
+    ["new_lead", "settings.notifications.newLead"],
+    ["no_reply", "settings.notifications.noReply"],
+    ["booking", "settings.notifications.booking"],
+    ["daily", "settings.notifications.daily"],
+    ["tg_summary", "settings.notifications.telegram"],
+  ] as const;
+
+  for (const [id, labelKey] of controls) {
+    const label = messages.ru[labelKey];
+    const labelId = `settings-notification-${id}-label`;
+    const notificationSwitch = page.getByRole("switch", { name: label, exact: true });
+
+    await expect(page.locator(`#${labelId}`)).toHaveText(label);
+    await expect(notificationSwitch).toHaveAttribute("aria-labelledby", labelId);
+    await notificationSwitch.click();
+    await expect.poll(() => patches.some((patch) => id in patch)).toBe(true);
+  }
+
+  expect(patches).toEqual([
+    { new_lead: false },
+    { no_reply: false },
+    { booking: false },
+    { daily: true },
+    { tg_summary: false },
+  ]);
+});
 
 test("settings page renders account controls without exposing technical-only settings", async ({
   page,

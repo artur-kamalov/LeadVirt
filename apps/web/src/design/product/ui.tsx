@@ -159,6 +159,8 @@ export function Select({
   placeholder = "Выберите...",
   className,
   ariaLabel,
+  ariaInvalid,
+  ariaDescribedBy,
   testId,
   disabled = false,
 }: {
@@ -169,6 +171,8 @@ export function Select({
   placeholder?: string;
   className?: string;
   ariaLabel?: string;
+  ariaInvalid?: boolean;
+  ariaDescribedBy?: string;
   testId?: string;
   disabled?: boolean;
 }) {
@@ -182,6 +186,8 @@ export function Select({
     >
       <SelectPrimitive.Trigger
         aria-label={ariaLabel}
+        aria-invalid={ariaInvalid || undefined}
+        aria-describedby={ariaDescribedBy}
         data-testid={testId}
         className={cn(
           "group flex h-11 w-full items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-zinc-100 outline-none transition-colors hover:border-white/20 focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50 data-[placeholder]:text-zinc-500",

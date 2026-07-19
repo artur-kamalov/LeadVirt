@@ -323,22 +323,39 @@ function checkEnvironment() {
     "configured",
     "missing or invalid; managed integration requests fail closed without an operator recipient",
   );
-  if (isTruthy(process.env.AUTH_EMAIL_OTP_ENABLED)) {
-    const emailOtpProvider = (process.env.EMAIL_OTP_PROVIDER ?? "mock").trim().toLowerCase();
-    strictCheck(
-      ["smtp", "unisender"].includes(emailOtpProvider),
-      "Email OTP provider",
-      emailOtpProvider,
-      `${emailOtpProvider}; AUTH_EMAIL_OTP_ENABLED requires EMAIL_OTP_PROVIDER=smtp or unisender in production`,
-    );
-    requiredEmailProviders.add(emailOtpProvider);
-    strictCheck(
-      (process.env.AUTH_EMAIL_OTP_PEPPER?.trim().length ?? 0) >= 32,
-      "AUTH_EMAIL_OTP_PEPPER",
-      "configured",
-      "missing or shorter than 32 characters",
-    );
-  }
+  const emailOtpFlag = String(process.env.AUTH_EMAIL_OTP_ENABLED ?? "")
+    .trim()
+    .toLowerCase();
+  strictCheck(
+    emailOtpFlag === "true",
+    "AUTH_EMAIL_OTP_ENABLED",
+    "true",
+    `${emailOtpFlag || "missing"}; public email-only authentication requires explicit true`,
+  );
+  const telegramAuthFlag = String(process.env.AUTH_TELEGRAM_ENABLED ?? "")
+    .trim()
+    .toLowerCase();
+  strictCheck(
+    telegramAuthFlag === "false",
+    "AUTH_TELEGRAM_ENABLED",
+    "false",
+    `${telegramAuthFlag || "missing"}; public email-only authentication requires explicit false`,
+  );
+
+  const emailOtpProvider = (process.env.EMAIL_OTP_PROVIDER ?? "mock").trim().toLowerCase();
+  strictCheck(
+    ["smtp", "unisender"].includes(emailOtpProvider),
+    "Email OTP provider",
+    emailOtpProvider,
+    `${emailOtpProvider}; public email-only authentication requires EMAIL_OTP_PROVIDER=smtp or unisender in production`,
+  );
+  requiredEmailProviders.add(emailOtpProvider);
+  strictCheck(
+    (process.env.AUTH_EMAIL_OTP_PEPPER?.trim().length ?? 0) >= 32,
+    "AUTH_EMAIL_OTP_PEPPER",
+    "configured",
+    "missing or shorter than 32 characters",
+  );
 
   if (requiredEmailProviders.has("smtp")) {
     strictCheck(

@@ -1,8 +1,15 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 import { loginAsCleanUser } from "./helpers/auth";
 
 const webBase = process.env.LEADVIRT_WEB_BASE ?? "http://localhost:3001";
 const apiBase = process.env.LEADVIRT_API_BASE ?? "http://localhost:4001/api";
+
+async function expectTouchTarget(locator: Locator) {
+  await expect(locator).toBeVisible();
+  const box = await locator.boundingBox();
+  expect(box).not.toBeNull();
+  expect(Math.min(box!.width, box!.height)).toBeGreaterThanOrEqual(44);
+}
 
 test.beforeEach(async ({ context, page }) => {
   await loginAsCleanUser(page, apiBase);
@@ -38,7 +45,10 @@ test("inbox shows a real empty state when the API returns zero conversations", a
   await expect(page.getByText("No conversation selected")).toBeVisible();
   await expect(page.getByText("Anna Sokolova")).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Connect a channel" }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  const connectChannel = page.getByRole("button", { name: "Connect a channel" });
+  await expectTouchTarget(connectChannel);
+  await connectChannel.click();
   await expect(page).toHaveURL(/\/app\/integrations$/u);
 });
 

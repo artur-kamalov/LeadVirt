@@ -480,17 +480,18 @@ function updateBody(form: FactForm, fact: KnowledgeV2FactView): KnowledgeV2Updat
     currency: form.kind === "PRICE" ? form.currency.trim().toUpperCase() : fact.currency,
     timeZone: form.kind === "HOURS" ? form.timeZone.trim() : fact.timeZone,
     locale: fact.localeBehavior === "LANGUAGE_NEUTRAL" ? null : form.locale.trim(),
-    scope: fact.scope.usesTenantDefault && !audienceChanged
-      ? null
-      : {
-          brandIds: fact.scope.brandIds,
-          locationIds: fact.scope.locationIds,
-          channelTypes: fact.scope.channelTypes,
-          assistantIds: fact.scope.assistantIds,
-          audiences: [form.audience],
-          segments: fact.scope.segments,
-          locales: fact.scope.locales,
-        },
+    scope:
+      fact.scope.usesTenantDefault && !audienceChanged
+        ? null
+        : {
+            brandIds: fact.scope.brandIds,
+            locationIds: fact.scope.locationIds,
+            channelTypes: fact.scope.channelTypes,
+            assistantIds: fact.scope.assistantIds,
+            audiences: [form.audience],
+            segments: fact.scope.segments,
+            locales: fact.scope.locales,
+          },
     effectiveUntil: effectiveUntilIso(form.effectiveUntil, fact.effectiveUntil),
     riskLevel: form.riskLevel,
     changeReason: form.changeReason.trim() || null,
@@ -815,11 +816,7 @@ export function BusinessFactsEditor({
       void loadFacts(undefined, false, true);
     } catch (error) {
       if (isRevisionConflict(error)) {
-        openEdit(
-          fact,
-          true,
-          t("knowledge.business.error.verifyConflict"),
-        );
+        openEdit(fact, true, t("knowledge.business.error.verifyConflict"));
       } else {
         setActionError(errorMessage(error, t));
       }
@@ -847,11 +844,7 @@ export function BusinessFactsEditor({
       void loadFacts(undefined, false, true);
     } catch (error) {
       if (isRevisionConflict(error)) {
-        openEdit(
-          fact,
-          true,
-          t("knowledge.business.error.rejectConflict"),
-        );
+        openEdit(fact, true, t("knowledge.business.error.rejectConflict"));
       } else {
         setActionError(errorMessage(error, t));
       }
@@ -895,14 +888,14 @@ export function BusinessFactsEditor({
             }
             options={verificationOptions}
             ariaLabel={t("knowledge.business.filter.verificationAria")}
-            className="h-10 rounded-md px-3"
+            className="h-10 rounded-md px-3 max-sm:min-h-11"
           />
           <Select
             value={riskFilter}
             onValueChange={(value) => setRiskFilter(value as FilterValue<KnowledgeV2RiskLevel>)}
             options={riskOptions}
             ariaLabel={t("knowledge.business.filter.riskAria")}
-            className="h-10 rounded-md px-3"
+            className="h-10 rounded-md px-3 max-sm:min-h-11"
           />
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -1142,7 +1135,8 @@ function FactRow({
           <dd className="truncate text-zinc-400">{t(AUTHORITY_KEYS[fact.authority])}</dd>
           <dt className="text-zinc-600">{t("knowledge.business.row.locale")}</dt>
           <dd className="truncate text-zinc-400">
-            {fact.locale ?? t("knowledge.business.localeBehavior.languageNeutral")} / {t(LOCALE_BEHAVIOR_KEYS[fact.localeBehavior])}
+            {fact.locale ?? t("knowledge.business.localeBehavior.languageNeutral")} /{" "}
+            {t(LOCALE_BEHAVIOR_KEYS[fact.localeBehavior])}
           </dd>
           <dt className="text-zinc-600">{t("knowledge.business.row.audience")}</dt>
           <dd className="truncate text-zinc-400">
@@ -1155,7 +1149,10 @@ function FactRow({
           {fact.effectiveUntil ? (
             <>
               <dt className="text-zinc-600">{t("knowledge.business.row.validUntil")}</dt>
-              <dd className="truncate text-zinc-400" title={safeDate(fact.effectiveUntil, formatDate)}>
+              <dd
+                className="truncate text-zinc-400"
+                title={safeDate(fact.effectiveUntil, formatDate)}
+              >
                 {safeDate(fact.effectiveUntil, formatDate)}
               </dd>
             </>

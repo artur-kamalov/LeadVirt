@@ -301,7 +301,7 @@ Status: core security hardening and local clean-user acceptance smoke are implem
 
 ## First End-To-End Acceptance Test
 
-Given a clean Telegram-auth user:
+Given a clean email-OTP user:
 
 1. User completes business onboarding for a sample salon.
 2. User adds services, prices, available windows, FAQ, and policies.
@@ -312,7 +312,7 @@ Given a clean Telegram-auth user:
 7. Trace, metrics, quality result, and cost are stored.
 8. Dashboard, inbox, lead detail, and activity timeline show only real tenant data.
 
-Local coverage: implemented as `qa:ai:acceptance`. The smoke signs in through Telegram auth, fills onboarding knowledge, creates a Webhook/API channel, sends public intake, waits for queued LangGraph processing and channel delivery, verifies grounded price/slot output, RAG refs, tool calls, usage/cost, AI audit, worker metrics, dashboard, inbox, lead detail, and activity timeline.
+Local coverage: implemented as `qa:ai:acceptance`. The smoke signs in through mock email OTP, fills onboarding knowledge, creates a Webhook/API channel, sends public intake, waits for queued LangGraph processing and channel delivery, verifies grounded price/slot output, RAG refs, tool calls, usage/cost, AI audit, worker metrics, dashboard, inbox, lead detail, and activity timeline.
 
 ## Non-Goals For The First Build
 

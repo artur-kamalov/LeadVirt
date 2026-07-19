@@ -889,6 +889,8 @@ export function PipelinePage() {
             {/* View toggle */}
             <div className="flex items-center rounded-xl bg-zinc-900/60 border border-white/[0.06] p-1 gap-1">
               <button
+                type="button"
+                aria-pressed={view === "kanban"}
                 onClick={() => setView("kanban")}
                 className={cn(
                   "flex min-h-11 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all",
@@ -901,6 +903,8 @@ export function PipelinePage() {
                 {t("ops.pipeline.kanban")}
               </button>
               <button
+                type="button"
+                aria-pressed={view === "list"}
                 onClick={() => setView("list")}
                 className={cn(
                   "flex min-h-11 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all",

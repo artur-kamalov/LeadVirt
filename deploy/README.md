@@ -39,21 +39,9 @@ After cutover, public env uses `https://leadvirt.com` and `AUTH_COOKIE_SECURE=tr
 
 ## AI Acceptance Smoke
 
-After a release is deployed, run the clean Telegram AI acceptance smoke from the current release:
+The deterministic clean-tenant `qa:ai:acceptance` runs in CI before deployment. It uses the non-production mock email OTP provider and must not run against production, where OTP codes are intentionally never exposed to scripts.
 
-```bash
-cd /opt/leadvirt/current
-sh deploy/run-ai-acceptance.sh
-```
-
-The smoke expects the running API to use `AI_REPLY_MODE=queue`, because it validates the production path: Telegram auth, onboarding knowledge, Webhook/API intake, queued LangGraph reply, worker delivery, RAG evidence, tool calls, audit, usage, and worker metrics.
-
-Container defaults:
-
-```text
-LEADVIRT_API_BASE=http://api:4001/api
-WORKER_METRICS_URL=http://127.0.0.1:4002/metrics
-```
+After cutover, verify `/health/ready`, then perform email login through a monitored inbox and test the website widget and managed Telegram business channel as separate customer-intake paths.
 
 If the HTTPS/domain config must be reapplied:
 

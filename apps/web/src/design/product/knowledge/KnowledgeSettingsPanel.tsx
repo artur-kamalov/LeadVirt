@@ -237,7 +237,7 @@ export function KnowledgeSettingsPanel({
                     label: t(locale.labelKey),
                   }))}
                   ariaLabel={t("knowledge.settings.primary")}
-                  className="h-9 rounded-lg"
+                  className="h-9 rounded-lg max-sm:min-h-11"
                 />
               ) : (
                 <div className="flex h-9 items-center rounded-lg border border-white/10 bg-white/[0.025] px-3 text-sm text-zinc-300">

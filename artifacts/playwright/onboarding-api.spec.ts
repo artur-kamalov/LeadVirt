@@ -70,8 +70,7 @@ test("mobile onboarding announces progress, intent availability, and saving stat
   await context.addCookies([
     { name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" },
   ]);
-  let releaseFirstPatch: (() => void) | null = null;
-  let patchCount = 0;
+  let releaseAdvance: (() => void) | null = null;
 
   await page.route("**/api/onboarding/state", async (route) => {
     if (route.request().method() === "GET") {
@@ -89,33 +88,19 @@ test("mobile onboarding announces progress, intent availability, and saving stat
       return;
     }
 
-    patchCount += 1;
-    if (patchCount === 1) {
-      await new Promise<void>((resolve) => {
-        releaseFirstPatch = resolve;
-      });
-    }
-    const body = route.request().postDataJSON() as { currentStep?: string };
+    await route.fulfill({ status: 500, json: { message: "Unexpected state write" } });
+  });
+  await page.route("**/api/onboarding/advance", async (route) => {
+    await new Promise<void>((resolve) => {
+      releaseAdvance = resolve;
+    });
     await route.fulfill({
       json: {
         data: {
           ...businessProfileRevision(),
-          currentStep: body.currentStep ?? "channels",
+          currentStep: "scenario",
           completedSteps: ["business", "channels"],
           data: { businessType: "services", selectedChannels: ["whatsapp"] },
-          completedAt: null,
-        },
-      },
-    });
-  });
-  await page.route("**/api/onboarding/complete-step", async (route) => {
-    await route.fulfill({
-      json: {
-        data: {
-          ...businessProfileRevision(),
-          currentStep: "channels",
-          completedSteps: ["business", "channels"],
-          data: {},
           completedAt: null,
         },
       },
@@ -136,7 +121,9 @@ test("mobile onboarding announces progress, intent availability, and saving stat
   expect(skipBox?.width).toBeGreaterThanOrEqual(44);
   expect(skipBox?.height).toBeGreaterThanOrEqual(44);
 
-  await expect(page.getByText(/saved only as preferences; no request is sent automatically/i)).toBeVisible();
+  await expect(
+    page.getByText(/saved only as preferences; no request is sent automatically/i),
+  ).toBeVisible();
   const requestedChannel = page.getByRole("button", { name: /WhatsApp.*Managed setup/i });
   await expect(requestedChannel).toHaveAttribute("aria-pressed", "false");
   await expect(page.getByRole("button", { name: /Telegram.*Available/i })).toBeVisible();
@@ -146,7 +133,9 @@ test("mobile onboarding announces progress, intent availability, and saving stat
 
   await expect(page.getByRole("button", { name: "Saving...", exact: true })).toBeVisible();
   await expect(page.getByRole("status")).toContainText("Saving...");
-  releaseFirstPatch?.();
+  await expect(requestedChannel).toBeDisabled();
+  await expect(page.getByRole("button", { name: /Telegram.*Available/i })).toBeDisabled();
+  releaseAdvance?.();
   await expect(page.getByRole("heading", { name: "Choose a setup goal" })).toBeVisible();
   await expect(page.getByText(/does not activate an automation/i)).toBeVisible();
   await expect(page.getByText(/books customers automatically/i)).toHaveCount(0);
@@ -177,14 +166,17 @@ test("company onboarding fields expose associated required labels", async ({ con
   await page.goto(`${webBase}/onboarding`, { waitUntil: "domcontentloaded" });
 
   await expect(page.getByLabel(/Company name/)).toHaveAttribute("required", "");
+  await expect(page.getByLabel(/Company name/)).toHaveAttribute("maxlength", "160");
   await expect(page.getByLabel(/About the company/)).toHaveAttribute("required", "");
+  await expect(page.getByLabel(/About the company/)).toHaveAttribute("maxlength", "4000");
   await expect(page.getByLabel("Catalog, services, and prices")).toBeVisible();
+  await expect(page.getByTestId("onboarding-timezone")).toBeVisible();
   await expect(page.getByLabel("Business hours")).toBeVisible();
 });
 
 test("onboarding hydrates state and persists progress", async ({ page }) => {
-  const statePatches: { currentStep?: string; data?: Record<string, unknown> }[] = [];
-  const statePatchIfMatches: Array<string | undefined> = [];
+  const advances: { step?: string; data?: Record<string, unknown> }[] = [];
+  const advanceIfMatches: Array<string | undefined> = [];
   const completedSteps: string[] = [];
   let stateLoaded = false;
   let profileVersion = 1;
@@ -206,36 +198,25 @@ test("onboarding hydrates state and persists progress", async ({ page }) => {
       return;
     }
 
+    await route.fulfill({ status: 500, json: { message: "Unexpected state write" } });
+  });
+
+  await page.route("**/api/onboarding/advance", async (route) => {
     const body = route.request().postDataJSON() as {
-      currentStep?: string;
+      step?: string;
       data?: Record<string, unknown>;
     };
-    statePatches.push(body);
-    statePatchIfMatches.push(route.request().headers()["if-match"]);
+    advances.push(body);
+    advanceIfMatches.push(route.request().headers()["if-match"]);
+    if (body.step) completedSteps.push(body.step);
     if (body.data?.businessType || body.data?.companyInfo) profileVersion += 1;
     await route.fulfill({
       json: {
         data: {
           ...businessProfileRevision(profileVersion),
-          currentStep: body.currentStep ?? "business",
+          currentStep: "channels",
           completedSteps,
           data: body.data ?? {},
-          completedAt: null,
-        },
-      },
-    });
-  });
-
-  await page.route("**/api/onboarding/complete-step", async (route) => {
-    const body = route.request().postDataJSON() as { step?: string };
-    if (body.step) completedSteps.push(body.step);
-    await route.fulfill({
-      json: {
-        data: {
-          ...businessProfileRevision(profileVersion),
-          currentStep: body.step ?? "business",
-          completedSteps,
-          data: {},
           completedAt: null,
         },
       },
@@ -253,14 +234,118 @@ test("onboarding hydrates state and persists progress", async ({ page }) => {
 
   await expect(page.getByText("Откуда приходят клиенты?")).toBeVisible();
   await expect.poll(() => completedSteps).toContain("business");
-  await expect.poll(() => statePatches.length).toBe(2);
-  expect(statePatches[0]).toEqual({
-    currentStep: "business",
+  await expect(page.locator("[data-onboarding-step-heading]")).toBeFocused();
+  await expect.poll(() => advances.length).toBe(1);
+  expect(advances[0]).toEqual({
+    step: "business",
     data: { businessType: "beauty" },
   });
-  expect(statePatches[1]).toEqual({ currentStep: "channels" });
-  expect(statePatchIfMatches[0]).toBe('"business-profile-onboarding-1"');
-  expect(statePatchIfMatches[1]).toBeUndefined();
+  expect(advanceIfMatches).toEqual(['"business-profile-onboarding-1"']);
+});
+
+test("onboarding completes all six steps through atomic ordered advances", async ({
+  context,
+  page,
+}) => {
+  await context.addCookies([
+    { name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" },
+  ]);
+  const steps = ["business", "channels", "scenario", "company", "crm", "launch"];
+  const requests: Array<{
+    step: string;
+    data: Record<string, unknown>;
+    ifMatch?: string;
+  }> = [];
+  let profileVersion = 1;
+  let currentStep = "business";
+  let completedSteps: string[] = [];
+  let data: Record<string, unknown> = {};
+
+  await page.route("**/api/onboarding/state", async (route) => {
+    await route.fulfill({
+      json: {
+        data: {
+          ...businessProfileRevision(profileVersion),
+          currentStep,
+          completedSteps,
+          data,
+          completedAt: null,
+        },
+      },
+    });
+  });
+  await page.route("**/api/onboarding/advance", async (route) => {
+    const body = route.request().postDataJSON() as {
+      step: string;
+      data: Record<string, unknown>;
+    };
+    const ifMatch = route.request().headers()["if-match"];
+    requests.push({ ...body, ...(ifMatch ? { ifMatch } : {}) });
+    const profileWrite = body.step === "business" || body.step === "company";
+    if (profileWrite) {
+      expect(ifMatch).toBe(`"business-profile-onboarding-${profileVersion}"`);
+      profileVersion += 1;
+    } else {
+      expect(ifMatch).toBeUndefined();
+    }
+    data = {
+      ...data,
+      ...body.data,
+      ...(body.data.companyInfo
+        ? {
+            companyInfo: {
+              ...((data.companyInfo as Record<string, unknown> | undefined) ?? {}),
+              ...(body.data.companyInfo as Record<string, unknown>),
+            },
+          }
+        : {}),
+    };
+    completedSteps = [...completedSteps, body.step];
+    currentStep = steps[Math.min(steps.indexOf(body.step) + 1, steps.length - 1)] ?? "launch";
+    await route.fulfill({
+      json: {
+        data: {
+          ...businessProfileRevision(profileVersion),
+          currentStep,
+          completedSteps,
+          data,
+          completedAt: body.step === "launch" ? "2026-07-19T12:00:00.000Z" : null,
+        },
+      },
+    });
+  });
+
+  await page.goto(`${webBase}/onboarding`, { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Beauty studio" }).click();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Where do customers contact you?" }),
+  ).toBeFocused();
+
+  await page.getByRole("button", { name: /Telegram.*Available/i }).click();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page.getByRole("button", { name: /Customer support/ }).click();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page.getByLabel("Company name").fill("Complete onboarding workspace");
+  await page
+    .getByLabel("About the company")
+    .fill("A complete six-step onboarding contract fixture.");
+  await expect(page.getByTestId("onboarding-timezone")).toContainText(/Paris|UTC/);
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page.getByRole("button", { name: /LeadVirt Inbox/ }).click();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Initial setup saved" })).toBeFocused();
+  await page.getByRole("button", { name: "Review business information" }).click();
+
+  await expect(page).toHaveURL(`${webBase}/app/knowledge?welcome=1`);
+  expect(requests.map((request) => request.step)).toEqual(steps);
+  expect(requests[3]?.data).toMatchObject({
+    timezone: expect.any(String),
+    companyInfo: {
+      name: "Complete onboarding workspace",
+      description: "A complete six-step onboarding contract fixture.",
+    },
+  });
 });
 
 test("onboarding does not expose a blank form when saved state cannot load", async ({
@@ -316,6 +401,201 @@ test("onboarding does not expose a blank form when saved state cannot load", asy
   expect(getRequests).toBeGreaterThanOrEqual(2);
 });
 
+test("onboarding is read-protected for agent and viewer roles", async ({ page }) => {
+  await page.unroute("**/api/auth/me");
+  await page.route("**/api/auth/me", async (route) => {
+    await route.fulfill({
+      json: {
+        data: {
+          id: "onboarding-agent",
+          tenantId: "onboarding-tenant",
+          email: "agent@onboarding.test",
+          role: "AGENT",
+          authMode: "email",
+          passwordChangeRequired: false,
+        },
+      },
+    });
+  });
+  await page.route("**/api/onboarding/state", async (route) => {
+    await route.fulfill({
+      json: {
+        data: {
+          ...businessProfileRevision(),
+          currentStep: "business",
+          completedSteps: [],
+          data: {},
+          completedAt: null,
+        },
+      },
+    });
+  });
+
+  await page.goto(`${webBase}/onboarding`, { waitUntil: "networkidle" });
+
+  await expect(page.getByTestId("onboarding-role-boundary")).toBeVisible();
+  await expect(page.getByTestId("onboarding-step-panel")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Next" })).toHaveCount(0);
+});
+
+test("onboarding saves a dirty answer before Skip leaves the flow", async ({ context, page }) => {
+  await context.addCookies([
+    { name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" },
+  ]);
+  let savedDraft: Record<string, unknown> | null = null;
+  await page.route("**/api/onboarding/state", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({
+        json: {
+          data: {
+            ...businessProfileRevision(),
+            currentStep: "business",
+            completedSteps: [],
+            data: {},
+            completedAt: null,
+          },
+        },
+      });
+      return;
+    }
+    savedDraft = route.request().postDataJSON() as Record<string, unknown>;
+    await route.fulfill({
+      json: {
+        data: {
+          ...businessProfileRevision(2),
+          currentStep: "business",
+          completedSteps: [],
+          data: { businessType: "beauty" },
+          completedAt: null,
+        },
+      },
+    });
+  });
+
+  await page.goto(`${webBase}/onboarding`, { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Beauty studio" }).click();
+  await page.getByRole("button", { name: "Skip" }).click();
+
+  await expect
+    .poll(() => savedDraft)
+    .toEqual({
+      currentStep: "business",
+      data: { businessType: "beauty" },
+    });
+  await expect(page).toHaveURL(`${webBase}/app`);
+});
+
+test("onboarding preserves a dirty later step across Back and repeated progress", async ({
+  context,
+  page,
+}) => {
+  await context.addCookies([
+    { name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" },
+  ]);
+  let profileVersion = 1;
+  let savedDraft: Record<string, unknown> | null = null;
+  await page.route("**/api/onboarding/state", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({
+        json: {
+          data: {
+            ...businessProfileRevision(profileVersion),
+            currentStep: "business",
+            completedSteps: [],
+            data: {},
+            completedAt: null,
+          },
+        },
+      });
+      return;
+    }
+    savedDraft = route.request().postDataJSON() as Record<string, unknown>;
+    await route.fulfill({
+      json: {
+        data: {
+          ...businessProfileRevision(profileVersion),
+          currentStep: "channels",
+          completedSteps: ["business"],
+          data: { businessType: "services", selectedChannels: ["telegram"] },
+          completedAt: null,
+        },
+      },
+    });
+  });
+  await page.route("**/api/onboarding/advance", async (route) => {
+    profileVersion += 1;
+    await route.fulfill({
+      json: {
+        data: {
+          ...businessProfileRevision(profileVersion),
+          currentStep: "channels",
+          completedSteps: ["business"],
+          data: { businessType: "services" },
+          completedAt: null,
+        },
+      },
+    });
+  });
+
+  await page.goto(`${webBase}/onboarding`, { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Services", exact: true }).click();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page.getByRole("button", { name: /Telegram.*Available/i }).click();
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page.getByRole("button", { name: "Skip", exact: true }).click();
+
+  await expect
+    .poll(() => savedDraft)
+    .toEqual({
+      currentStep: "channels",
+      data: { selectedChannels: ["telegram"] },
+    });
+});
+
+test("legacy custom onboarding values remain reviewable and recoverable", async ({
+  context,
+  page,
+}) => {
+  await context.addCookies([
+    { name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" },
+  ]);
+  await page.route("**/api/onboarding/state", async (route) => {
+    await route.fulfill({
+      json: {
+        data: {
+          ...businessProfileRevision(9),
+          currentStep: "launch",
+          completedSteps: ["business", "channels", "scenario", "company", "crm"],
+          data: {
+            businessType: "wellness-studio",
+            selectedChannels: ["telegram"],
+            scenario: "sales-assistant",
+            companyInfo: { name: "Legacy Workspace", description: "Existing profile." },
+            timezone: "Europe/Paris",
+            crm: "spreadsheet",
+          },
+          completedAt: null,
+        },
+      },
+    });
+  });
+
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(`${webBase}/onboarding`, { waitUntil: "networkidle" });
+  await expect(page.getByText("wellness-studio", { exact: true })).toBeVisible();
+  await expect(page.getByText("sales-assistant", { exact: true })).toBeVisible();
+  await expect(page.getByText("spreadsheet", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review business information" })).toBeEnabled();
+
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await expect(page.getByRole("button", { name: "spreadsheet", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(page.getByRole("button", { name: "Next", exact: true })).toBeEnabled();
+});
+
 test("onboarding blocks navigation and allows retry when persistence fails", async ({ page }) => {
   await page
     .context()
@@ -341,6 +621,10 @@ test("onboarding blocks navigation and allows retry when persistence fails", asy
       return;
     }
 
+    await route.fulfill({ status: 500, json: { message: "Unexpected state write" } });
+  });
+
+  await page.route("**/api/onboarding/advance", async (route) => {
     patchAttempts += 1;
     patchIfMatches.push(route.request().headers()["if-match"]);
     if (patchAttempts === 1) {
@@ -349,32 +633,17 @@ test("onboarding blocks navigation and allows retry when persistence fails", asy
     }
 
     const body = route.request().postDataJSON() as {
-      currentStep?: string;
+      step?: string;
       data?: Record<string, unknown>;
     };
-    await route.fulfill({
-      json: {
-        data: {
-          ...businessProfileRevision(2),
-          currentStep: body.currentStep ?? "business",
-          completedSteps,
-          data: body.data ?? {},
-          completedAt: null,
-        },
-      },
-    });
-  });
-
-  await page.route("**/api/onboarding/complete-step", async (route) => {
-    const body = route.request().postDataJSON() as { step?: string };
     if (body.step) completedSteps.push(body.step);
     await route.fulfill({
       json: {
         data: {
           ...businessProfileRevision(2),
-          currentStep: body.step ?? "business",
+          currentStep: "channels",
           completedSteps,
-          data: {},
+          data: body.data ?? {},
           completedAt: null,
         },
       },
@@ -400,7 +669,7 @@ test("onboarding blocks navigation and allows retry when persistence fails", asy
   await expect.poll(() => completedSteps).toContain("business");
   expect(patchIfMatches[0]).toBe('"business-profile-onboarding-1"');
   expect(patchIfMatches[1]).toBe('"business-profile-onboarding-1"');
-  expect(patchIfMatches[2]).toBeUndefined();
+  expect(patchIfMatches).toHaveLength(2);
 });
 
 test("onboarding does not present a fresh setup when saved state cannot be loaded", async ({
@@ -484,11 +753,11 @@ test("onboarding company step sends a scoped profile write with the loaded ETag"
       escalationRules: "",
     },
   };
-  const statePatches: Array<{
-    currentStep?: string;
+  const advances: Array<{
+    step?: string;
     data?: Record<string, unknown>;
   }> = [];
-  const statePatchIfMatches: Array<string | undefined> = [];
+  const advanceIfMatches: Array<string | undefined> = [];
   let profileVersion = 7;
   let savedData: Record<string, unknown> = initialData;
 
@@ -508,35 +777,25 @@ test("onboarding company step sends a scoped profile write with the loaded ETag"
       return;
     }
 
+    await route.fulfill({ status: 500, json: { message: "Unexpected state write" } });
+  });
+
+  await page.route("**/api/onboarding/advance", async (route) => {
     const body = route.request().postDataJSON() as {
-      currentStep?: string;
+      step?: string;
       data?: Record<string, unknown>;
     };
-    statePatches.push(body);
-    statePatchIfMatches.push(route.request().headers()["if-match"]);
+    advances.push(body);
+    advanceIfMatches.push(route.request().headers()["if-match"]);
     if (body.data?.companyInfo) {
       profileVersion += 1;
-      savedData = { ...savedData, companyInfo: body.data.companyInfo };
+      savedData = { ...savedData, ...body.data };
     }
     await route.fulfill({
       json: {
         data: {
           ...businessProfileRevision(profileVersion),
-          currentStep: body.currentStep ?? "company",
-          completedSteps: ["business", "channels", "scenario", "company"],
-          data: savedData,
-          completedAt: null,
-        },
-      },
-    });
-  });
-
-  await page.route("**/api/onboarding/complete-step", async (route) => {
-    await route.fulfill({
-      json: {
-        data: {
-          ...businessProfileRevision(profileVersion),
-          currentStep: "company",
+          currentStep: "crm",
           completedSteps: ["business", "channels", "scenario", "company"],
           data: savedData,
           completedAt: null,
@@ -554,16 +813,81 @@ test("onboarding company step sends a scoped profile write with the loaded ETag"
   await page.getByRole("button", { name: "Next", exact: true }).click();
 
   await expect(page.getByRole("heading", { name: "Where should leads go?" })).toBeVisible();
-  await expect.poll(() => statePatches.length).toBe(2);
-  expect(statePatchIfMatches[0]).toBe('"business-profile-onboarding-7"');
-  expect(statePatchIfMatches[1]).toBeUndefined();
-  expect(statePatches[0]?.currentStep).toBe("company");
-  expect(Object.keys(statePatches[0]?.data ?? {})).toEqual(["companyInfo"]);
-  expect(statePatches[0]?.data).not.toHaveProperty("businessType");
-  expect(statePatches[0]?.data).not.toHaveProperty("selectedChannels");
-  expect(statePatches[0]?.data).not.toHaveProperty("scenario");
-  expect(statePatches[0]?.data).not.toHaveProperty("crm");
-  expect(statePatches[1]).toEqual({ currentStep: "crm" });
+  await expect.poll(() => advances.length).toBe(1);
+  expect(advanceIfMatches).toEqual(['"business-profile-onboarding-7"']);
+  expect(advances[0]?.step).toBe("company");
+  expect(Object.keys(advances[0]?.data ?? {}).sort()).toEqual(["companyInfo", "timezone"]);
+  expect(advances[0]?.data).not.toHaveProperty("businessType");
+  expect(advances[0]?.data).not.toHaveProperty("selectedChannels");
+  expect(advances[0]?.data).not.toHaveProperty("scenario");
+  expect(advances[0]?.data).not.toHaveProperty("crm");
+});
+
+test("onboarding shows API validation beside the company field without a connection warning", async ({
+  context,
+  page,
+}) => {
+  await context.addCookies([
+    { name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" },
+  ]);
+  await page.route("**/api/onboarding/state", async (route) => {
+    await route.fulfill({
+      json: {
+        data: {
+          ...businessProfileRevision(3),
+          currentStep: "company",
+          completedSteps: ["business", "channels", "scenario"],
+          data: {
+            businessType: "services",
+            selectedChannels: ["telegram"],
+            scenario: "support",
+            timezone: "Europe/Paris",
+            companyInfo: { name: "Validation fixture", description: "Existing description" },
+          },
+          completedAt: null,
+        },
+      },
+    });
+  });
+  await page.route("**/api/onboarding/advance", async (route) => {
+    await route.fulfill({
+      status: 400,
+      json: {
+        error: {
+          code: "KNOWLEDGE_VALIDATION_INPUT_INVALID",
+          message: "The request contains invalid fields.",
+          fieldErrors: [
+            {
+              field: "data.companyInfo.description",
+              code: "KNOWLEDGE_VALIDATION_MAX_LENGTH",
+              message: "The company description is invalid.",
+            },
+            {
+              field: "data.companyInfo.faq",
+              code: "KNOWLEDGE_VALIDATION_MAX_LENGTH",
+              message: "The FAQ is invalid.",
+            },
+          ],
+        },
+      },
+    });
+  });
+
+  await page.goto(`${webBase}/onboarding`, { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+
+  await expect(page.getByText("The company description is invalid.")).toBeVisible();
+  const description = page.getByLabel("About the company");
+  const faq = page.getByLabel("FAQ and common objections");
+  await expect(description).toHaveAttribute("aria-invalid", "true");
+  await expect(description).toBeFocused();
+  await expect(faq).toHaveAttribute("aria-invalid", "true");
+  await expect(page.getByTestId("onboarding-persistence-error")).toHaveCount(0);
+
+  await description.fill("Corrected description");
+  await expect(page.getByText("The company description is invalid.")).toHaveCount(0);
+  await expect(faq).toHaveAttribute("aria-invalid", "true");
+  await expect(page.getByText("The FAQ is invalid.")).toBeVisible();
 });
 
 test("onboarding ignores profile ETags from workflow, completion, and navigation responses", async ({
@@ -597,8 +921,12 @@ test("onboarding ignores profile ETags from workflow, completion, and navigation
       return;
     }
 
+    await route.fulfill({ status: 500, json: { message: "Unexpected state write" } });
+  });
+
+  await page.route("**/api/onboarding/advance", async (route) => {
     const body = route.request().postDataJSON() as {
-      currentStep?: string;
+      step?: string;
       data?: Record<string, unknown>;
     };
     const profileWrite = Boolean(body.data?.companyInfo);
@@ -613,25 +941,9 @@ test("onboarding ignores profile ETags from workflow, completion, and navigation
       json: {
         data: {
           ...businessProfileRevision(responseVersion),
-          currentStep: body.currentStep ?? "scenario",
+          currentStep: body.step === "scenario" ? "company" : "crm",
           completedSteps: ["business", "channels", "scenario", "company"],
           data: { ...initialData, ...(body.data ?? {}) },
-          completedAt: null,
-        },
-      },
-    });
-  });
-
-  await page.route("**/api/onboarding/complete-step", async (route) => {
-    workflowResponseVersion += 1;
-    const body = route.request().postDataJSON() as { step?: string };
-    await route.fulfill({
-      json: {
-        data: {
-          ...businessProfileRevision(workflowResponseVersion),
-          currentStep: body.step ?? "scenario",
-          completedSteps: ["business", "channels", "scenario", "company"],
-          data: initialData,
           completedAt: null,
         },
       },
@@ -674,28 +986,27 @@ async function mockLaunchReadyOnboarding(page: Page) {
     selectedChannels: ["telegram"],
     scenario: "support",
     companyInfo: { name: "Launch fixture", description: "Launch fixture description" },
+    timezone: "Europe/Paris",
     crm: "none",
   };
   let stateUpdates = 0;
   let launchCompletions = 0;
 
   await page.route("**/api/onboarding/state", async (route) => {
-    const isPatch = route.request().method() === "PATCH";
-    const body = isPatch ? route.request().postDataJSON() : null;
-    if (isPatch) stateUpdates += 1;
     await route.fulfill({
       json: {
         data: {
           ...businessProfileRevision(5),
-          currentStep: body?.currentStep ?? "launch",
+          currentStep: "launch",
           completedSteps: ["business", "channels", "scenario", "company", "crm"],
-          data: body?.data ?? data,
+          data,
           completedAt: null,
         },
       },
     });
   });
-  await page.route("**/api/onboarding/complete-step", async (route) => {
+  await page.route("**/api/onboarding/advance", async (route) => {
+    stateUpdates += 1;
     launchCompletions += 1;
     await route.fulfill({
       json: {

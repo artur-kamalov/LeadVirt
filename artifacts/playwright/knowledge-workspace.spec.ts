@@ -1324,8 +1324,12 @@ test("failed publication context survives remount and retries from a mobile layo
   await expect(operation).toContainText("Failed", { timeout: 15_000 });
 
   await page.getByTestId("knowledge-tab-overview").click();
+  await expect(page.getByTestId("knowledge-overview")).toBeVisible();
+  await expect(page).toHaveURL(/view=overview/);
   await page.setViewportSize({ width: 375, height: 812 });
   await selectMobileKnowledgeView(page, "History");
+  await expect(page).toHaveURL(/view=history/);
+  await expect(page.getByTestId("knowledge-publication-history")).toBeVisible();
   await expect(operation).toContainText("Knowledge processing did not complete.");
   await expect(operation.getByRole("button", { name: "Try again" })).toBeVisible();
   await expectNoHorizontalPageOverflow(page);

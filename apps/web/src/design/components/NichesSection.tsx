@@ -147,7 +147,7 @@ export const NichesSection = () => {
         className="flex flex-col md:flex-row gap-12 items-end mb-16"
       >
         <div className="flex-1">
-          <h2 className="text-3xl md:text-5xl font-bold mb-4 leading-tight">
+          <h2 id="niches-heading" className="text-3xl md:text-5xl font-bold mb-4 leading-tight">
             {t("niches.title.before")} <br/>
             <span className="text-zinc-500">{t("niches.title.highlight")}</span>
           </h2>
@@ -159,12 +159,18 @@ export const NichesSection = () => {
 
       <div className="grid lg:grid-cols-12 gap-8 lg:gap-12 items-start">
         {/* Left Side: Tabs */}
-        <div className="lg:col-span-5 space-y-2">
+        <div
+          role="group"
+          aria-labelledby="niches-heading"
+          className="lg:col-span-5 space-y-2"
+        >
           {niches.map((niche) => {
             const isActive = niche.id === activeNicheId;
             return (
               <button
                 key={niche.id}
+                type="button"
+                aria-pressed={isActive}
                 onClick={() => setActiveNicheId(niche.id)}
                 className={cn(
                   "w-full text-left p-5 rounded-2xl transition-all duration-300 border flex gap-4 group",

@@ -1,4 +1,4 @@
-import { HttpStatus, ValidationPipe } from "@nestjs/common";
+import { HttpStatus, ValidationPipe, type Type } from "@nestjs/common";
 import { compareKnowledgeCanonicalText } from "@leadvirt/knowledge";
 import type { KnowledgeV2FieldError } from "@leadvirt/types";
 import type { ValidationError } from "class-validator";
@@ -91,13 +91,14 @@ function flattenValidationErrors(errors: ValidationError[]) {
   return fieldErrors;
 }
 
-export function createKnowledgeV2ValidationPipe() {
+export function createKnowledgeV2ValidationPipe(expectedType?: Type<unknown>) {
   return new ValidationPipe({
     whitelist: true,
     forbidNonWhitelisted: true,
     forbidUnknownValues: true,
     transform: true,
     transformOptions: { enableImplicitConversion: false },
+    ...(expectedType ? { expectedType } : {}),
     validationError: { target: false, value: false },
     exceptionFactory: (errors: ValidationError[]) =>
       knowledgeV2Error(

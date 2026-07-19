@@ -14,6 +14,8 @@ import type { PrismaService } from "../../apps/api/src/modules/database/prisma.s
 import { KnowledgeService } from "../../apps/api/src/modules/knowledge/knowledge.service.js";
 import { KnowledgeV2IdempotencyService } from "../../apps/api/src/modules/knowledge/knowledge-v2-idempotency.service.js";
 import { KnowledgeV2OnboardingProjectionService } from "../../apps/api/src/modules/knowledge/knowledge-v2-onboarding-projection.service.js";
+import { createKnowledgeV2ValidationPipe } from "../../apps/api/src/modules/knowledge/knowledge-v2-validation.pipe.js";
+import { UpdateOnboardingDto } from "../../apps/api/src/modules/onboarding/dto/update-onboarding.dto.js";
 import { OnboardingService } from "../../apps/api/src/modules/onboarding/onboarding.service.js";
 import { SettingsService } from "../../apps/api/src/modules/settings/settings.service.js";
 
@@ -24,6 +26,14 @@ let checks = 0;
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
   checks += 1;
+}
+
+async function validateOnboarding(body: unknown) {
+  return createKnowledgeV2ValidationPipe().transform(body, {
+    type: "body",
+    metatype: UpdateOnboardingDto,
+    data: undefined,
+  });
 }
 
 function contextFor(tenant: Tenant, user: User): RequestContext {
@@ -421,13 +431,24 @@ async function main() {
       "A Settings profile no-op did not repair unrequested Tenant drift.",
     );
 
-    const updatedOnboarding = await onboarding.update(context, {
+    await onboarding.completeStep(context, { step: "business" });
+    const transformedChannelPatch = await validateOnboarding({
       currentStep: "channels",
-      data: { scenario: "lead-qualification" },
+      data: { selectedChannels: ["telegram"] },
     });
+    const updatedOnboarding = await onboarding.update(context, transformedChannelPatch);
     assert(
       updatedOnboarding.businessProfileVersion === 3,
       "Workflow-only onboarding changed the profile version.",
+    );
+    const channelState = await prisma.onboardingState.findUniqueOrThrow({ where: { tenantId } });
+    const channelData = channelState.data as Record<string, unknown>;
+    const channelCompanyInfo = channelData.companyInfo as Record<string, unknown>;
+    assert(channelData.businessType === "wellness-studio", "Channel patch erased business type.");
+    assert(Array.isArray(channelCompanyInfo.services), "Channel patch erased structured services.");
+    assert(
+      Array.isArray(channelCompanyInfo.weeklySchedule),
+      "Channel patch erased the weekly schedule.",
     );
     const completed = await onboarding.completeStep(context, { step: "channels" });
     assert(
@@ -487,14 +508,54 @@ async function main() {
       onboardingPrecondition instanceof HttpException && onboardingPrecondition.getStatus() === 428,
       "Profile-affecting onboarding accepted a missing If-Match.",
     );
+    const transformedCompanyPatch = await validateOnboarding({
+      data: { companyInfo: { description: "Updated through onboarding." } },
+    });
     const profileOnboarding = await onboarding.update(
       context,
-      { data: { companyInfo: { description: "Updated through onboarding." } } },
+      transformedCompanyPatch,
       completed.businessProfileEtag,
     );
     assert(
       profileOnboarding.businessProfileVersion === 4,
       "Profile-affecting onboarding did not increment the profile version.",
+    );
+    const profileState = await prisma.onboardingState.findUniqueOrThrow({ where: { tenantId } });
+    const profileData = profileState.data as Record<string, unknown>;
+    const profileCompanyInfo = profileData.companyInfo as Record<string, unknown>;
+    assert(
+      Array.isArray(profileCompanyInfo.services) && profileCompanyInfo.services.length === 2,
+      "A transformed company text patch erased structured services.",
+    );
+    assert(
+      Array.isArray(profileCompanyInfo.weeklySchedule) &&
+        profileCompanyInfo.weeklySchedule.length === 2,
+      "A transformed company text patch erased the weekly schedule.",
+    );
+
+    await onboarding.update(context, { data: { scenario: "support" } });
+    await onboarding.completeStep(context, { step: "scenario" });
+    await onboarding.completeStep(context, { step: "company" });
+    await onboarding.update(context, { data: { crm: "none" } });
+    await onboarding.completeStep(context, { step: "crm" });
+    await onboarding.update(context, { data: { selectedChannels: [] } });
+    let incompleteLaunch: unknown;
+    try {
+      await onboarding.completeStep(context, { step: "launch" });
+    } catch (error) {
+      incompleteLaunch = error;
+    }
+    assert(
+      incompleteLaunch instanceof HttpException && incompleteLaunch.getStatus() === 400,
+      "Launch accepted completed-step flags after required channel data was cleared.",
+    );
+    await onboarding.update(context, { data: { selectedChannels: ["telegram"] } });
+    const firstLaunch = await onboarding.advance(context, { step: "launch", data: {} });
+    const repeatedLaunch = await onboarding.advance(context, { step: "launch", data: {} });
+    assert(Boolean(firstLaunch.completedAt), "Launch did not record completion time.");
+    assert(
+      repeatedLaunch.completedAt === firstLaunch.completedAt,
+      "Repeated launch completion rewrote the original completion time.",
     );
 
     const finalHeaders = responseHeaders();

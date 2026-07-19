@@ -1,9 +1,16 @@
 import { readFileSync } from "node:fs";
 import { loginAsCleanUser } from "./helpers/auth";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const webBase = process.env.LEADVIRT_WEB_BASE ?? "http://localhost:3001";
 const apiBase = process.env.LEADVIRT_API_BASE ?? "http://localhost:4001/api";
+
+async function expectTouchTarget(locator: Locator) {
+  await expect(locator).toBeVisible();
+  const box = await locator.boundingBox();
+  expect(box).not.toBeNull();
+  expect(Math.min(box!.width, box!.height)).toBeGreaterThanOrEqual(44);
+}
 
 async function selectLocale(page: Page, locale: string) {
   const switcher = page.locator('[data-testid="language-switcher"]:visible').first();
@@ -447,11 +454,15 @@ test("billing failure is actionable in the active locale", async ({ page }) => {
   await selectLocale(page, "en");
   const error = page.getByTestId("settings-billing-load-error");
   await expect(error).toContainText("Data could not be loaded");
-  await expect(page.getByText(new Intl.NumberFormat("en", {
-    style: "currency",
-    currency: "RUB",
-    maximumFractionDigits: 0,
-  }).format(4900))).toHaveCount(0);
+  await expect(
+    page.getByText(
+      new Intl.NumberFormat("en", {
+        style: "currency",
+        currency: "RUB",
+        maximumFractionDigits: 0,
+      }).format(4900),
+    ),
+  ).toHaveCount(0);
   allowRecovery = true;
   await error.getByRole("button", { name: "Try again" }).click();
   await expect(page.getByRole("heading", { name: "Plan “Professional”" })).toBeVisible();
@@ -491,6 +502,7 @@ test("billing shows a truthful no-subscription state", async ({ page }) => {
 
   await page.goto(`${webBase}/app/billing`, { waitUntil: "domcontentloaded" });
   await selectLocale(page, "en");
+  await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByText("No active subscription")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Choose a plan to get started" })).toBeVisible();
   await expect(page.getByText("Next charge:")).toHaveCount(0);
@@ -499,7 +511,9 @@ test("billing shows a truthful no-subscription state", async ({ page }) => {
   await expect(page.getByText(/not set/)).toHaveCount(4);
   await expect(page.getByText("No payments or invoices yet.")).toBeVisible();
 
-  await page.getByTestId("billing-choose-plan").click();
+  const choosePlan = page.getByTestId("billing-choose-plan");
+  await expectTouchTarget(choosePlan);
+  await choosePlan.click();
   await expect(page.getByTestId("billing-plan-START")).toContainText("9,900");
   await expect(page.getByTestId("billing-plan-PROFESSIONAL")).toContainText("24,900");
   await expect(page.getByTestId("billing-plan-BUSINESS")).toContainText("59,900");

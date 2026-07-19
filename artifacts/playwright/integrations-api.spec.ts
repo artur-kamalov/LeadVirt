@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { messages } from "../../apps/web/src/i18n/messages";
 import { loginAsCleanUser } from "./helpers/auth";
 
 const webBase = process.env.LEADVIRT_WEB_BASE ?? "http://localhost:3001";
@@ -258,14 +259,12 @@ test("pending managed request stays pending instead of showing a sent confirmati
   await card.getByRole("button", { name: "Sending request...", exact: true }).click();
 
   const dialog = page.getByRole("dialog", { name: "WhatsApp Business: settings" });
-  await expect(dialog.getByTestId("integration-request-status")).toHaveText(
-    "Sending request...",
-  );
+  await expect(dialog.getByTestId("integration-request-status")).toHaveText("Sending request...");
   await expect(dialog.getByTestId("integration-request-submit")).toBeDisabled();
   await expect(dialog).not.toContainText("Request sent. Our team will contact you");
 });
 
-test("managed requests direct Telegram-only users to add a reachable contact", async ({ page }) => {
+test("managed requests direct users without a reachable contact to add one", async ({ page }) => {
   await page.route("**/api/integrations", async (route) => {
     await route.fulfill({ json: { data: [] } });
   });
@@ -378,9 +377,7 @@ test("Telegram connects from one bot token while LeadVirt manages webhook securi
   );
   await expect(page.getByTestId("integration-card-telegram")).toContainText("Подключено");
   await expect(page.getByTestId("integrations-refresh-error")).toBeVisible();
-  await expect(page.getByTestId("pilot-readiness-widget")).not.toContainText(
-    "retained-widget-key",
-  );
+  await expect(page.getByTestId("pilot-readiness-widget")).not.toContainText("retained-widget-key");
 
   await page.keyboard.press("Escape");
   await expect(connectedDialog).toBeHidden();
@@ -395,9 +392,7 @@ test("Telegram connects from one bot token while LeadVirt manages webhook securi
   failChannelRefresh = false;
   await page.getByTestId("integrations-refresh-error").getByRole("button").click();
   await expect(page.getByTestId("integrations-refresh-error")).toHaveCount(0);
-  await expect(page.getByTestId("pilot-readiness-widget")).not.toContainText(
-    "retained-widget-key",
-  );
+  await expect(page.getByTestId("pilot-readiness-widget")).not.toContainText("retained-widget-key");
 });
 
 test("integrations expose only live self-service controls and preserve channel workflows", async ({
@@ -603,9 +598,7 @@ test("integrations expose only live self-service controls and preserve channel w
   await expect(page.getByTestId("pilot-readiness-webhook")).not.toContainText(
     "demo-generic-webhook",
   );
-  await expect(page.getByTestId("pilot-readiness-widget")).not.toContainText(
-    "demo-website-widget",
-  );
+  await expect(page.getByTestId("pilot-readiness-widget")).not.toContainText("demo-website-widget");
   await expect(page.getByTestId("pilot-readiness-widget-open")).toHaveAttribute(
     "href",
     "/widget/frame?key=demo-website-widget",
@@ -666,8 +659,10 @@ test("integrations expose only live self-service controls and preserve channel w
   expect(modalWheelResult.scrollTop).toBeGreaterThan(0);
   expect(modalWheelResult.latency).toBeLessThan(150);
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await expect(instagramDialog.getByText("Instagram Business Account ID")).toBeVisible();
-  await expect(instagramDialog.getByText("Professional Instagram account").first()).toBeVisible();
+  await expect(instagramDialog).toContainText(
+    messages.ru["integrations.field.instagramBusinessAccountId"],
+  );
+  await expect(instagramDialog).toContainText(messages.ru["integrations.setup.instagram.step1"]);
   await instagramDialog.getByTestId("integration-request-submit").click();
   await expect.poll(() => requestedProviders).toContain("INSTAGRAM");
   await expect(instagramDialog.getByTestId("integration-request-status")).toContainText(
@@ -686,10 +681,8 @@ test("integrations expose only live self-service controls and preserve channel w
     .click();
   const whatsappDialog = page.getByRole("dialog", { name: /WhatsApp Business: настройки/ });
   await expect(whatsappDialog).toBeVisible();
-  await expect(whatsappDialog.getByText("Phone number ID", { exact: true })).toBeVisible();
-  await expect(
-    whatsappDialog.getByText("WhatsApp Business Account ID", { exact: true }),
-  ).toBeVisible();
+  await expect(whatsappDialog).toContainText(messages.ru["integrations.field.phoneNumberId"]);
+  await expect(whatsappDialog).toContainText(messages.ru["integrations.field.wabaId"]);
   await whatsappDialog.getByTestId("integration-request-submit").click();
   await expect.poll(() => requestedProviders).toContain("WHATSAPP_BUSINESS");
   await expect(whatsappDialog.getByTestId("integration-request-status")).toContainText(
@@ -704,7 +697,7 @@ test("integrations expose only live self-service controls and preserve channel w
     .click();
   const vkDialog = page.getByRole("dialog", { name: /VK: настройки/ });
   await expect(vkDialog).toBeVisible();
-  await expect(vkDialog.getByText("Community token", { exact: true })).toBeVisible();
+  await expect(vkDialog).toContainText(messages.ru["integrations.field.communityToken"]);
   await vkDialog.getByRole("button", { name: "Закрыть", exact: true }).click();
   await expect(vkDialog).toBeHidden();
   await page
@@ -713,7 +706,7 @@ test("integrations expose only live self-service controls and preserve channel w
     .click();
   const shopifyDialog = page.getByRole("dialog", { name: /Shopify: настройки/ });
   await expect(shopifyDialog).toBeVisible();
-  await expect(shopifyDialog.getByText("Admin API access token", { exact: true })).toBeVisible();
+  await expect(shopifyDialog).toContainText(messages.ru["integrations.field.adminApiAccessToken"]);
   await shopifyDialog.getByRole("button", { name: "Закрыть", exact: true }).click();
   await expect(shopifyDialog).toBeHidden();
   await page
@@ -722,9 +715,9 @@ test("integrations expose only live self-service controls and preserve channel w
     .click();
   const shopScriptDialog = page.getByRole("dialog", { name: /Shop-Script: настройки/ });
   await expect(shopScriptDialog).toBeVisible();
-  await expect(
-    shopScriptDialog.getByText("Webasyst installation URL", { exact: true }),
-  ).toBeVisible();
+  await expect(shopScriptDialog).toContainText(
+    messages.ru["integrations.field.webasystInstallationUrl"],
+  );
   await shopScriptDialog.getByRole("button", { name: "Закрыть", exact: true }).click();
   await expect(shopScriptDialog).toBeHidden();
   await expect(page.getByText("sk-admin")).toHaveCount(0);

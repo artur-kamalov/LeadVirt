@@ -11,8 +11,9 @@ test("web routes publish the constrained browser security policy", async ({ requ
   expect(csp).toContain("default-src 'self'");
   expect(csp).toContain("object-src 'none'");
   expect(csp).toContain("script-src-attr 'none'");
-  expect(csp).toContain("https://telegram.org");
-  expect(csp).toContain("frame-src https://oauth.telegram.org https://telegram.org");
+  expect(csp).toContain("frame-src 'none'");
+  expect(csp).not.toContain("telegram.org");
+  expect(csp).not.toContain("oauth.telegram.org");
   expect(csp).toContain("frame-ancestors 'none'");
   expect(csp).not.toContain("script-src *");
   expect(csp).not.toContain("frame-src *");

@@ -1,28 +1,21 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { messages } from "../../apps/web/src/i18n/messages";
 
 const webBase = process.env.LEADVIRT_WEB_BASE ?? "http://localhost:3001";
-
-const authResponse = {
-  data: {
-    id: "user-demo",
-    tenantId: "tenant-demo",
-    email: "telegram-100000001@telegram.leadvirt.internal",
-    phone: null,
-    name: "Студия Glow",
-    avatarUrl: null,
-    role: "OWNER",
-    authMode: "telegram",
-    passwordChangeRequired: false,
-    expiresAt: "2026-07-27T00:00:00.000Z",
-  },
-};
+const authLocales = ["en", "ru", "es", "fr", "de", "pt"] as const;
 
 const emailAuthResponse = {
   data: {
-    ...authResponse.data,
+    id: "user-demo",
+    tenantId: "tenant-demo",
     email: "owner@example.com",
+    phone: null,
     name: "Email Owner",
+    avatarUrl: null,
+    role: "OWNER",
     authMode: "email",
+    passwordChangeRequired: false,
+    expiresAt: "2026-07-27T00:00:00.000Z",
   },
 };
 
@@ -44,223 +37,100 @@ const apiMockHeaders = {
   "content-type": "application/json",
 };
 
-const telegramWidgetPayload = {
-  id: 100000001,
-  first_name: "Local",
-  last_name: "Telegram",
-  username: "leadvirt_local",
-  auth_date: 1783728000,
-  hash: "signed-widget-payload",
-};
+test.describe("email OTP configuration", () => {
+  test("login and signup expose only localized email authentication", async ({ context, page }) => {
+    const telegramRequests: string[] = [];
+    page.on("request", (request) => {
+      if (/telegram\.org|\/api\/auth\/telegram/i.test(request.url())) {
+        telegramRequests.push(request.url());
+      }
+    });
+    await page.route("**/api/auth/email-otp/config", async (route) => {
+      await route.fulfill({
+        headers: apiMockHeaders,
+        json: { data: { enabled: true, codeLength: 6, resendAfterSeconds: 60 } },
+      });
+    });
 
-const telegramWidgetMock = `
-  const script = document.currentScript;
-  const testWindow = window;
-  testWindow.leadvirtTelegramWidgetScripts = testWindow.leadvirtTelegramWidgetScripts || [];
-  testWindow.leadvirtTelegramWidgetScripts.push({
-    login: script.getAttribute("data-telegram-login"),
-    size: script.getAttribute("data-size"),
-    userpic: script.getAttribute("data-userpic"),
-    radius: script.getAttribute("data-radius"),
-    requestAccess: script.getAttribute("data-request-access"),
-    lang: script.getAttribute("data-lang"),
-    onauth: script.getAttribute("data-onauth")
+    for (const locale of authLocales) {
+      await context.addCookies([
+        { name: "leadvirt-locale", value: locale, url: webBase, sameSite: "Lax" },
+      ]);
+      for (const authRoute of ["login", "signup"] as const) {
+        const subtitleKey = authRoute === "login" ? "auth.login.subtitle" : "auth.signup.subtitle";
+        await page.goto(`${webBase}/${authRoute}`, { waitUntil: "domcontentloaded" });
+
+        await expect(page.getByText(messages[locale][subtitleKey], { exact: true })).toBeVisible();
+        await expect(page.getByTestId("email-otp-request-form")).toBeVisible();
+        await expect(page.getByTestId("auth-method-telegram")).toHaveCount(0);
+        await expect(page.getByTestId("telegram-auth-button")).toHaveCount(0);
+        await expect(page.getByTestId("telegram-brand-button")).toHaveCount(0);
+        await expect(page.getByTestId("telegram-signup-explanation")).toHaveCount(0);
+        await expect(page.locator('script[src*="telegram.org"]')).toHaveCount(0);
+        await expect(page.locator("main")).not.toContainText("Telegram");
+      }
+    }
+
+    expect(telegramRequests).toEqual([]);
   });
-  const button = document.createElement("button");
-  button.type = "button";
-  button.dataset.testid = "telegram-widget-mock-button";
-  button.textContent = "Log in with Telegram";
-  button.addEventListener("click", () => {
-    const payload = testWindow.leadvirtTelegramNextPayload || ${JSON.stringify(telegramWidgetPayload)};
-    testWindow.__leadvirtTelegramAuth(payload);
+
+  test("login and signup keep invalid email disabled and explain the correction", async ({
+    context,
+    page,
+  }) => {
+    await context.addCookies([
+      { name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" },
+    ]);
+    await page.route("**/api/auth/email-otp/config", async (route) => {
+      await route.fulfill({
+        headers: apiMockHeaders,
+        json: { data: { enabled: true, codeLength: 6, resendAfterSeconds: 60 } },
+      });
+    });
+
+    for (const authRoute of ["login", "signup"] as const) {
+      await page.goto(`${webBase}/${authRoute}`, { waitUntil: "networkidle" });
+      const emailInput = page.getByLabel(messages.en["auth.email.label"]);
+      const submitButton = page.getByTestId("email-otp-request");
+
+      await emailInput.fill("not-an-email");
+      await expect(submitButton).toBeDisabled();
+      await emailInput.blur();
+      await expect(emailInput).toHaveAttribute("aria-invalid", "true");
+      await expect(page.getByTestId("email-otp-address-error")).toHaveText(
+        messages.en["auth.email.invalid"],
+      );
+
+      await emailInput.fill("owner@example.com");
+      await expect(submitButton).toBeEnabled();
+      await expect(emailInput).toHaveAttribute("aria-invalid", "false");
+      await expect(page.getByTestId("email-otp-address-error")).toHaveCount(0);
+    }
   });
-  script.parentNode.insertBefore(button, script);
-`;
 
-async function completeTelegramAuth(page: Page) {
-  const authButton = page.getByTestId("telegram-widget-mock-button");
-  await expect(authButton).toBeEnabled({ timeout: 15000 });
-  await authButton.click();
-}
-
-test.describe("telegram auth flow", () => {
-  test.setTimeout(60_000);
-
-  test.beforeEach(async ({ page }) => {
+  test("shows an honest unavailable state when email authentication is disabled", async ({
+    page,
+  }) => {
     await page
       .context()
-      .addCookies([{ name: "leadvirt-locale", value: "ru", url: webBase, sameSite: "Lax" }]);
+      .addCookies([{ name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" }]);
     await page.route("**/api/auth/email-otp/config", async (route) => {
       await route.fulfill({
         headers: apiMockHeaders,
         json: { data: { enabled: false, codeLength: 6, resendAfterSeconds: 60 } },
       });
     });
-    await page.route("https://telegram.org/js/telegram-widget.js**", async (route) => {
-      await route.fulfill({ contentType: "application/javascript", body: telegramWidgetMock });
-    });
-    await page.route("**/api/auth/telegram/config", async (route) => {
-      await route.fulfill({
-        headers: apiMockHeaders,
-        json: { data: { botId: "123456", botUsername: "LeadVirtAi_bot" } },
-      });
-    });
-    await page.route("**/api/auth/me", async (route) => {
-      await route.fulfill({ headers: apiMockHeaders, json: authResponse });
-    });
-    await page.route("**/api/current-tenant", async (route) => {
-      await route.fulfill({ headers: apiMockHeaders, json: currentTenantResponse });
-    });
-  });
 
-  test("login through official Telegram widget opens the app", async ({ page }) => {
-    let oidcRequests = 0;
-    await page.route("**/api/auth/telegram/oidc", async (route) => {
-      oidcRequests += 1;
-      await route.abort();
-    });
-    await page.route("**/api/auth/telegram", async (route) => {
-      const body = route.request().postDataJSON() as typeof telegramWidgetPayload;
-      expect(body).toMatchObject(telegramWidgetPayload);
-      await route.fulfill({ headers: apiMockHeaders, json: authResponse });
-    });
-
-    await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto(`${webBase}/login`, { waitUntil: "networkidle" });
 
-    await expect(page.getByRole("heading", { level: 2 })).toContainText("LeadVirt.ai");
-    await expect(page.getByTestId("telegram-brand-button")).toBeVisible();
-    await expect(page.getByTestId("telegram-switch-account")).toHaveCount(0);
-    await page.evaluate(() => {
-      window.localStorage.setItem(
-        "leadvirt.auth.session",
-        JSON.stringify({ email: "legacy@example.com", authMode: "credentials" }),
-      );
-    });
-    await completeTelegramAuth(page);
-
-    await expect(page).toHaveURL(`${webBase}/app`, { timeout: 30000 });
-    const scripts = await page.evaluate(
-      () =>
-        (
-          window as Window & {
-            leadvirtTelegramWidgetScripts?: Array<Record<string, string | null>>;
-          }
-        ).leadvirtTelegramWidgetScripts ?? [],
+    await expect(page.getByTestId("email-otp-config-disabled")).toHaveText(
+      messages.en["auth.email.disabled"],
     );
-    expect(scripts[0]).toMatchObject({
-      login: "LeadVirtAi_bot",
-      size: "large",
-      userpic: "false",
-      radius: "12",
-      requestAccess: "write",
-      lang: "ru",
-      onauth: "window.__leadvirtTelegramAuth(user)",
-    });
-    expect(oidcRequests).toBe(0);
-    await expect
-      .poll(async () => page.evaluate(() => window.localStorage.getItem("leadvirt.auth.session")))
-      .toBeNull();
+    await expect(page.getByTestId("email-otp-request-form")).toHaveCount(0);
+    await expect(page.getByTestId("email-otp-config-retry")).toHaveCount(0);
+    await expect(page.getByTestId("auth-method-telegram")).toHaveCount(0);
   });
 
-  test("invalid Telegram widget payload stays on login", async ({ page }) => {
-    let authRequests = 0;
-    await page.route("**/api/auth/telegram/oidc", async (route) => {
-      await route.abort();
-    });
-    await page.route("**/api/auth/telegram", async (route) => {
-      authRequests += 1;
-      await route.abort();
-    });
-
-    await page.setViewportSize({ width: 1440, height: 1000 });
-    await page.goto(`${webBase}/login`, { waitUntil: "networkidle" });
-    await page.evaluate(() => {
-      (window as Window & { leadvirtTelegramNextPayload?: unknown }).leadvirtTelegramNextPayload = {
-        id: 100000001,
-      };
-    });
-
-    await expect(page.getByRole("heading", { level: 2 })).toContainText("LeadVirt.ai");
-    await completeTelegramAuth(page);
-
-    await expect(page).toHaveURL(`${webBase}/login`);
-    await expect(page.getByText("Telegram вернул некорректный ответ")).toBeVisible();
-    expect(authRequests).toBe(0);
-  });
-
-  test("signup through Telegram opens onboarding", async ({ page }) => {
-    await page.route("**/api/auth/telegram", async (route) => {
-      const body = route.request().postDataJSON() as typeof telegramWidgetPayload;
-      expect(body).toMatchObject(telegramWidgetPayload);
-      await route.fulfill({
-        headers: apiMockHeaders,
-        json: { data: { ...authResponse.data, isNewUser: true } },
-      });
-    });
-    await page.route("**/api/auth/me", async (route) => {
-      await route.fulfill({
-        headers: apiMockHeaders,
-        json: { data: { ...authResponse.data, isNewUser: undefined } },
-      });
-    });
-    await page.route("**/api/onboarding/state", async (route) => {
-      await route.fulfill({
-        headers: apiMockHeaders,
-        json: {
-          data: {
-            businessProfileVersion: 1,
-            businessProfileEtag: '"business-profile-auth-telegram-1"',
-            businessProfileUpdatedAt: "2026-07-17T20:10:00.000Z",
-            currentStep: "business",
-            completedSteps: [],
-            data: {},
-            completedAt: null,
-          },
-        },
-      });
-    });
-
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(`${webBase}/signup`, { waitUntil: "networkidle" });
-
-    await expect(page.getByRole("heading", { level: 2 })).toContainText("LeadVirt.ai");
-    await completeTelegramAuth(page);
-
-    await expect(page).toHaveURL(`${webBase}/onboarding`, { timeout: 15000 });
-    await expect
-      .poll(async () => page.evaluate(() => window.localStorage.getItem("leadvirt.auth.session")))
-      .toBeNull();
-  });
-
-  test("signup distinguishes identity auth from the business Telegram connection", async ({
-    context,
-    page,
-  }) => {
-    const copy = {
-      en: "Telegram verifies your identity through the LeadVirt authentication bot. You connect your business channel or bot later.",
-      ru: "Telegram подтверждает вашу личность через бота авторизации LeadVirt. Бизнес-канал или бот вы подключите позже.",
-      es: "Telegram verifica tu identidad mediante el bot de acceso de LeadVirt. Conectarás después el canal o bot de tu negocio.",
-      fr: "Telegram vérifie votre identité via le bot d’authentification LeadVirt. Vous connecterez ensuite le canal ou le bot de votre entreprise.",
-      de: "Telegram bestätigt Ihre Identität über den LeadVirt-Anmeldebot. Den Kanal oder Bot Ihres Unternehmens verbinden Sie später.",
-      pt: "O Telegram verifica sua identidade pelo bot de autenticação do LeadVirt. Você conectará depois o canal ou bot da sua empresa.",
-    } as const;
-
-    await page.setViewportSize({ width: 390, height: 844 });
-    for (const [locale, explanation] of Object.entries(copy)) {
-      await context.addCookies([
-        { name: "leadvirt-locale", value: locale, url: webBase, sameSite: "Lax" },
-      ]);
-      await page.goto(`${webBase}/signup`, { waitUntil: "domcontentloaded" });
-      await expect(page.getByTestId("telegram-signup-explanation")).toHaveText(explanation);
-    }
-
-    await page.goto(`${webBase}/login`, { waitUntil: "domcontentloaded" });
-    await expect(page.getByTestId("telegram-signup-explanation")).toHaveCount(0);
-  });
-});
-
-test.describe("email OTP configuration", () => {
   test("keeps auth controls touch-friendly through the mobile code step", async ({ page }) => {
     await page
       .context()
@@ -293,8 +163,8 @@ test.describe("email OTP configuration", () => {
       page.getByRole("link", { name: "LeadVirt.ai", exact: true }),
       page.getByTestId("language-switcher"),
       page.getByRole("link", { name: "Back to site", exact: true }),
-      page.getByTestId("auth-method-email"),
-      page.getByTestId("auth-method-telegram"),
+      page.getByLabel("Work email"),
+      page.getByTestId("email-otp-request"),
       page.getByRole("link", { name: "Sign up", exact: true }),
     ];
     for (const control of initialControls) {
@@ -342,8 +212,8 @@ test.describe("email OTP configuration", () => {
 
     await page.goto(`${webBase}/login`, { waitUntil: "networkidle" });
     await expect(page.getByTestId("email-otp-config-error")).toBeVisible();
-    await expect(page.getByTestId("auth-method-email")).toHaveAttribute("aria-pressed", "true");
-    await expect(page.getByTestId("auth-method-telegram")).toHaveAttribute("aria-pressed", "false");
+    await expect(page.getByTestId("email-otp-request-form")).toHaveCount(0);
+    await expect(page.getByTestId("auth-method-telegram")).toHaveCount(0);
     await expect(page.getByRole("tab")).toHaveCount(0);
 
     const requestsBeforeRetry = configRequests;
@@ -406,7 +276,6 @@ test.describe("email OTP auth flow", () => {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto(`${webBase}/login`, { waitUntil: "networkidle" });
 
-    await expect(page.getByTestId("auth-method-email")).toHaveAttribute("aria-pressed", "true");
     await page.getByLabel("Work email").fill("owner@example.com");
     await page.getByTestId("email-otp-request").click();
     await expect(page.getByText("We sent a 6-digit code to owner@example.com")).toBeVisible();
@@ -550,7 +419,7 @@ test.describe("authenticated route guard", () => {
         });
         return;
       }
-      await route.fulfill({ headers: apiMockHeaders, json: authResponse });
+      await route.fulfill({ headers: apiMockHeaders, json: emailAuthResponse });
     });
     await page.route("**/api/current-tenant", async (route) => {
       await route.fulfill({ headers: apiMockHeaders, json: currentTenantResponse });

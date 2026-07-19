@@ -445,7 +445,8 @@ test("webhook secret is shown once, redacted after reload, and explicitly rotate
   await page.getByRole("button", { name: "Close", exact: true }).click();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload({ waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "Channels", exact: true }).click();
+  await page.getByTestId("settings-mobile-section-selector").getByRole("combobox").click();
+  await page.getByRole("option", { name: "Channels", exact: true }).click();
   await page.getByRole("button", { name: "Configure Webhook/API" }).click();
   await expect(page.getByTestId("webhook-secret-panel")).toBeVisible();
   await expect(page.getByText("settings-rotated-secret")).toBeHidden();

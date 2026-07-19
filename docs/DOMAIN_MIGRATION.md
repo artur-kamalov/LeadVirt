@@ -44,4 +44,4 @@ curl -sS -o /dev/null -w '%{http_code}\n' https://leadvirt.com/api/auth/me
 curl -sSI https://www.leadvirt.com/
 ```
 
-Expected: `.com` health `200`, auth `401`, and `www` redirects `308` to the `.com` apex. Then run `qa:pilot:public` against `.com` and smoke Telegram login plus the website widget.
+Expected: `.com` health `200`, auth `401`, and `www` redirects `308` to the `.com` apex. Then run `qa:pilot:public` against `.com`, smoke email OTP, and verify the website widget plus the managed Telegram business channel independently.

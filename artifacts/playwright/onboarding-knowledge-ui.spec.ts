@@ -33,7 +33,7 @@ test("onboarding company step exposes RAG business fields", async ({ page }) => 
   await page.route("**/api/onboarding/state", async (route) => {
     await route.fulfill({ json: { data: onboardingState } });
   });
-  await page.route("**/api/onboarding/complete-step", async (route) => {
+  await page.route("**/api/onboarding/advance", async (route) => {
     await route.fulfill({ json: { data: onboardingState } });
   });
   await page.setViewportSize({ width: 1440, height: 1000 });

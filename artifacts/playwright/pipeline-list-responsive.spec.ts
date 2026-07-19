@@ -18,6 +18,26 @@ async function expectInside(field: Locator, card: Locator) {
   expect(fieldBox!.x + fieldBox!.width).toBeLessThanOrEqual(cardBox!.x + cardBox!.width + 1);
 }
 
+test("pipeline view selector exposes the active view", async ({ context, page }) => {
+  await context.addCookies([
+    { name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" },
+  ]);
+  await page.goto(`${webBase}/demo/leads`, { waitUntil: "domcontentloaded" });
+
+  const kanbanButton = page.getByRole("button", { name: "Kanban", exact: true });
+  const listButton = page.getByRole("button", { name: "List", exact: true });
+  await expect(kanbanButton).toHaveAttribute("aria-pressed", "true");
+  await expect(listButton).toHaveAttribute("aria-pressed", "false");
+
+  await listButton.click();
+  await expect(listButton).toHaveAttribute("aria-pressed", "true");
+  await expect(kanbanButton).toHaveAttribute("aria-pressed", "false");
+
+  await kanbanButton.click();
+  await expect(kanbanButton).toHaveAttribute("aria-pressed", "true");
+  await expect(listButton).toHaveAttribute("aria-pressed", "false");
+});
+
 test("mobile pipeline list exposes every lead field and conversation action", async ({
   context,
   page,

@@ -678,7 +678,7 @@ function buildInitialState(): DemoState {
       },
     ],
     security: {
-      authMode: "telegram",
+      authMode: "email",
       hasPassword: false,
       productionAuthReadyFor: ["Local credentials", "HTTP-only sessions"],
       tenantScoped: true,
@@ -909,19 +909,19 @@ function integration(
             },
           }
         : provider === "WEBHOOK_API"
-        ? {
-            channelType: "WEBHOOK",
-            publicKey: "lvwh_demo_preview",
-            endpointPath: "/api/public/channels/webhook/lvwh_demo_preview/events",
-            secretHeader: "x-leadvirt-webhook-secret",
-            samplePayload: {
-              event: "lead.created",
-              name: "New customer",
-              phone: "+79990000000",
-              message: "Consultation request",
-            },
-          }
-        : null,
+          ? {
+              channelType: "WEBHOOK",
+              publicKey: "lvwh_demo_preview",
+              endpointPath: "/api/public/channels/webhook/lvwh_demo_preview/events",
+              secretHeader: "x-leadvirt-webhook-secret",
+              samplePayload: {
+                event: "lead.created",
+                name: "New customer",
+                phone: "+79990000000",
+                message: "Consultation request",
+              },
+            }
+          : null,
     recentSyncLogs:
       status === "CONNECTED"
         ? [
@@ -1013,6 +1013,73 @@ function assertDemoIfMatch(init: RequestInit, currentEtag: string) {
       "The business profile has changed. Reload the latest version.",
       412,
       "REVISION_CONFLICT",
+    );
+  }
+}
+
+const demoOnboardingSteps = [
+  "business",
+  "channels",
+  "scenario",
+  "company",
+  "crm",
+  "launch",
+] as const;
+
+function demoOnboardingValueReady(step: string, data: Record<string, unknown>) {
+  const companyInfo = companyInfoFromData(data);
+  if (step === "business")
+    return typeof data.businessType === "string" && Boolean(data.businessType.trim());
+  if (step === "channels")
+    return Array.isArray(data.selectedChannels) && data.selectedChannels.length > 0;
+  if (step === "scenario")
+    return typeof data.scenario === "string" && Boolean(data.scenario.trim());
+  if (step === "company")
+    return (
+      typeof companyInfo.name === "string" &&
+      Boolean(companyInfo.name.trim()) &&
+      typeof companyInfo.description === "string" &&
+      Boolean(companyInfo.description.trim()) &&
+      typeof data.timezone === "string" &&
+      Boolean(data.timezone.trim())
+    );
+  if (step === "crm") return typeof data.crm === "string" && Boolean(data.crm.trim());
+  return step === "launch";
+}
+
+function assertDemoOnboardingReady(
+  step: string,
+  data: Record<string, unknown>,
+  completedSteps: string[],
+) {
+  const stepIndex = demoOnboardingSteps.indexOf(step as (typeof demoOnboardingSteps)[number]);
+  if (stepIndex < 0) {
+    throw new DemoApiError("Unknown onboarding step.", 400, "ONBOARDING_STEP_INVALID");
+  }
+  const missingPrerequisite = demoOnboardingSteps
+    .slice(0, stepIndex)
+    .find((candidate) => !completedSteps.includes(candidate));
+  if (missingPrerequisite) {
+    throw new DemoApiError(
+      `Complete ${missingPrerequisite} before ${step}.`,
+      400,
+      "ONBOARDING_STEP_ORDER_INVALID",
+    );
+  }
+  const ready =
+    step === "launch"
+      ? demoOnboardingSteps
+          .slice(0, -1)
+          .every(
+            (candidate) =>
+              completedSteps.includes(candidate) && demoOnboardingValueReady(candidate, data),
+          )
+      : demoOnboardingValueReady(step, data);
+  if (!ready) {
+    throw new DemoApiError(
+      `Complete the required ${step} information before continuing.`,
+      400,
+      "ONBOARDING_STEP_INCOMPLETE",
     );
   }
 }
@@ -1286,12 +1353,7 @@ function analyticsOverview(): AnalyticsOverview {
 }
 
 function pipelineSummary(s: DemoState) {
-  const statuses: Lead["status"][] = [
-    "NEW",
-    "IN_PROGRESS",
-    "QUALIFIED",
-    "CLOSED",
-  ];
+  const statuses: Lead["status"][] = ["NEW", "IN_PROGRESS", "QUALIFIED", "CLOSED"];
   return {
     stages: statuses.map((status) => {
       const leads = s.leads.filter((lead) => lead.status === status);
@@ -1531,7 +1593,7 @@ export function demoApiRequest<T>(path: string, init: RequestInit = {}): T {
   if (method === "GET" && pathname === "/auth/me")
     return envelope({
       ...s.owner,
-      authMode: "telegram",
+      authMode: "email",
       role: "OWNER",
       tenant: s.tenant,
       expiresAt: future(14),
@@ -2080,7 +2142,11 @@ export function demoApiRequest<T>(path: string, init: RequestInit = {}): T {
     const mergedData = deepMergeRecords(s.onboarding.data, nextData);
     const nextProfile = demoBusinessProfileData(s, mergedData);
     const profileChanged = JSON.stringify(nextProfile) !== JSON.stringify(currentProfile);
-    if (profileChanged) assertDemoIfMatch(init, s.onboarding.businessProfileEtag);
+    const profileRequested =
+      hasOwn(nextData, "businessType") ||
+      hasOwn(nextData, "timezone") ||
+      hasOwn(nextData, "companyInfo");
+    if (profileRequested) assertDemoIfMatch(init, s.onboarding.businessProfileEtag);
 
     s.onboarding.data = mergedData;
     if (typeof body.currentStep === "string") {
@@ -2098,8 +2164,50 @@ export function demoApiRequest<T>(path: string, init: RequestInit = {}): T {
   }
   if (method === "POST" && pathname === "/onboarding/complete-step") {
     const step = typeof body.step === "string" ? body.step : "";
+    assertDemoOnboardingReady(step, s.onboarding.data, s.onboarding.completedSteps);
     if (step && !s.onboarding.completedSteps.includes(step)) s.onboarding.completedSteps.push(step);
-    if (step === "launch") s.onboarding.completedAt = new Date().toISOString();
+    s.onboarding.currentStep = step;
+    if (step === "launch" && !s.onboarding.completedAt) {
+      s.onboarding.completedAt = new Date().toISOString();
+    }
+    return envelope(clone(s.onboarding)) as T;
+  }
+  if (method === "POST" && pathname === "/onboarding/advance") {
+    const step = typeof body.step === "string" ? body.step : "";
+    const nextData = isRecord(body.data) ? body.data : {};
+    const currentProfile = demoBusinessProfileData(s);
+    const mergedData = deepMergeRecords(s.onboarding.data, nextData);
+    const nextProfile = demoBusinessProfileData(s, mergedData);
+    const profileChanged = JSON.stringify(nextProfile) !== JSON.stringify(currentProfile);
+    const profileRequested =
+      hasOwn(nextData, "businessType") ||
+      hasOwn(nextData, "timezone") ||
+      hasOwn(nextData, "companyInfo");
+    if (profileRequested) assertDemoIfMatch(init, s.onboarding.businessProfileEtag);
+
+    assertDemoOnboardingReady(step, mergedData, s.onboarding.completedSteps);
+
+    s.onboarding.data = mergedData;
+    if (
+      hasOwn(nextData, "businessType") ||
+      hasOwn(nextData, "timezone") ||
+      hasOwn(nextData, "companyInfo")
+    ) {
+      writeDemoBusinessProfile(s, nextProfile);
+    }
+    if (profileChanged) touchDemoBusinessProfile(s);
+    if (step && !s.onboarding.completedSteps.includes(step)) s.onboarding.completedSteps.push(step);
+    const index = demoOnboardingSteps.indexOf(step as (typeof demoOnboardingSteps)[number]);
+    const currentIndex = demoOnboardingSteps.indexOf(
+      s.onboarding.currentStep as (typeof demoOnboardingSteps)[number],
+    );
+    s.onboarding.currentStep =
+      demoOnboardingSteps[
+        Math.max(currentIndex, Math.min(index + 1, demoOnboardingSteps.length - 1))
+      ] ?? "business";
+    if (step === "launch" && !s.onboarding.completedAt) {
+      s.onboarding.completedAt = new Date().toISOString();
+    }
     return envelope(clone(s.onboarding)) as T;
   }
 

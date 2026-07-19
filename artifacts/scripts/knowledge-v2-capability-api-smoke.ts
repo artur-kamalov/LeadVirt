@@ -178,6 +178,29 @@ async function main() {
       expectedDefinitions.map((item) => [item.capabilityType, item]),
     );
 
+    const concurrentOverviews = await Promise.all(
+      Array.from({ length: 8 }, () =>
+        request("/knowledge/v2/overview", {
+          headers: { cookie: owner.cookie },
+        }),
+      ),
+    );
+    for (const [index, overview] of concurrentOverviews.entries()) {
+      assert(
+        overview.status === 200,
+        `Concurrent cold overview ${index + 1} failed with ${overview.status}: ${JSON.stringify(overview.payload)}`,
+      );
+    }
+    assert(
+      (await prisma.knowledgeV2Capability.count({ where: { tenantId: tenant.id } })) === 8,
+      "Concurrent overview initialization did not create exactly 8 capabilities.",
+    );
+    assert(
+      (await prisma.knowledgeV2RequirementDefinition.count({ where: { tenantId: tenant.id } })) ===
+        36,
+      "Concurrent overview initialization did not create exactly 36 requirements.",
+    );
+
     const firstList = await request("/knowledge/v2/capabilities", {
       headers: { cookie: manager.cookie },
     });
@@ -480,8 +503,7 @@ async function main() {
         automaticRepliesPublicationEtag: pointer.etag,
         automaticRepliesCapabilitySetHash: expectedCapabilitySetHash,
         automaticRepliesOperationalBindingHash: operationalProjection.bindingHash,
-        automaticRepliesOperationalPermissionGeneration:
-          operationalProjection.permissionGeneration,
+        automaticRepliesOperationalPermissionGeneration: operationalProjection.permissionGeneration,
         automaticRepliesChannelFingerprint: automaticReplyChannelFingerprint(affectedChannel),
         automaticRepliesActivatedAt: new Date(),
         automaticRepliesActivatedByUserId: owner.user.id,
@@ -817,6 +839,7 @@ async function main() {
       JSON.stringify({
         ok: true,
         checks: {
+          concurrentColdOverviewInitialization: concurrentOverviews.length,
           deterministicDefaults: 8,
           requirementDefaults: 36,
           roles: ["OWNER", "ADMIN", "MANAGER_DENIED"],

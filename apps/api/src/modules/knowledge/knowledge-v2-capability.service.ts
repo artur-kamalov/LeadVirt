@@ -821,29 +821,20 @@ export class KnowledgeV2CapabilityService {
 
   private async ensureDefaults(db: Prisma.TransactionClient | PrismaService, tenantId: string) {
     const defaults = buildDefaultKnowledgeCapabilityDefinitionsV1({ tenantId });
-    for (const definition of defaults) {
-      await db.knowledgeV2Capability.upsert({
-        where: {
-          tenantId_capabilityType_targetKey: {
-            tenantId,
-            capabilityType: definition.capabilityType,
-            targetKey,
-          },
-        },
-        update: {},
-        create: {
-          id: definition.capabilityId,
-          tenantId,
-          capabilityType: definition.capabilityType,
-          targetKey,
-          enabled: definition.enabled,
-          allowedAutonomy: definition.allowedAutonomy,
-          templateKey: definition.templateKey,
-          templateVersion: definition.templateVersion,
-          serverOwned: definition.serverOwned,
-        },
-      });
-    }
+    await db.knowledgeV2Capability.createMany({
+      data: defaults.map((definition) => ({
+        id: definition.capabilityId,
+        tenantId,
+        capabilityType: definition.capabilityType,
+        targetKey,
+        enabled: definition.enabled,
+        allowedAutonomy: definition.allowedAutonomy,
+        templateKey: definition.templateKey,
+        templateVersion: definition.templateVersion,
+        serverOwned: definition.serverOwned,
+      })),
+      skipDuplicates: true,
+    });
     const capabilities = await db.knowledgeV2Capability.findMany({
       where: { tenantId, targetKey },
       select: { id: true, capabilityType: true },
@@ -851,53 +842,81 @@ export class KnowledgeV2CapabilityService {
     const capabilityIds = Object.fromEntries(
       capabilities.map((capability) => [capability.capabilityType, capability.id]),
     ) as Partial<Record<KnowledgeCapabilityTypeV1, string>>;
+    if (defaults.some((definition) => !capabilityIds[definition.capabilityType])) {
+      throw knowledgeV2Error(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        "KNOWLEDGE_DEPENDENCY_CAPABILITY_SNAPSHOT_INVALID",
+        "Default capabilities could not be reconciled.",
+      );
+    }
     const completeDefaults = buildDefaultKnowledgeCapabilityDefinitionsV1({
       tenantId,
       capabilityIds,
     });
-    for (const capability of completeDefaults) {
-      const capabilityId = capabilityIds[capability.capabilityType];
-      if (!capabilityId) continue;
-      for (const requirement of capability.requirements) {
-        await db.knowledgeV2RequirementDefinition.upsert({
-          where: {
-            tenantId_capabilityId_requirementKey_definitionVersion: {
-              tenantId,
-              capabilityId,
-              requirementKey: requirement.requirementKey,
-              definitionVersion: requirement.definitionVersion,
-            },
-          },
-          update: {},
-          create: {
-            id: `kvr_v1_${canonicalKnowledgeV2Hash({
-              capabilityId,
-              requirementKey: requirement.requirementKey,
-              definitionVersion: requirement.definitionVersion,
-            }).slice(0, 32)}`,
-            tenantId,
-            capabilityId,
-            requirementKey: requirement.requirementKey,
-            definitionVersion: requirement.definitionVersion,
-            kind: requirement.kind,
-            severity: requirement.severity,
-            riskLevel: requirement.riskLevel,
-            active: requirement.active,
-            freshnessSlaSeconds: requirement.freshnessSlaSeconds ?? null,
-            requiredScope: requirement.requiredScope
-              ? inputJson(requirement.requiredScope)
-              : Prisma.DbNull,
-            localeConstraints: requirement.localeConstraints
-              ? inputJson(requirement.localeConstraints)
-              : Prisma.DbNull,
-            satisfactionPredicate: inputJson(requirement.satisfactionPredicate),
-            predicateVersion: requirement.predicateVersion,
-            templateOrigin: requirement.templateOrigin,
-            tenantOverride: requirement.tenantOverride,
-            immutableHash: canonicalKnowledgeV2Hash(requirement),
-          },
-        });
-      }
+    const requirementDefaults = completeDefaults.flatMap((capability) => {
+      const capabilityId = capabilityIds[capability.capabilityType]!;
+      return capability.requirements.map((requirement) => ({
+        id: `kvr_v1_${canonicalKnowledgeV2Hash({
+          capabilityId,
+          requirementKey: requirement.requirementKey,
+          definitionVersion: requirement.definitionVersion,
+        }).slice(0, 32)}`,
+        tenantId,
+        capabilityId,
+        requirementKey: requirement.requirementKey,
+        definitionVersion: requirement.definitionVersion,
+        kind: requirement.kind,
+        severity: requirement.severity,
+        riskLevel: requirement.riskLevel,
+        active: requirement.active,
+        freshnessSlaSeconds: requirement.freshnessSlaSeconds ?? null,
+        requiredScope: requirement.requiredScope
+          ? inputJson(requirement.requiredScope)
+          : Prisma.DbNull,
+        localeConstraints: requirement.localeConstraints
+          ? inputJson(requirement.localeConstraints)
+          : Prisma.DbNull,
+        satisfactionPredicate: inputJson(requirement.satisfactionPredicate),
+        predicateVersion: requirement.predicateVersion,
+        templateOrigin: requirement.templateOrigin,
+        tenantOverride: requirement.tenantOverride,
+        immutableHash: canonicalKnowledgeV2Hash(requirement),
+      }));
+    });
+    await db.knowledgeV2RequirementDefinition.createMany({
+      data: requirementDefaults,
+      skipDuplicates: true,
+    });
+    const persistedRequirements = await db.knowledgeV2RequirementDefinition.findMany({
+      where: {
+        tenantId,
+        capabilityId: { in: capabilities.map((capability) => capability.id) },
+      },
+      select: {
+        capabilityId: true,
+        requirementKey: true,
+        definitionVersion: true,
+      },
+    });
+    const persistedRequirementKeys = new Set(
+      persistedRequirements.map(
+        (requirement) =>
+          `${requirement.capabilityId}:${requirement.requirementKey}:${requirement.definitionVersion}`,
+      ),
+    );
+    if (
+      requirementDefaults.some(
+        (requirement) =>
+          !persistedRequirementKeys.has(
+            `${requirement.capabilityId}:${requirement.requirementKey}:${requirement.definitionVersion}`,
+          ),
+      )
+    ) {
+      throw knowledgeV2Error(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        "KNOWLEDGE_DEPENDENCY_CAPABILITY_SNAPSHOT_INVALID",
+        "Default capability requirements could not be reconciled.",
+      );
     }
   }
 

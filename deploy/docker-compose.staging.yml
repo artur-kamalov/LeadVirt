@@ -8,7 +8,6 @@ x-leadvirt-app: &leadvirt-app
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:?set NEXT_PUBLIC_APP_URL}
       NEXT_PUBLIC_WEB_URL: ${NEXT_PUBLIC_WEB_URL:?set NEXT_PUBLIC_WEB_URL}
       NEXT_PUBLIC_DEMO_MODE: ${NEXT_PUBLIC_DEMO_MODE:-false}
-      NEXT_PUBLIC_TELEGRAM_LOGIN_BOT: ${NEXT_PUBLIC_TELEGRAM_LOGIN_BOT:-}
   restart: unless-stopped
 
 x-leadvirt-runtime: &leadvirt-runtime

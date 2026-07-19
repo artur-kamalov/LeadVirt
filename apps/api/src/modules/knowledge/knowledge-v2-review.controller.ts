@@ -32,11 +32,16 @@ import {
 import { requireIdempotencyKey, requireIfMatch } from "./knowledge-v2-http.js";
 import { KnowledgeV2ReviewService } from "./knowledge-v2-review.service.js";
 import { KnowledgeV2BulkReviewService } from "./knowledge-v2-bulk-review.service.js";
-import { knowledgeV2ValidationPipe } from "./knowledge-v2-validation.pipe.js";
+import {
+  createKnowledgeV2ValidationPipe,
+  knowledgeV2ValidationPipe,
+} from "./knowledge-v2-validation.pipe.js";
 
 type HeaderValue = string | string[] | undefined;
 
 const reviewRoles = ["OWNER", "ADMIN", "MANAGER"] as const;
+const reviewItemListQueryPipe = createKnowledgeV2ValidationPipe(KnowledgeV2ReviewItemListQueryDto);
+const conflictListQueryPipe = createKnowledgeV2ValidationPipe(KnowledgeV2ConflictListQueryDto);
 
 function mutationHeaders(idempotencyKey: HeaderValue, ifMatch: HeaderValue) {
   return {
@@ -60,7 +65,7 @@ export class KnowledgeV2ReviewController {
   @Get("review-items")
   async reviewItems(
     @CurrentContext() context: RequestContext,
-    @Query() query: KnowledgeV2ReviewItemListQueryDto,
+    @Query(reviewItemListQueryPipe) query: KnowledgeV2ReviewItemListQueryDto,
   ) {
     return { data: await this.reviews.listReviewItems(context, query) };
   }
@@ -90,11 +95,7 @@ export class KnowledgeV2ReviewController {
     response.setHeader("Cache-Control", "no-store, private");
     response.setHeader("Pragma", "no-cache");
     return {
-      data: await this.bulkReviews.execute(
-        context,
-        dto,
-        requireIdempotencyKey(idempotencyKey),
-      ),
+      data: await this.bulkReviews.execute(context, dto, requireIdempotencyKey(idempotencyKey)),
     };
   }
 
@@ -178,7 +179,7 @@ export class KnowledgeV2ReviewController {
   @Get("conflicts")
   async conflicts(
     @CurrentContext() context: RequestContext,
-    @Query() query: KnowledgeV2ConflictListQueryDto,
+    @Query(conflictListQueryPipe) query: KnowledgeV2ConflictListQueryDto,
   ) {
     return { data: await this.reviews.listConflicts(context, query) };
   }

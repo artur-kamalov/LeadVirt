@@ -15,7 +15,11 @@ import { RolesGuard } from "../../common/guards/roles.guard.js";
 import type { RequestContext } from "../../common/request-context.js";
 import { WorkspaceAuthGuard } from "../auth/workspace-auth.guard.js";
 import { knowledgeV2ValidationPipe } from "../knowledge/knowledge-v2-validation.pipe.js";
-import { CompleteOnboardingStepDto, UpdateOnboardingDto } from "./dto/update-onboarding.dto.js";
+import {
+  AdvanceOnboardingDto,
+  CompleteOnboardingStepDto,
+  UpdateOnboardingDto,
+} from "./dto/update-onboarding.dto.js";
 import { OnboardingService } from "./onboarding.service.js";
 
 type HeaderValue = string | string[] | undefined;
@@ -50,6 +54,17 @@ export class OnboardingController {
     @Body() dto: CompleteOnboardingStepDto,
   ) {
     const data = await this.onboardingService.completeStep(context, dto);
+    return { data };
+  }
+
+  @Post("advance")
+  @Roles("OWNER", "ADMIN", "MANAGER")
+  async advance(
+    @CurrentContext() context: RequestContext,
+    @Body() dto: AdvanceOnboardingDto,
+    @Headers("if-match") ifMatch: HeaderValue,
+  ) {
+    const data = await this.onboardingService.advance(context, dto, ifMatch);
     return { data };
   }
 }

@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Route } from "@playwright/test";
+import { expect, test, type Locator, type Page, type Route } from "@playwright/test";
 import type {
   BusinessProfileData,
   BusinessProfilePatchRequest,
@@ -8,6 +8,13 @@ import { loginAsCleanUser } from "./helpers/auth";
 
 const webBase = process.env.LEADVIRT_WEB_BASE ?? "http://localhost:3001";
 const apiBase = process.env.LEADVIRT_API_BASE ?? "http://localhost:4001/api";
+
+async function expectTouchTarget(locator: Locator) {
+  await expect(locator).toBeVisible();
+  const box = await locator.boundingBox();
+  expect(box).not.toBeNull();
+  expect(Math.min(box!.width, box!.height)).toBeGreaterThanOrEqual(44);
+}
 
 interface CapturedPatch {
   body: BusinessProfilePatchRequest;
@@ -385,6 +392,7 @@ test("legacy notes cannot look complete while structured services and schedule a
   profile.servicesCatalog = "Consultations from EUR 45 and signature sessions from EUR 120.";
   profile.hours = "Open every day from 10:00 to 21:00.";
   await installMocks(page, { profile });
+  await page.setViewportSize({ width: 390, height: 844 });
   await openBusinessProfile(page);
 
   await expect(page.getByText("Needs details", { exact: true })).toBeVisible();
@@ -393,6 +401,31 @@ test("legacy notes cannot look complete while structured services and schedule a
   await expect(page.getByTestId("business-profile-schedule-warning")).toContainText(
     "no working days are enabled",
   );
+
+  const attention = page.getByTestId("business-profile-attention");
+  for (const control of [
+    page.getByRole("button", { name: "Refresh Knowledge", exact: true }),
+    attention.getByRole("button", { name: "Add service", exact: true }),
+    attention.getByRole("button", { name: "Open schedule", exact: true }),
+    page.getByTestId("business-profile-add-service"),
+  ]) {
+    await expectTouchTarget(control);
+  }
+
+  await page.getByTestId("knowledge-business-advanced").locator("summary").click();
+  for (const control of [
+    page.getByRole("combobox", { name: "Primary language", exact: true }),
+    page.getByRole("combobox", { name: "Filter by verification state", exact: true }),
+    page.getByRole("combobox", { name: "Filter by risk level", exact: true }),
+    page.getByRole("button", { name: "Refresh facts", exact: true }),
+  ]) {
+    await expectTouchTarget(control);
+  }
+  const addFactActions = page.getByRole("button", { name: "Add fact", exact: true });
+  await expect(addFactActions).toHaveCount(2);
+  for (let index = 0; index < 2; index += 1) {
+    await expectTouchTarget(addFactActions.nth(index));
+  }
 
   await page
     .getByTestId("business-profile-attention")
@@ -611,6 +644,5 @@ test("demo business profile uses a concise mobile product title", async ({ conte
   await page.goto(`${webBase}/demo/knowledge?view=business`, { waitUntil: "domcontentloaded" });
 
   await expect(page.getByTestId("business-profile-editor")).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator("header h1").first()).toHaveText("Knowledge");
-  await expect(page.locator("header h1").first()).not.toHaveText("Business knowledge");
+  await expect(page.locator("header h1").first()).toHaveAccessibleName("Knowledge");
 });
