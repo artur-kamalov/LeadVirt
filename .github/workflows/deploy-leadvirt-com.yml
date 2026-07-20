@@ -171,6 +171,9 @@ jobs:
       - name: Verify domain migration
         run: corepack pnpm run qa:domain-migration
 
+      - name: Verify shared Master Budet edge
+        run: python3 deploy/verify-masterbudet-shared-edge.py deploy/nginx.https.conf
+
       - name: Verify AI quality gate
         run: corepack pnpm run qa:ai:quality
 

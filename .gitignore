@@ -10,6 +10,8 @@ test-results
 .env.*.local
 *.log
 *.pid
+__pycache__/
+*.py[cod]
 artifacts/screenshots
 artifacts/reports
 artifacts/.knowledge-acceptance

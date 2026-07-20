@@ -1,5 +1,43 @@
 # Decision Log
 
+## 2026-07-20: Throttle Master Budet Customer Phone Auth Before Proxying
+
+Decision: The canonical shared edge applies one direct-client-IP bucket to POST requests on the three exact Master Budet customer OTP routes: request, web verify, and mobile verify. The bucket runs at `30r/m` with `burst=10` and returns stable no-store JSON `429 CUSTOMER_AUTH_RATE_LIMITED` with `Retry-After: 2`.
+
+Context: OTP service limits and database locks protect business invariants, but unknown challenge IDs could still force avoidable application and database work. The edge needs a bounded pre-proxy control without charging strict-routing misses or harmless unsupported methods.
+
+Consequences:
+
+- A legitimate request plus the supported verification/retry flow fits the immediate burst; backend route-specific limits remain the finer defense in depth.
+- The nginx key is empty for every method except POST, and only exact lowercase, no-trailing-slash locations use the zone. Other variants keep the backend's strict `404`/method behavior without consuming this bucket.
+- Both standalone and shared-edge semantic gates reject a relaxed rate/burst, trusted-IP drift, handler drift, route widening/duplication, or leakage into the generic API proxy before nginx syntax preflight or deployment mutation.
+- The protection is prepared but not live until independently committed and deployed; distributed source abuse still needs upstream infrastructure controls.
+
+## 2026-07-20: Enforce Master Budet Guest-Lookup Throttling At The Shared Edge
+
+Decision: The canonical LeadVirt nginx configuration owns the outer Master Budet guest-lookup throttle because this shared edge, not Master Budet's standalone nginx service, owns public ports 80/443 on `193.187.92.88`. It limits the order/client lookup paths to `12r/m` with `burst=4`, returns stable JSON `429`, and replaces inbound `X-Forwarded-For` with the direct peer address.
+
+Context: Backend Argon2 verification is intentionally expensive. A backend cost limiter provides defense in depth, but the current production topology also needs a pre-proxy limit in this repository. Case-sensitive backend routing rejects mixed-case paths that would otherwise fall through nginx's lowercase prefix locations.
+
+Consequences:
+
+- `deploy/verify-masterbudet-shared-edge.py` checks the semantic route/limit/XFF contract in CI and again before the HTTPS config is copied during deployment; normal deployment still runs `nginx -t`.
+- Master Budet backend and this LeadVirt edge remain independently deployed. The protection is not live until both changes are committed/deployed and the Master Budet production env has exact `TRUST_PROXY_HOPS=1`.
+- The limit is per direct client IP at one shared edge; distributed DDoS mitigation remains a separate infrastructure concern.
+
+## 2026-07-20: Bound Master Budet Public Upload Intake At The Shared Edge
+
+Decision: The canonical shared edge gives the exact Master Budet public order-photo endpoint its own client-IP request zone, six-photo-compatible burst allowance, 6 MiB request-body ceiling, stable upload-specific `429` response, and direct-peer `X-Forwarded-For` overwrite. It does not apply this policy to authenticated master/document uploads or LeadVirt routes.
+
+Context: Updating Multer closes parser and aborted-upload cleanup vulnerabilities, but an unauthenticated client could still submit repeated valid 5 MiB files to local disk. The customer order journey legitimately uploads up to six photos in one short burst, so a generic low-burst limit would break a supported flow.
+
+Consequences:
+
+- With an empty client-IP bucket, the first request plus `burst=7` admits the six supported customer photos and two immediate retries. Customers behind the same NAT/shared Wi-Fi consume one bucket, and an exhausted bucket refills at one request per minute.
+- Edge `429` uses `PUBLIC_UPLOAD_RATE_LIMITED` and `Retry-After: 60`, distinct from the guest lookup contract; edge-rejected bodies return the same stable `413 PUBLIC_UPLOAD_TOO_LARGE`, 5 MiB maximum and message as the backend instead of an HTML or Nest-default error page.
+- The semantic verifier must reject a missing/relaxed zone, location, body limit, error contract, trusted-IP overwrite, or generic-proxy ordering regression before deployment copies the candidate config.
+- Distributed abuse, storage quotas/alerts, scheduled orphan cleanup and private object storage remain Master Budet operational responsibilities; this edge limit is a bounded defense, not a claim that disk exhaustion is impossible.
+
 ## 2026-07-19: Make Interactive State And Destinations Programmatic
 
 Decision: Product navigation uses real links when a destination exists; selected controls expose `aria-pressed` or `aria-current`; repeated actions include their provider or plan in the accessible name; and dialogs restore focus only to a stable, still-connected trigger. Mobile form and switch targets are at least 44px, while compact desktop icon actions remain at least 32px.

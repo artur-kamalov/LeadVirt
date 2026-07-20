@@ -211,6 +211,8 @@ finally:
         pass
 PY
 
+python3 "$RELEASE_ROOT/deploy/verify-masterbudet-shared-edge.py" \
+  "$RELEASE_ROOT/deploy/nginx.https.conf"
 cp "$RELEASE_ROOT/deploy/nginx.https.conf" "$RELEASE_ROOT/deploy/nginx.conf"
 
 if [ -n "$active_root" ] && [ -f "$active_root/deploy/docker-compose.staging.yml" ]; then
