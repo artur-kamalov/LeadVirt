@@ -346,6 +346,6 @@ test("mobile integration readiness and Telegram links keep 44px targets", async 
 
   const botLink = page.getByTestId("telegram-card-open-bot");
   await expectTouchTarget(botLink);
-  await expect(botLink).toHaveAttribute("href", "https://t.me/studio_leto_bot?start=leadvirt");
+  await expect(botLink).toHaveAttribute("href", "https://t.me/studio_leto_bot");
   await expectNoGlobalOverflow(page);
 });
