@@ -387,6 +387,90 @@ try {
     repeatedArtifactKey.status === 0 && read(artifactKeyFixture) === canonicalizedArtifactEnv,
     "Expected artifact key canonicalization to be idempotent.",
   );
+  const duplicateArtifactKeyFixture = join(tempDir, "duplicate-artifact-key.env");
+  const shadowedArtifactKey = "invalid-shadowed-value";
+  writeFileSync(
+    duplicateArtifactKeyFixture,
+    `KNOWLEDGE_ARTIFACT_ENCRYPTION_KEY=${shadowedArtifactKey}\nUNCHANGED_DUPLICATE=value\nKNOWLEDGE_ARTIFACT_ENCRYPTION_KEY='${nonCanonicalArtifactKey}'\n`,
+    { mode: 0o640 },
+  );
+  const normalizedDuplicateArtifactKey = runNode(
+    "artifacts/scripts/knowledge-artifact-key-canonicalize.mjs",
+    {},
+    [duplicateArtifactKeyFixture],
+  );
+  const normalizedDuplicateArtifactEnv = read(duplicateArtifactKeyFixture);
+  assert(
+    normalizedDuplicateArtifactKey.status === 0 &&
+      (normalizedDuplicateArtifactEnv.match(/^KNOWLEDGE_ARTIFACT_ENCRYPTION_KEY=/gmu)?.length ??
+        0) === 1 &&
+      normalizedDuplicateArtifactEnv.includes("UNCHANGED_DUPLICATE=value\n") &&
+      normalizedDuplicateArtifactEnv.includes(
+        `KNOWLEDGE_ARTIFACT_ENCRYPTION_KEY='${canonicalArtifactKey}'\n`,
+      ) &&
+      !normalizedDuplicateArtifactEnv.includes(shadowedArtifactKey) &&
+      !normalizedDuplicateArtifactKey.stdout.includes(shadowedArtifactKey) &&
+      !normalizedDuplicateArtifactKey.stderr.includes(shadowedArtifactKey) &&
+      !normalizedDuplicateArtifactKey.stdout.includes(canonicalArtifactKey) &&
+      !normalizedDuplicateArtifactKey.stderr.includes(canonicalArtifactKey) &&
+      !normalizedDuplicateArtifactKey.stdout.includes(nonCanonicalArtifactKey) &&
+      !normalizedDuplicateArtifactKey.stderr.includes(nonCanonicalArtifactKey),
+    `Expected last-wins duplicate normalization without changing the effective key: ${normalizedDuplicateArtifactKey.stderr}`,
+  );
+  const canonicalDuplicateArtifactKeyFixture = join(
+    tempDir,
+    "canonical-duplicate-artifact-key.env",
+  );
+  const canonicalDuplicateArtifactKeyContents =
+    ` KNOWLEDGE_ARTIFACT_ENCRYPTION_KEY = invalid-shadowed-value\r\n` +
+    `PRESERVED_CRLF=value\r\n` +
+    ` KNOWLEDGE_ARTIFACT_ENCRYPTION_KEY = "${canonicalArtifactKey}" \r\n`;
+  writeFileSync(canonicalDuplicateArtifactKeyFixture, canonicalDuplicateArtifactKeyContents, {
+    mode: 0o640,
+  });
+  const normalizedCanonicalDuplicateArtifactKey = runNode(
+    "artifacts/scripts/knowledge-artifact-key-canonicalize.mjs",
+    {},
+    [canonicalDuplicateArtifactKeyFixture],
+  );
+  assert(
+    normalizedCanonicalDuplicateArtifactKey.status === 0 &&
+      read(canonicalDuplicateArtifactKeyFixture) ===
+        `PRESERVED_CRLF=value\r\n KNOWLEDGE_ARTIFACT_ENCRYPTION_KEY = "${canonicalArtifactKey}" \r\n`,
+    `Expected canonical last-wins duplicates to collapse while preserving CRLF and formatting: ${normalizedCanonicalDuplicateArtifactKey.stderr}`,
+  );
+  const invalidEffectiveArtifactKeyFixture = join(tempDir, "invalid-effective-artifact-key.env");
+  const invalidEffectiveArtifactKeyContents =
+    `KNOWLEDGE_ARTIFACT_ENCRYPTION_KEY=${canonicalArtifactKey}\n` +
+    `KNOWLEDGE_ARTIFACT_ENCRYPTION_KEY=invalid-effective-value\n`;
+  writeFileSync(invalidEffectiveArtifactKeyFixture, invalidEffectiveArtifactKeyContents, {
+    mode: 0o640,
+  });
+  const invalidEffectiveArtifactKey = runNode(
+    "artifacts/scripts/knowledge-artifact-key-canonicalize.mjs",
+    {},
+    [invalidEffectiveArtifactKeyFixture],
+  );
+  assert(
+    invalidEffectiveArtifactKey.status !== 0 &&
+      read(invalidEffectiveArtifactKeyFixture) === invalidEffectiveArtifactKeyContents &&
+      !invalidEffectiveArtifactKey.stdout.includes(canonicalArtifactKey) &&
+      !invalidEffectiveArtifactKey.stderr.includes(canonicalArtifactKey),
+    "Expected an invalid effective last assignment to fail without falling back or modifying the file.",
+  );
+  const missingArtifactKeyFixture = join(tempDir, "missing-artifact-key.env");
+  const missingArtifactKeyContents = "UNCHANGED_MISSING=value\n";
+  writeFileSync(missingArtifactKeyFixture, missingArtifactKeyContents, { mode: 0o640 });
+  const missingArtifactKey = runNode(
+    "artifacts/scripts/knowledge-artifact-key-canonicalize.mjs",
+    {},
+    [missingArtifactKeyFixture],
+  );
+  assert(
+    missingArtifactKey.status !== 0 &&
+      read(missingArtifactKeyFixture) === missingArtifactKeyContents,
+    "Expected a missing assignment to fail without modifying the file.",
+  );
   const invalidArtifactKeyFixture = join(tempDir, "invalid-artifact-key.env");
   writeFileSync(invalidArtifactKeyFixture, "KNOWLEDGE_ARTIFACT_ENCRYPTION_KEY=invalid\n", {
     mode: 0o640,

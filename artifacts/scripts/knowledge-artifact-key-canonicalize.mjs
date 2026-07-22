@@ -7,6 +7,20 @@ function fail(code) {
   process.exit(1);
 }
 
+function findKeyAssignments(lines) {
+  const assignments = [];
+  for (const [index, line] of lines.entries()) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const separator = line.indexOf("=");
+    if (separator <= 0) continue;
+    if (line.slice(0, separator).trim() === "KNOWLEDGE_ARTIFACT_ENCRYPTION_KEY") {
+      assignments.push({ index, line, separator });
+    }
+  }
+  return assignments;
+}
+
 const envPath = process.argv[2];
 if (!envPath || !isAbsolute(envPath)) fail("KNOWLEDGE_ARTIFACT_ENV_PATH_INVALID");
 
@@ -26,20 +40,11 @@ if (contents.includes("\0")) fail("KNOWLEDGE_ARTIFACT_ENV_FILE_INVALID");
 
 const lineEnding = contents.includes("\r\n") ? "\r\n" : "\n";
 const lines = contents.split(/\r?\n/u);
-const assignments = [];
-for (const [index, line] of lines.entries()) {
-  const trimmed = line.trim();
-  if (!trimmed || trimmed.startsWith("#")) continue;
-  const separator = line.indexOf("=");
-  if (separator <= 0) continue;
-  if (line.slice(0, separator).trim() === "KNOWLEDGE_ARTIFACT_ENCRYPTION_KEY") {
-    assignments.push({ index, line, separator });
-  }
-}
+const assignments = findKeyAssignments(lines);
 
-if (assignments.length !== 1) fail("KNOWLEDGE_ARTIFACT_ENCRYPTION_KEY_ASSIGNMENT_INVALID");
+if (assignments.length === 0) fail("KNOWLEDGE_ARTIFACT_ENCRYPTION_KEY_ASSIGNMENT_INVALID");
 
-const assignment = assignments[0];
+const assignment = assignments[assignments.length - 1];
 const rawValue = assignment.line.slice(assignment.separator + 1);
 const leadingWhitespace = rawValue.match(/^\s*/u)?.[0] ?? "";
 const trailingWhitespace = rawValue.match(/\s*$/u)?.[0] ?? "";
@@ -60,14 +65,20 @@ const keyBytes = Buffer.from(value, "base64");
 if (keyBytes.byteLength !== 32) fail("KNOWLEDGE_ARTIFACT_ENCRYPTION_KEY_INVALID");
 const canonicalValue = keyBytes.toString("base64");
 
-if (canonicalValue === value) {
+const shadowedAssignmentIndexes = new Set(assignments.slice(0, -1).map(({ index }) => index));
+if (canonicalValue === value && shadowedAssignmentIndexes.size === 0) {
   console.log("PASS: knowledge artifact encryption key is canonical.");
   process.exit(0);
 }
 
 lines[assignment.index] =
   `${assignment.line.slice(0, assignment.separator + 1)}${leadingWhitespace}${quote}${canonicalValue}${quote}${trailingWhitespace}`;
-const updatedContents = lines.join(lineEnding);
+const updatedLines = lines.filter((_, index) => !shadowedAssignmentIndexes.has(index));
+const updatedAssignments = findKeyAssignments(updatedLines);
+if (updatedAssignments.length !== 1 || updatedAssignments[0].line !== lines[assignment.index]) {
+  fail("KNOWLEDGE_ARTIFACT_ENV_FILE_UPDATE_FAILED");
+}
+const updatedContents = updatedLines.join(lineEnding);
 const directory = dirname(envPath);
 const temporaryPath = join(directory, `.${basename(envPath)}.${randomUUID()}.tmp`);
 let temporaryHandle;
@@ -97,5 +108,5 @@ try {
 }
 
 console.log(
-  "PASS: knowledge artifact encryption key was canonicalized without changing key bytes.",
+  "PASS: knowledge artifact encryption key assignments were normalized without changing effective key bytes.",
 );

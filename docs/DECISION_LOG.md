@@ -2,13 +2,14 @@
 
 ## 2026-07-22: Canonicalize The Legacy Artifact Key Without Rotation
 
-Decision: Before strict production readiness, deployment canonicalizes the existing artifact encryption key's base64 text only when it decodes to exactly 32 bytes. The decoded key bytes and key ID do not change. Missing, structurally invalid, duplicate, or unreadable assignments fail closed instead of generating or rotating a key.
+Decision: Before strict production readiness, deployment canonicalizes the effective artifact encryption key's base64 text only when it decodes to exactly 32 bytes. Multiple exact assignments are normalized with the existing Compose and env-parser last-wins semantics: the last assignment is retained and earlier shadowed assignments are removed. The effective decoded key bytes and key ID do not change. Missing or unreadable key assignments and structurally invalid effective values fail closed instead of generating or rotating a key.
 
-Context: The first CSV rollout deploy passed the legacy regex-only staging check but the candidate API rejected the key because re-encoding was not canonical. The release aborted before drain and restored the previous production state.
+Context: The first CSV rollout deploy passed the legacy regex-only staging check but the candidate API rejected the key because re-encoding was not canonical. The retry exposed multiple exact key assignments in the production env file. Both releases aborted before drain and preserved the previous production state.
 
 Consequences:
 
 - The secret env file is replaced atomically with its original mode and owner, file and directory data are synced, and no key material is printed.
+- Shadowed duplicate assignments are removed only after the effective last value passes the complete key contract; malformed effective values still stop deployment without modifying the file.
 - The canonicalizer runs in a pinned, networkless, read-only container with write access only to the mounted secret directory and only the capabilities required for atomic owner-preserving replacement.
 - The normal staging validator now enforces the same canonical 32-byte base64 contract as application runtime and candidate rollout readiness.
 - This migration cannot repair an absent or malformed key and never creates a new cryptographic key automatically.
