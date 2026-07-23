@@ -21,6 +21,8 @@ import type {
   BusinessImportPage,
   BusinessImportRebaseRequest,
   BusinessImportRetryRequest,
+  BusinessImportSourceListQuery,
+  BusinessImportSourcePage,
   BusinessImportUploadIntentView,
   BusinessImportUploadReceiptView,
   BusinessImportView,
@@ -84,6 +86,10 @@ export function getBusinessImportTemplates() {
 
 export function listBusinessImports(query: BusinessImportListQuery = {}) {
   return apiData<BusinessImportPage>(withQuery(basePath, query));
+}
+
+export function listBusinessImportSources(query: BusinessImportSourceListQuery = {}) {
+  return apiData<BusinessImportSourcePage>(withQuery(`${basePath}/sources`, query));
 }
 
 export function createBusinessImportIntent(

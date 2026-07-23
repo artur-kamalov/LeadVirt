@@ -1,5 +1,6 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
 import type {
+  BusinessImportSourceView,
   KnowledgeV2DocumentView,
   KnowledgeV2JobView,
   KnowledgeV2OverviewView,
@@ -24,6 +25,7 @@ interface CapturedMutation {
 }
 
 interface SourceMockState {
+  catalogSource: BusinessImportSourceView | null;
   source: KnowledgeV2SourceView | null;
   document: KnowledgeV2DocumentView;
   revision: KnowledgeV2RevisionView;
@@ -169,6 +171,63 @@ function source(): KnowledgeV2SourceView {
     updatedAt: "2026-07-12T12:00:00.000Z",
     tombstonedAt: null,
     deletedAt: null,
+  };
+}
+
+function catalogSource(): BusinessImportSourceView {
+  return {
+    id: "catalog-teplodom",
+    displayName: "Teplodom services",
+    status: "ACTIVE",
+    latestImport: {
+      id: "import-teplodom-v2",
+      sourceId: "catalog-teplodom",
+      sourceName: "Teplodom services",
+      format: "CSV",
+      state: "APPLIED",
+      generation: 2,
+      etag: '"business-import-teplodom-2"',
+      originalFilename: "teplodom_services.csv",
+      schemaVersion: "services-v1",
+      baseBusinessInformationRevision: 1,
+      counts: {
+        total: 30,
+        valid: 30,
+        invalid: 0,
+        additions: 30,
+        updates: 0,
+        linked: 0,
+        unchanged: 0,
+        conflicts: 0,
+        pendingApproval: 0,
+        applied: 30,
+      },
+      diagnostics: [],
+      projection: {
+        businessInformationRevision: 2,
+        knowledgeDraftGeneration: 4,
+        ready: true,
+        errorCode: null,
+      },
+      allowedActions: [],
+      applyEligibility: {
+        eligible: false,
+        selectedCandidates: 0,
+        blockingConflicts: 0,
+        blockingInvalid: 0,
+        pendingApprovals: 0,
+        staleCandidates: 0,
+        reasonCodes: ["BUSINESS_IMPORT_NO_SELECTED_CHANGES"],
+      },
+      retryable: false,
+      errorCode: null,
+      createdAt: "2026-07-23T12:00:00.000Z",
+      updatedAt: "2026-07-23T12:03:00.000Z",
+      reviewReadyAt: "2026-07-23T12:01:00.000Z",
+      appliedAt: "2026-07-23T12:03:00.000Z",
+    },
+    createdAt: "2026-07-23T12:00:00.000Z",
+    updatedAt: "2026-07-23T12:03:00.000Z",
   };
 }
 
@@ -339,6 +398,7 @@ function mutation(request: ReturnType<Route["request"]>): CapturedMutation {
 async function installMocks(
   page: Page,
   options: {
+    catalog?: boolean;
     empty?: boolean;
     unavailable?: boolean;
     conflictNextPause?: boolean;
@@ -347,6 +407,7 @@ async function installMocks(
   } = {},
 ) {
   const state: SourceMockState = {
+    catalogSource: options.catalog ? catalogSource() : null,
     source: options.empty ? null : source(),
     document: document(),
     revision: revision(),
@@ -363,6 +424,20 @@ async function installMocks(
     fileFailure: options.fileFailure ?? "NONE",
     fileUploads: [],
   };
+
+  await page.route("**/api/business-profile/imports/sources**", async (route) => {
+    const request = route.request();
+    if (request.method() !== "GET") {
+      await fulfill(route, { error: { code: "HTTP_ERROR", message: "Method not allowed" } }, 405);
+      return;
+    }
+    await fulfill(route, {
+      data: {
+        items: state.catalogSource ? [state.catalogSource] : [],
+        nextCursor: null,
+      },
+    });
+  });
 
   await page.route("**/api/knowledge/v2/**", async (route) => {
     const request = route.request();
@@ -457,7 +532,10 @@ async function installMocks(
       );
       return;
     }
-    if (/^\/api\/knowledge\/v2\/file-uploads\/file-intent-\d+\/content$/u.test(pathname) && method === "PUT") {
+    if (
+      /^\/api\/knowledge\/v2\/file-uploads\/file-intent-\d+\/content$/u.test(pathname) &&
+      method === "PUT"
+    ) {
       state.fileUploads.push({
         url: request.url(),
         authorization: request.headers().authorization,
@@ -465,16 +543,23 @@ async function installMocks(
         cookie: request.headers().cookie,
         bytes: request.postDataBuffer()?.byteLength ?? 0,
       });
-      await fulfill(route, {
-        data: {
-          uploadIntentId: pathname.split("/").at(-2),
-          status: "UPLOADED",
-          uploadedAt: "2026-07-12T12:01:00.000Z",
+      await fulfill(
+        route,
+        {
+          data: {
+            uploadIntentId: pathname.split("/").at(-2),
+            status: "UPLOADED",
+            uploadedAt: "2026-07-12T12:01:00.000Z",
+          },
         },
-      }, 201);
+        201,
+      );
       return;
     }
-    if (/^\/api\/knowledge\/v2\/file-uploads\/file-intent-\d+\/complete$/u.test(pathname) && method === "POST") {
+    if (
+      /^\/api\/knowledge\/v2\/file-uploads\/file-intent-\d+\/complete$/u.test(pathname) &&
+      method === "POST"
+    ) {
       state.mutations.push(mutation(request));
       state.fileCompleteCount += 1;
       if (state.fileFailure === "SCANNER_ONCE" && state.fileCompleteCount === 1) {
@@ -780,6 +865,43 @@ async function authenticate(page: Page, locale: QaLocale = "en") {
   await loginAsCleanUser(page, apiBase, { locale });
 }
 
+test("structured service catalog remains visible when document sources are empty", async ({
+  page,
+}) => {
+  await authenticate(page);
+  await installMocks(page, { empty: true, catalog: true });
+  await page.goto(`${webBase}/app/knowledge?view=sources`, { waitUntil: "domcontentloaded" });
+
+  const catalog = page.getByTestId("knowledge-catalog-source-catalog-teplodom");
+  await expect(catalog).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("knowledge-catalog-sources")).toContainText("1 catalog");
+  await expect(catalog).toContainText("Teplodom services");
+  await expect(catalog).toContainText("teplodom_services.csv");
+  await expect(catalog).toContainText("30");
+  await expect(catalog).toContainText("Applied");
+  await expect(page.getByText("No websites or knowledge files yet")).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) -
+          document.documentElement.clientWidth,
+      ),
+    )
+    .toBeLessThanOrEqual(1);
+  await expect(catalog.getByRole("link", { name: "Open import" })).toBeVisible();
+  await page.screenshot({
+    path: "artifacts/screenshots/knowledge-service-catalog-mobile.png",
+    fullPage: true,
+    animations: "disabled",
+  });
+
+  await catalog.getByRole("link", { name: "Open import" }).click();
+  await expect(page).toHaveURL(/\/app\/knowledge\/imports\/import-teplodom-v2$/u);
+});
+
 test("website source stays an unpublished draft and revision exclusion uses ETag and idempotency", async ({
   page,
 }) => {
@@ -799,7 +921,7 @@ test("website source stays an unpublished draft and revision exclusion uses ETag
         .map((element) => element.getBoundingClientRect())
         .filter(({ height, width }) => height > 0 && width > 0)
         .map(({ height }) => height),
-  );
+    );
   expect(mobileSourceTargetHeights.length).toBeGreaterThanOrEqual(3);
   expect(Math.min(...mobileSourceTargetHeights)).toBeGreaterThanOrEqual(44);
   await page.setViewportSize({ width: 1440, height: 1000 });
@@ -1049,9 +1171,7 @@ test("TXT upload goes directly to the issued API URL and enters durable job reco
     defaultScope: { audiences: ["PUBLIC"] },
   });
   const direct = state.fileUploads[0]!;
-  expect(direct.url).toBe(
-    `${apiBase}/knowledge/v2/file-uploads/file-intent-1/content`,
-  );
+  expect(direct.url).toBe(`${apiBase}/knowledge/v2/file-uploads/file-intent-1/content`);
   expect(new URL(direct.url).origin).toBe(new URL(apiBase).origin);
   expect(direct.authorization).toBe("Bearer signed-file-intent-1");
   expect(direct.contentType).toBe("text/plain");

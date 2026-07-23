@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import React from "react";
 import {
   AlertTriangle,
@@ -12,6 +13,7 @@ import {
   ExternalLink,
   Eye,
   FileText,
+  FileSpreadsheet,
   FileUp,
   Globe2,
   Library,
@@ -27,6 +29,8 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import type {
+  BusinessImportSourcePage,
+  BusinessImportSourceView,
   KnowledgeV2AcceptedMutation,
   KnowledgeV2Audience,
   KnowledgeV2DocumentPage,
@@ -51,6 +55,7 @@ import type {
 import { useI18n } from "@/i18n/I18nProvider";
 import type { TranslationKey } from "@/i18n/messages";
 import { ApiClientError } from "@/lib/api/client";
+import { listBusinessImportSources } from "@/lib/api/business-imports";
 import {
   createKnowledgeV2IdempotencyKey,
   createKnowledgeV2Source,
@@ -70,11 +75,16 @@ import {
   updateKnowledgeV2Source,
   uploadKnowledgeV2File,
 } from "@/lib/api/knowledge";
+import {
+  businessImportStateKeys,
+  businessImportStateTone,
+} from "./imports/businessImportPresentation";
 import { Button } from "../../components/ui/Button";
 import { cn } from "../../lib/utils";
 import { EmptyState, LoadingOverlay, Modal, Select, Spinner, StatusBadge } from "../ui";
 
 const SOURCE_PAGE_SIZE = 25;
+const CATALOG_PAGE_SIZE = 25;
 const DOCUMENT_PAGE_SIZE = 25;
 const REVISION_PAGE_SIZE = 25;
 const JOB_POLL_INTERVAL_MS = 1_500;
@@ -287,7 +297,10 @@ function fileMimeType(file: File) {
 }
 
 function fileDisplayName(file: File) {
-  return file.name.replace(/\.(?:txt|csv)$/iu, "").trim().slice(0, 160);
+  return file.name
+    .replace(/\.(?:txt|csv)$/iu, "")
+    .trim()
+    .slice(0, 160);
 }
 
 function statusTone(
@@ -395,9 +408,7 @@ export function KnowledgeSources({
   const [sourceLoadingMore, setSourceLoadingMore] = React.useState(false);
   const [sourceError, setSourceError] = React.useState<ApiClientError | null>(null);
   const [search, setSearch] = React.useState("");
-  const [kindFilter, setKindFilter] = React.useState<"ALL" | "WEBSITE" | "FILE" | "MANUAL">(
-    "ALL",
-  );
+  const [kindFilter, setKindFilter] = React.useState<"ALL" | "WEBSITE" | "FILE" | "MANUAL">("ALL");
   const [statusFilter, setStatusFilter] = React.useState<"ALL" | KnowledgeV2SourceStatus>("ALL");
   const [selectedSourceId, setSelectedSourceId] = React.useState<string | null>(null);
   const [sourceDetail, setSourceDetail] = React.useState<KnowledgeV2SourceView | null>(null);
@@ -406,6 +417,14 @@ export function KnowledgeSources({
   const [conflict, setConflict] = React.useState(false);
   const sourceRequest = React.useRef(0);
   const detailRequest = React.useRef(0);
+
+  const [catalogSources, setCatalogSources] = React.useState<BusinessImportSourceView[]>([]);
+  const [catalogPage, setCatalogPage] = React.useState<BusinessImportSourcePage | null>(null);
+  const catalogPageCursor = React.useRef<string | null>(null);
+  const [catalogLoading, setCatalogLoading] = React.useState(true);
+  const [catalogLoadingMore, setCatalogLoadingMore] = React.useState(false);
+  const [catalogError, setCatalogError] = React.useState<ApiClientError | null>(null);
+  const catalogRequest = React.useRef(0);
 
   const [documents, setDocuments] = React.useState<KnowledgeV2DocumentView[]>([]);
   const [documentPage, setDocumentPage] = React.useState<
@@ -534,6 +553,38 @@ export function KnowledgeSources({
     const timer = window.setTimeout(() => void loadSources(false), search.trim() ? 300 : 0);
     return () => window.clearTimeout(timer);
   }, [loadSources, search]);
+
+  const loadCatalogSources = React.useCallback(
+    async (append = false) => {
+      const sequence = ++catalogRequest.current;
+      if (append) setCatalogLoadingMore(true);
+      else setCatalogLoading(true);
+      try {
+        const page = await listBusinessImportSources({
+          limit: CATALOG_PAGE_SIZE,
+          ...(append && catalogPageCursor.current ? { cursor: catalogPageCursor.current } : {}),
+        });
+        if (sequence !== catalogRequest.current) return;
+        setCatalogSources((current) => (append ? [...current, ...page.items] : page.items));
+        setCatalogPage(page);
+        catalogPageCursor.current = page.nextCursor ?? null;
+        setCatalogError(null);
+      } catch (caught) {
+        if (sequence !== catalogRequest.current) return;
+        setCatalogError(apiError(caught, t("knowledge.sources.catalog.error")));
+      } finally {
+        if (sequence === catalogRequest.current) {
+          setCatalogLoading(false);
+          setCatalogLoadingMore(false);
+        }
+      }
+    },
+    [t],
+  );
+
+  React.useEffect(() => {
+    void loadCatalogSources(false);
+  }, [loadCatalogSources]);
 
   const loadSourceDetail = React.useCallback(
     async (sourceId: string, showLoading = true) => {
@@ -1363,12 +1414,12 @@ export function KnowledgeSources({
   const fileBusy = filePhase !== "IDLE";
   const fileRestartRequired = Boolean(
     fileError &&
-      [
-        "KNOWLEDGE_UPLOAD_INTENT_EXPIRED",
-        "KNOWLEDGE_UPLOAD_INTENT_ALREADY_USED",
-        "KNOWLEDGE_UPLOAD_NOT_READY",
-        "KNOWLEDGE_UPLOAD_MALWARE_DETECTED",
-      ].includes(fileError.code),
+    [
+      "KNOWLEDGE_UPLOAD_INTENT_EXPIRED",
+      "KNOWLEDGE_UPLOAD_INTENT_ALREADY_USED",
+      "KNOWLEDGE_UPLOAD_NOT_READY",
+      "KNOWLEDGE_UPLOAD_MALWARE_DETECTED",
+    ].includes(fileError.code),
   );
 
   return (
@@ -1468,6 +1519,130 @@ export function KnowledgeSources({
           }}
         />
       ) : null}
+
+      <section className="min-w-0" data-testid="knowledge-catalog-sources">
+        <div className="flex flex-col gap-3 pb-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <h3 className="text-base font-semibold text-zinc-100">
+              {t("knowledge.sources.catalog.title")}
+            </h3>
+            <p className="mt-1 max-w-3xl text-sm text-zinc-500">
+              {t("knowledge.sources.catalog.description")}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-zinc-500">
+              {t("knowledge.sources.catalog.count", {
+                count: formatNumber(catalogSources.length),
+              })}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={t("knowledge.sources.refreshList")}
+              onClick={() => void loadCatalogSources(false)}
+              disabled={catalogLoading}
+            >
+              <RefreshCw className={cn("h-4 w-4", catalogLoading && "animate-spin")} />
+            </Button>
+            {canManageSources ? (
+              <Button asChild variant="outline" size="sm">
+                <Link href="/app/knowledge?view=business">
+                  <FileSpreadsheet className="h-4 w-4" />
+                  {t("businessImport.entry.importFile")}
+                </Link>
+              </Button>
+            ) : null}
+          </div>
+        </div>
+
+        {catalogLoading && catalogSources.length === 0 ? (
+          <LoadingOverlay label={t("knowledge.sources.loading")} />
+        ) : catalogError && catalogSources.length === 0 ? (
+          <ErrorState error={catalogError} onRetry={() => void loadCatalogSources(false)} />
+        ) : catalogSources.length === 0 ? (
+          <div className="border-y border-white/10 py-4">
+            <p className="text-sm text-zinc-500">{t("knowledge.sources.catalog.empty")}</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-white/[0.07] border-y border-white/10">
+            {catalogSources.map((source) => {
+              const latest = source.latestImport;
+              return (
+                <article
+                  key={source.id}
+                  className="flex min-w-0 items-center gap-3 py-3"
+                  data-testid={`knowledge-catalog-source-${source.id}`}
+                >
+                  <div className="flex min-w-0 flex-1 items-start gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-emerald-500/20 bg-emerald-500/10">
+                      <FileSpreadsheet className="h-4 w-4 text-emerald-400" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="break-words text-sm font-medium text-zinc-200">
+                          {source.displayName}
+                        </p>
+                        {latest ? (
+                          <StatusBadge status={businessImportStateTone(latest.state)}>
+                            {t(businessImportStateKeys[latest.state])}
+                          </StatusBadge>
+                        ) : null}
+                      </div>
+                      <p className="mt-1 truncate text-xs text-zinc-500">
+                        {latest?.originalFilename ?? t("knowledge.sources.catalog.noImport")}
+                      </p>
+                      {latest ? (
+                        <p className="mt-1 text-xs text-zinc-600">
+                          {t("businessImport.metrics.found")}: {formatNumber(latest.counts.total)}
+                          {" · "}
+                          {formatDate(latest.updatedAt, {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          })}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                  {latest ? (
+                    <Button asChild variant="outline" size="sm" className="shrink-0">
+                      <Link href={`/app/knowledge/imports/${encodeURIComponent(latest.id)}`}>
+                        {t("knowledge.sources.catalog.open")}
+                        <ChevronRight className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  ) : null}
+                </article>
+              );
+            })}
+            {catalogPage?.nextCursor ? (
+              <div className="py-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void loadCatalogSources(true)}
+                  disabled={catalogLoadingMore}
+                >
+                  {catalogLoadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {t("knowledge.sources.loadMore")}
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        )}
+
+        <div className="mt-3 flex items-start gap-2 text-xs text-sky-200/70">
+          <BookOpenText className="mt-0.5 h-4 w-4 shrink-0 text-sky-400" />
+          <p>{t("knowledge.sources.catalog.boundary")}</p>
+        </div>
+      </section>
+
+      <div className="min-w-0">
+        <h3 className="text-base font-semibold text-zinc-100">
+          {t("knowledge.sources.documents.title")}
+        </h3>
+        <p className="mt-1 text-sm text-zinc-500">{t("knowledge.sources.documents.description")}</p>
+      </div>
 
       <div className="grid min-w-0 gap-4 xl:grid-cols-[340px_minmax(0,1fr)]">
         <section className="min-w-0 overflow-hidden rounded-lg border border-white/10 bg-zinc-950/25">
@@ -2140,7 +2315,9 @@ export function KnowledgeSources({
                 </span>
               </div>
             ) : null}
-            {fileFields.file ? <p className="mt-1.5 text-xs text-rose-400">{fileFields.file}</p> : null}
+            {fileFields.file ? (
+              <p className="mt-1.5 text-xs text-rose-400">{fileFields.file}</p>
+            ) : null}
           </div>
 
           <Field
@@ -2213,7 +2390,10 @@ export function KnowledgeSources({
                   setFileAudience(value as KnowledgeV2Audience);
                   clearPendingFileIntent();
                 }}
-                options={(fileClassification === "INTERNAL" ? ["INTERNAL" as const] : audienceValues).map((audience) => ({
+                options={(fileClassification === "INTERNAL"
+                  ? ["INTERNAL" as const]
+                  : audienceValues
+                ).map((audience) => ({
                   value: audience,
                   label: t(audienceKeys[audience]),
                 }))}
@@ -2230,9 +2410,7 @@ export function KnowledgeSources({
               data-testid="knowledge-file-upload-phase"
             >
               <Loader2 className="h-4 w-4 shrink-0 animate-spin text-emerald-400" />
-              <span className="text-sm text-emerald-100">
-                {t(filePhaseKeys[filePhase])}
-              </span>
+              <span className="text-sm text-emerald-100">{t(filePhaseKeys[filePhase])}</span>
             </div>
           ) : null}
         </div>

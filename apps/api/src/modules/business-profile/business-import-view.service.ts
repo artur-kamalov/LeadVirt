@@ -13,6 +13,8 @@ import type {
   BusinessImportDiagnosticView,
   BusinessImportListQuery,
   BusinessImportPage,
+  BusinessImportSourceListQuery,
+  BusinessImportSourcePage,
   BusinessImportView,
   BusinessOfferingPriceType,
   BusinessImportOfferingValue,
@@ -32,6 +34,21 @@ type ImportRecord = Prisma.BusinessImportGetPayload<{
   include: {
     source: true;
     applications: { include: { projectionReceipt: true }; orderBy: { createdAt: "desc" }; take: 1 };
+  };
+}>;
+
+type SourceRecord = Prisma.BusinessImportSourceGetPayload<{
+  include: {
+    latestImport: {
+      include: {
+        source: true;
+        applications: {
+          include: { projectionReceipt: true };
+          orderBy: { createdAt: "desc" };
+          take: 1;
+        };
+      };
+    };
   };
 }>;
 
@@ -316,6 +333,75 @@ export class BusinessImportViewService {
       items,
       nextCursor: last
         ? encodeBusinessImportCursor({ createdAt: last.createdAt, id: last.id })
+        : null,
+    };
+  }
+
+  async listSources(
+    context: RequestContext,
+    query: BusinessImportSourceListQuery,
+  ): Promise<BusinessImportSourcePage> {
+    const cursor = decodeBusinessImportCursor(query.cursor);
+    const limit = Math.min(Math.max(query.limit ?? 25, 1), 100);
+    const search = query.query?.trim();
+    const rows: SourceRecord[] = await this.prisma.businessImportSource.findMany({
+      where: {
+        tenantId: context.tenantId,
+        ...(query.status ? { status: query.status } : {}),
+        ...(search
+          ? {
+              OR: [
+                { displayName: { contains: search, mode: "insensitive" } },
+                {
+                  latestImport: {
+                    is: { originalFilename: { contains: search, mode: "insensitive" } },
+                  },
+                },
+              ],
+            }
+          : {}),
+        ...(cursor
+          ? {
+              AND: {
+                OR: [
+                  { updatedAt: { lt: cursor.createdAt } },
+                  { updatedAt: cursor.createdAt, id: { lt: cursor.id } },
+                ],
+              },
+            }
+          : {}),
+      },
+      include: {
+        latestImport: {
+          include: {
+            source: true,
+            applications: {
+              include: { projectionReceipt: true },
+              orderBy: { createdAt: "desc" },
+              take: 1,
+            },
+          },
+        },
+      },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      take: limit + 1,
+    });
+    const canEdit = canEditBusinessImport(context.role);
+    const items = await Promise.all(
+      rows.slice(0, limit).map(async (row) => ({
+        id: row.id,
+        displayName: row.displayName,
+        status: row.status,
+        latestImport: row.latestImport ? await this.toView(row.latestImport, false, canEdit) : null,
+        createdAt: row.createdAt.toISOString(),
+        updatedAt: row.updatedAt.toISOString(),
+      })),
+    );
+    const last = rows.length > limit ? rows[limit - 1] : undefined;
+    return {
+      items,
+      nextCursor: last
+        ? encodeBusinessImportCursor({ createdAt: last.updatedAt, id: last.id })
         : null,
     };
   }

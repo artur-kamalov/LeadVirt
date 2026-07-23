@@ -6,6 +6,7 @@ import type {
   BusinessImportFormat,
   BusinessImportMappingConfirmRequest,
   BusinessImportMappingView,
+  BusinessImportSourceView,
   BusinessImportView,
   BusinessProfileData,
   BusinessProfileView,
@@ -382,6 +383,8 @@ async function installMocks(
     mappingRequired?: boolean;
     mappingLoadOutcomes?: Array<"SUCCESS" | "FAIL">;
     mappingConfirmOutcomes?: Array<"SUCCESS" | "CONFLICT" | "TRANSIENT">;
+    importSources?: BusinessImportSourceView[];
+    sourceLookupOutcomes?: Array<"SUCCESS" | "FAIL">;
   } = {},
 ) {
   const state: ImportMockState = {
@@ -576,6 +579,25 @@ async function installMocks(
       const requestedState = requestUrl.searchParams.get("state");
       const items = requestedState && state.view.state !== requestedState ? [] : [state.view];
       await json(route, { data: { items, nextCursor: null } });
+      return;
+    }
+    if (pathname === "/api/business-profile/imports/sources" && method === "GET") {
+      const outcome = options.sourceLookupOutcomes?.shift() ?? "SUCCESS";
+      if (outcome === "FAIL") {
+        await json(
+          route,
+          {
+            error: {
+              code: "BUSINESS_IMPORT_SOURCE_LOOKUP_UNAVAILABLE",
+              message: "Could not check existing catalogs. Try again before uploading.",
+              retryable: true,
+            },
+          },
+          503,
+        );
+        return;
+      }
+      await json(route, { data: { items: options.importSources ?? [], nextCursor: null } });
       return;
     }
     if (pathname === "/api/business-profile/imports/intents" && method === "POST") {
@@ -1184,6 +1206,107 @@ test("uploading a new revision preserves the existing source lineage", async ({
     sourceId: "source-1",
     sourceName: "July service catalog",
   });
+});
+
+test("a generic upload reuses the newest exact-name catalog by default", async ({
+  context,
+  page,
+}) => {
+  const state = await installMocks(page, {
+    importSources: [
+      {
+        id: "source-newest",
+        displayName: "teplodom_services",
+        status: "ACTIVE",
+        latestImport: null,
+        createdAt: "2026-07-20T10:00:00.000Z",
+        updatedAt: "2026-07-23T10:00:00.000Z",
+      },
+      {
+        id: "source-older",
+        displayName: "teplodom_services",
+        status: "ACTIVE",
+        latestImport: null,
+        createdAt: "2026-07-19T10:00:00.000Z",
+        updatedAt: "2026-07-22T10:00:00.000Z",
+      },
+      {
+        id: "source-similar",
+        displayName: "teplodom_services_archive",
+        status: "ACTIVE",
+        latestImport: null,
+        createdAt: "2026-07-18T10:00:00.000Z",
+        updatedAt: "2026-07-21T10:00:00.000Z",
+      },
+    ],
+  });
+  await context.addCookies([
+    { name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" },
+  ]);
+  await page.goto(`${webBase}/app/knowledge?view=business`, { waitUntil: "domcontentloaded" });
+  await page.getByTestId("business-profile-import-file").click();
+  const contents = "external_id,name\nSRV-001,Installation\n";
+  await page.getByLabel("Service or price-list file").setInputFiles({
+    name: "teplodom_services.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(contents),
+  });
+
+  await expect(page.getByTestId("business-import-existing-source")).toContainText(
+    "Updating source: teplodom_services",
+  );
+  await expect(page.getByTestId("business-import-existing-source-select")).toBeVisible();
+  await page.getByTestId("business-import-upload-submit").click();
+
+  await expect.poll(() => state.intentRequests.length).toBe(1);
+  expect(state.intentRequests[0].body).toMatchObject({
+    filename: "teplodom_services.csv",
+    sourceId: "source-newest",
+    sourceName: "teplodom_services",
+  });
+});
+
+test("a user can explicitly create a separate catalog after an exact-name match", async ({
+  context,
+  page,
+}) => {
+  const state = await installMocks(page, {
+    importSources: [
+      {
+        id: "source-existing",
+        displayName: "teplodom_services",
+        status: "ACTIVE",
+        latestImport: null,
+        createdAt: "2026-07-20T10:00:00.000Z",
+        updatedAt: "2026-07-23T10:00:00.000Z",
+      },
+    ],
+  });
+  await context.addCookies([
+    { name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" },
+  ]);
+  await page.goto(`${webBase}/app/knowledge?view=business`, { waitUntil: "domcontentloaded" });
+  await page.getByTestId("business-profile-import-file").click();
+  const contents = "external_id,name\nSRV-001,Installation\n";
+  await page.getByLabel("Service or price-list file").setInputFiles({
+    name: "teplodom_services.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(contents),
+  });
+
+  await expect(page.getByTestId("business-import-existing-source")).toBeVisible();
+  await page.getByTestId("business-import-create-separate-source").click();
+  await expect(page.getByTestId("business-import-separate-source")).toContainText(
+    "may create duplicates",
+  );
+  await page.getByTestId("business-import-upload-submit").click();
+
+  await expect.poll(() => state.intentRequests.length).toBe(1);
+  expect(state.intentRequests[0].body).toMatchObject({
+    filename: "teplodom_services.csv",
+    sourceName: "teplodom_services",
+  });
+  expect(state.intentRequests[0].body).not.toHaveProperty("sourceId");
 });
 
 test("an expired upload capability is replaced before retry", async ({ context, page }) => {

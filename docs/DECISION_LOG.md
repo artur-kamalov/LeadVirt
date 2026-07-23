@@ -1,5 +1,18 @@
 # Decision Log
 
+## 2026-07-23: Present Service Catalogs As First-Class Knowledge Sources
+
+Decision: The client-facing Sources view inventories both document sources and structured service-catalog lineages. Service catalogs remain backed by `BusinessImportSource` and expose their latest import, service count, and import workflow; they are not converted into `KnowledgeV2Source` documents or given website/document actions. A generic service-file upload checks for an exact normalized catalog-name match and defaults to a new version of the newest match. Creating a separate same-name catalog requires an explicit warned choice.
+
+Context: `teplodom_services.csv` correctly projected 30 structured facts, but Sources queried only `KnowledgeV2Source` and therefore reported zero. Repeated generic uploads also created three independent same-name lineages and 90 active offerings in the production test tenant.
+
+Consequences:
+
+- `GET /business-profile/imports/sources` provides tenant-scoped, paginated catalog lineages with latest-import state while remaining readable when upload infrastructure is unavailable.
+- Sources clearly separates service catalogs from websites and knowledge files; counts, empty states, labels, and actions describe the correct subsystem.
+- Exact same-name repeat uploads reuse an existing lineage by default. Lookup failure blocks upload, and a separate lineage remains possible only through an explicit duplicate warning.
+- Existing duplicate production data is not silently merged. The test tenant requires a full reset and reprovision before trustworthy acceptance testing because partial deletion would break the append-only import and projection graph.
+
 ## 2026-07-23: Make Existing Price Lists The Primary Import Contract
 
 Decision: LeadVirt accepts an existing services CSV with arbitrary column names, analyzes it deterministically, and asks the user to confirm one complete mapping only when the schema is not the exact LeadVirt contract. The confirmed mapping is immutable, bound to the import schema and parsed revision, and reprocessed from the retained encrypted artifact through a new import generation.

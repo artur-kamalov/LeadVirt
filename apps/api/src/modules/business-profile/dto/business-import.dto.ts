@@ -13,6 +13,7 @@ import type {
   BusinessImportMappingDefaults,
   BusinessImportMappingTarget,
   BusinessImportOfferingValue,
+  BusinessImportSourceListQuery,
 } from "@leadvirt/types";
 import { Type } from "class-transformer";
 import {
@@ -67,6 +68,7 @@ const IMPORT_STATES = [
   "CANCELLED",
   "EXPIRED",
 ] as const;
+const IMPORT_SOURCE_STATUSES = ["ACTIVE", "PAUSED", "ARCHIVED"] as const;
 const MAPPING_TARGETS =
   BUSINESS_SERVICE_MAPPING_TARGETS satisfies readonly BusinessImportMappingTarget[];
 const MAPPING_KEY = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/;
@@ -120,6 +122,29 @@ export class BusinessImportListQueryDto {
   @IsOptional()
   @IsIn(IMPORT_STATES)
   state?: (typeof IMPORT_STATES)[number];
+}
+
+export class BusinessImportSourceListQueryDto implements BusinessImportSourceListQuery {
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  cursor?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number;
+
+  @IsOptional()
+  @IsIn(IMPORT_SOURCE_STATUSES)
+  status?: (typeof IMPORT_SOURCE_STATUSES)[number];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  query?: string;
 }
 
 export class BusinessImportCandidateListQueryDto {

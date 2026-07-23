@@ -167,6 +167,7 @@ jobs:
           corepack pnpm --filter @leadvirt/api qa:business-import:mapping
           corepack pnpm --filter @leadvirt/api qa:business-import:review
           corepack pnpm --filter @leadvirt/api qa:business-import:rebase
+          corepack pnpm --filter @leadvirt/api qa:business-import:view
           corepack pnpm --filter @leadvirt/api qa:business-profile:canonical
           corepack pnpm --filter @leadvirt/worker qa:business-import
           corepack pnpm --filter @leadvirt/worker qa:business-import:capacity

@@ -43,6 +43,7 @@ import {
   BusinessImportListQueryDto,
   BusinessImportMappingConfirmDto,
   BusinessImportRetryDto,
+  BusinessImportSourceListQueryDto,
 } from "./dto/business-import.dto.js";
 import { BusinessImportUploadService } from "./business-import-upload.service.js";
 import { BusinessImportApplicationService } from "./business-import-application.service.js";
@@ -175,6 +176,16 @@ export class BusinessImportController {
     @Query() query: BusinessImportListQueryDto,
   ) {
     return { data: await this.views.list(context, query) };
+  }
+
+  @Get("sources")
+  @Roles("OWNER", "ADMIN", "MANAGER", "AGENT", "VIEWER")
+  @Header("Cache-Control", "private, no-store")
+  async listSources(
+    @CurrentContext() context: RequestContext,
+    @Query() query: BusinessImportSourceListQueryDto,
+  ) {
+    return { data: await this.views.listSources(context, query) };
   }
 
   @Get(":importId")

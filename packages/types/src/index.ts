@@ -1443,6 +1443,29 @@ export interface BusinessImportPage {
   nextCursor?: string | null;
 }
 
+export type BusinessImportSourceStatus = "ACTIVE" | "PAUSED" | "ARCHIVED";
+
+export interface BusinessImportSourceListQuery {
+  cursor?: string;
+  limit?: number;
+  status?: BusinessImportSourceStatus;
+  query?: string;
+}
+
+export interface BusinessImportSourceView {
+  id: string;
+  displayName: string;
+  status: BusinessImportSourceStatus;
+  latestImport: BusinessImportView | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BusinessImportSourcePage {
+  items: BusinessImportSourceView[];
+  nextCursor?: string | null;
+}
+
 export interface BusinessImportCandidateDecisionRequest {
   decision: Extract<BusinessImportCandidateDecision, "ACCEPTED" | "REJECTED">;
   proposed?: BusinessImportOfferingValue | null;

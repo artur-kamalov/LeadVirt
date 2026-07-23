@@ -23,6 +23,7 @@
     "qa:business-import:mapping": "tsx src/modules/business-profile/business-import-mapping.service.smoke.ts",
     "qa:business-import:review": "tsx src/modules/business-profile/business-import-review.service.smoke.ts",
     "qa:business-import:rebase": "tsx ../../artifacts/scripts/business-import-rebase-smoke.ts",
+    "qa:business-import:view": "tsx src/modules/business-profile/business-import-view.service.smoke.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

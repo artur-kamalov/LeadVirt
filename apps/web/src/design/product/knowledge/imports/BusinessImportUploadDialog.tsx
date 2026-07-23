@@ -1,22 +1,34 @@
 "use client";
 
 import * as React from "react";
-import { CheckCircle2, Download, FileSpreadsheet, Loader2, RefreshCw, Upload } from "lucide-react";
+import {
+  CheckCircle2,
+  Download,
+  FilePlus2,
+  FileSpreadsheet,
+  History,
+  Loader2,
+  RefreshCw,
+  Upload,
+} from "lucide-react";
+import type { BusinessImportSourceView } from "@leadvirt/types";
 import { useI18n } from "@/i18n/I18nProvider";
 import {
   createBusinessImportIdempotencyKey,
   createBusinessImportIntent,
   finalizeBusinessImport,
   getBusinessImportTemplates,
+  listBusinessImportSources,
   uploadBusinessImport,
   type BusinessImportTemplateCatalogView,
 } from "@/lib/api/business-imports";
 import { ApiClientError } from "@/lib/api/client";
 import { Button } from "../../../components/ui/Button";
 import { cn } from "../../../lib/utils";
-import { Modal } from "../../ui";
+import { Modal, Select } from "../../ui";
 
 type UploadPhase = "IDLE" | "CREATING" | "UPLOADING" | "FINALIZING";
+type SourceLookupPhase = "IDLE" | "LOADING" | "READY" | "ERROR";
 
 interface AttemptKey {
   signature: string;
@@ -41,6 +53,10 @@ function sourceNameFromFile(file: File) {
       .trim()
       .slice(0, 160) || "Services"
   );
+}
+
+function normalizedSourceName(value: string) {
+  return value.normalize("NFKC").trim().replace(/\s+/gu, " ").toLocaleLowerCase();
 }
 
 const formatByExtension = {
@@ -81,10 +97,16 @@ export function BusinessImportUploadDialog({
     Awaited<ReturnType<typeof createBusinessImportIntent>>["data"] | null
   >(null);
   const [uploaded, setUploaded] = React.useState(false);
+  const [sourceLookupPhase, setSourceLookupPhase] = React.useState<SourceLookupPhase>("IDLE");
+  const [sourceLookupError, setSourceLookupError] = React.useState<ApiClientError | null>(null);
+  const [matchingSources, setMatchingSources] = React.useState<BusinessImportSourceView[]>([]);
+  const [selectedSourceId, setSelectedSourceId] = React.useState<string | null>(null);
+  const [createSeparateSource, setCreateSeparateSource] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement | null>(null);
   const intentAttempt = React.useRef<AttemptKey | null>(null);
   const finalizeAttempt = React.useRef<AttemptKey | null>(null);
   const requestSequence = React.useRef(0);
+  const sourceLookupSequence = React.useRef(0);
 
   const policies = React.useMemo(
     () => catalog?.items.filter((item) => item.enabled && item.target === "SERVICES") ?? [],
@@ -106,6 +128,11 @@ export function BusinessImportUploadDialog({
     )
     .join(",");
   const busy = phase !== "IDLE";
+  const matchedSource = createSeparateSource
+    ? null
+    : (matchingSources.find((item) => item.id === selectedSourceId) ?? null);
+  const sourceLookupBlocked =
+    !sourceId && file !== null && ["LOADING", "ERROR"].includes(sourceLookupPhase);
 
   const resetUpload = React.useCallback(() => {
     setFile(null);
@@ -114,8 +141,14 @@ export function BusinessImportUploadDialog({
     setSubmitError(null);
     setIntent(null);
     setUploaded(false);
+    setSourceLookupPhase("IDLE");
+    setSourceLookupError(null);
+    setMatchingSources([]);
+    setSelectedSourceId(null);
+    setCreateSeparateSource(false);
     intentAttempt.current = null;
     finalizeAttempt.current = null;
+    sourceLookupSequence.current += 1;
     if (inputRef.current) inputRef.current.value = "";
   }, []);
 
@@ -148,6 +181,48 @@ export function BusinessImportUploadDialog({
     };
   }, [loadTemplates, open, resetUpload]);
 
+  const lookupExistingSource = React.useCallback(
+    async (selectedFile: File) => {
+      if (sourceId) return;
+      const sequence = ++sourceLookupSequence.current;
+      const candidateName = sourceNameFromFile(selectedFile);
+      setSourceLookupPhase("LOADING");
+      setSourceLookupError(null);
+      setMatchingSources([]);
+      setSelectedSourceId(null);
+      setCreateSeparateSource(false);
+      try {
+        const page = await listBusinessImportSources({
+          limit: 100,
+          status: "ACTIVE",
+          query: candidateName,
+        });
+        if (sequence !== sourceLookupSequence.current) return;
+        const normalizedCandidateName = normalizedSourceName(candidateName);
+        const matches = page.items
+          .filter((item) => normalizedSourceName(item.displayName) === normalizedCandidateName)
+          .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt));
+        setMatchingSources(matches);
+        setSelectedSourceId(matches[0]?.id ?? null);
+        setSourceLookupPhase("READY");
+      } catch (caught) {
+        if (sequence !== sourceLookupSequence.current) return;
+        setSourceLookupError(
+          caught instanceof ApiClientError
+            ? caught
+            : new ApiClientError(
+                t("businessImport.upload.sourceLookupError"),
+                500,
+                "HTTP_ERROR",
+                true,
+              ),
+        );
+        setSourceLookupPhase("ERROR");
+      }
+    },
+    [sourceId, t],
+  );
+
   function clearIntent() {
     setIntent(null);
     setUploaded(false);
@@ -159,6 +234,12 @@ export function BusinessImportUploadDialog({
     setSubmitError(null);
     setFileError("");
     clearIntent();
+    sourceLookupSequence.current += 1;
+    setSourceLookupPhase("IDLE");
+    setSourceLookupError(null);
+    setMatchingSources([]);
+    setSelectedSourceId(null);
+    setCreateSeparateSource(false);
     if (!next) {
       setFile(null);
       return;
@@ -185,16 +266,20 @@ export function BusinessImportUploadDialog({
       return;
     }
     setFile(next);
+    if (!sourceId) void lookupExistingSource(next);
   }
 
   async function submit() {
-    if (!file || !selectedPolicy || busy) return;
+    if (!file || !selectedPolicy || busy || sourceLookupBlocked) return;
+    const effectiveSourceId = sourceId ?? matchedSource?.id;
+    const effectiveSourceName =
+      sourceName?.trim() || matchedSource?.displayName || sourceNameFromFile(file);
     const body = {
       filename: file.name,
       declaredMimeType: selectedPolicy.declaredMimeType,
       byteSize: file.size,
-      sourceName: sourceName?.trim() || sourceNameFromFile(file),
-      ...(sourceId ? { sourceId } : {}),
+      sourceName: effectiveSourceName,
+      ...(effectiveSourceId ? { sourceId: effectiveSourceId } : {}),
     } as const;
     const signature = JSON.stringify({ ...body, lastModified: file.lastModified });
     let nextIntent = intent;
@@ -276,7 +361,7 @@ export function BusinessImportUploadDialog({
             {t("businessImport.common.cancel")}
           </Button>
           <Button
-            disabled={!file || !selectedPolicy || busy || catalogLoading}
+            disabled={!file || !selectedPolicy || busy || catalogLoading || sourceLookupBlocked}
             onClick={() => void submit()}
             data-testid="business-import-upload-submit"
           >
@@ -304,6 +389,106 @@ export function BusinessImportUploadDialog({
           >
             {t("businessImport.upload.revisionSource", { name: sourceName })}
           </p>
+        ) : null}
+        {!sourceId && sourceLookupPhase === "LOADING" ? (
+          <div
+            className="flex min-h-12 items-center gap-2 rounded-md border border-white/10 bg-white/[0.025] px-4 py-3 text-sm text-zinc-400"
+            data-testid="business-import-source-lookup"
+          >
+            <Loader2 className="h-4 w-4 animate-spin text-emerald-400" />
+            {t("businessImport.upload.sourceLookup")}
+          </div>
+        ) : null}
+        {!sourceId && sourceLookupError ? (
+          <div
+            className="rounded-md border border-rose-500/20 bg-rose-500/[0.07] px-4 py-3"
+            role="alert"
+            data-testid="business-import-source-lookup-error"
+          >
+            <p className="text-sm font-medium text-rose-200">{sourceLookupError.message}</p>
+            {file ? (
+              <Button
+                className="mt-3"
+                variant="outline"
+                size="sm"
+                onClick={() => void lookupExistingSource(file)}
+              >
+                <RefreshCw className="h-4 w-4" />
+                {t("businessImport.common.tryAgain")}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+        {!sourceId && matchedSource ? (
+          <div
+            className="rounded-md border border-emerald-500/20 bg-emerald-500/[0.06] px-4 py-3"
+            data-testid="business-import-existing-source"
+          >
+            <div className="flex items-start gap-3">
+              <History className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+              <div className="min-w-0 flex-1">
+                <p className="break-words text-sm font-medium text-emerald-100">
+                  {t("businessImport.upload.revisionSource", { name: matchedSource.displayName })}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-zinc-400">
+                  {t("businessImport.upload.revisionDescription", {
+                    name: matchedSource.displayName,
+                  })}
+                </p>
+                {matchingSources.length > 1 ? (
+                  <div className="mt-3">
+                    <Select
+                      value={selectedSourceId ?? undefined}
+                      options={matchingSources.map((item) => ({
+                        value: item.id,
+                        label: `${item.displayName} - ${new Intl.DateTimeFormat(localeTag, {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        }).format(new Date(item.updatedAt))}`,
+                      }))}
+                      ariaLabel={t("businessImport.upload.existingSourceLabel")}
+                      testId="business-import-existing-source-select"
+                      onValueChange={setSelectedSourceId}
+                      className="rounded-md"
+                    />
+                  </div>
+                ) : null}
+                <Button
+                  className="mt-3"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setCreateSeparateSource(true)}
+                  data-testid="business-import-create-separate-source"
+                >
+                  <FilePlus2 className="h-4 w-4" />
+                  {t("businessImport.upload.createSeparateSource")}
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+        {!sourceId && createSeparateSource && matchingSources.length > 0 ? (
+          <div
+            className="rounded-md border border-amber-500/20 bg-amber-500/[0.06] px-4 py-3"
+            data-testid="business-import-separate-source"
+          >
+            <p className="text-sm font-medium text-amber-100">
+              {t("businessImport.upload.separateSourceTitle")}
+            </p>
+            <p className="mt-1 text-xs leading-5 text-zinc-400">
+              {t("businessImport.upload.separateSourceDescription")}
+            </p>
+            <Button
+              className="mt-3"
+              variant="ghost"
+              size="sm"
+              onClick={() => setCreateSeparateSource(false)}
+              data-testid="business-import-use-existing-source"
+            >
+              <History className="h-4 w-4" />
+              {t("businessImport.upload.useExistingSource")}
+            </Button>
+          </div>
         ) : null}
         {catalogLoading ? (
           <div className="flex min-h-28 items-center justify-center gap-2 text-sm text-zinc-400">

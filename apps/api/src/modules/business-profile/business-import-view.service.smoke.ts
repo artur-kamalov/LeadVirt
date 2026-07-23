@@ -111,4 +111,147 @@ assert.deepEqual(await read(evidence("invalid-utf8", hash(invalidUtf8))), {
   sourceValue: null,
 });
 
-process.stdout.write("business import evidence view smoke passed\n");
+const sourceQueries: Array<Record<string, unknown>> = [];
+const importedAt = new Date("2026-07-23T12:00:00.000Z");
+const importRow = (id: string, sourceId: string, sourceName: string, filename: string) => ({
+  id,
+  tenantId: "tenant-catalog",
+  sourceId,
+  format: "CSV",
+  state: "APPLIED",
+  generation: 2,
+  etag: 3,
+  originalFilename: filename,
+  schemaVersion: "services-v1",
+  baseInformationRevision: 1,
+  safeSummary: {
+    counts: {
+      total: 30,
+      valid: 30,
+      invalid: 0,
+      additions: 30,
+      updates: 0,
+      linked: 0,
+      unchanged: 0,
+      conflicts: 0,
+      pendingApproval: 0,
+      applied: 30,
+    },
+    diagnostics: [],
+  },
+  retryable: false,
+  failureCode: null,
+  createdAt: importedAt,
+  updatedAt: importedAt,
+  reviewReadyAt: importedAt,
+  appliedAt: importedAt,
+  source: { displayName: sourceName },
+  applications: [
+    {
+      resultingInformationRevision: 2,
+      projectionReceipt: { knowledgeDraftGeneration: 4 },
+    },
+  ],
+});
+const sourceRows = [
+  {
+    id: "catalog-a",
+    tenantId: "tenant-catalog",
+    displayName: "Teplodom services",
+    status: "ACTIVE",
+    createdAt: importedAt,
+    updatedAt: new Date("2026-07-23T12:03:00.000Z"),
+    latestImport: importRow(
+      "import-a-v2",
+      "catalog-a",
+      "Teplodom services",
+      "teplodom_services.csv",
+    ),
+  },
+  {
+    id: "catalog-b",
+    tenantId: "tenant-catalog",
+    displayName: "Installation",
+    status: "ACTIVE",
+    createdAt: importedAt,
+    updatedAt: new Date("2026-07-23T12:02:00.000Z"),
+    latestImport: importRow("import-b-v1", "catalog-b", "Installation", "installation.csv"),
+  },
+  {
+    id: "catalog-c",
+    tenantId: "tenant-catalog",
+    displayName: "Archived list",
+    status: "ARCHIVED",
+    createdAt: importedAt,
+    updatedAt: new Date("2026-07-23T12:01:00.000Z"),
+    latestImport: null,
+  },
+];
+const sourceService = new BusinessImportViewService(
+  {
+    businessImportSource: {
+      findMany: (query: Record<string, unknown>) => {
+        sourceQueries.push(query);
+        return Promise.resolve(sourceRows);
+      },
+    },
+  } as never,
+  runtime as never,
+);
+const sourceContext = {
+  tenantId: "tenant-catalog",
+  userId: "owner",
+  role: "OWNER",
+  authMode: "email",
+  tenant: {
+    id: "tenant-catalog",
+    name: "Catalog tenant",
+    slug: "catalog",
+    status: "ACTIVE",
+    businessType: null,
+    timezone: "UTC",
+  },
+  user: {
+    id: "owner",
+    email: "owner@example.com",
+    phone: null,
+    name: "Owner",
+    avatarUrl: null,
+    passwordChangeRequired: false,
+  },
+} as const;
+const catalogPage = await sourceService.listSources(sourceContext, {
+  limit: 2,
+  query: "teplodom_services.csv",
+});
+assert.deepEqual(
+  catalogPage.items.map((item) => [item.id, item.latestImport?.id, item.latestImport?.sourceId]),
+  [
+    ["catalog-a", "import-a-v2", "catalog-a"],
+    ["catalog-b", "import-b-v1", "catalog-b"],
+  ],
+);
+assert.equal(catalogPage.items[0]?.latestImport?.counts.total, 30);
+assert.ok(catalogPage.nextCursor);
+const firstSourceQuery = sourceQueries[0] as {
+  where: {
+    tenantId: string;
+    OR: Array<Record<string, unknown>>;
+  };
+  take: number;
+};
+assert.equal(firstSourceQuery.where.tenantId, "tenant-catalog");
+assert.equal(firstSourceQuery.where.OR.length, 2);
+assert.equal(firstSourceQuery.take, 3);
+
+await sourceService.listSources(sourceContext, {
+  limit: 2,
+  cursor: catalogPage.nextCursor ?? undefined,
+});
+const cursorSourceQuery = sourceQueries[1] as {
+  where: { tenantId: string; AND: { OR: Array<Record<string, unknown>> } };
+};
+assert.equal(cursorSourceQuery.where.tenantId, "tenant-catalog");
+assert.equal(cursorSourceQuery.where.AND.OR.length, 2);
+
+process.stdout.write("business import view smoke passed\n");
