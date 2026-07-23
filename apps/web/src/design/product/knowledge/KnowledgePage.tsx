@@ -360,7 +360,9 @@ function KnowledgeView({
       />
     );
   }
-  return <KnowledgeTestPlayground overview={overview} onChanged={onChanged} />;
+  return (
+    <KnowledgeTestPlayground overview={overview} onNavigate={onNavigate} onChanged={onChanged} />
+  );
 }
 
 function RouteState({

@@ -1789,13 +1789,13 @@ const entries = [
     pt: "As alterações não são usadas nas respostas até revisar e publicar o rascunho.",
     ru: "Изменения не используются в ответах клиентам, пока вы не проверите и не опубликуете черновик знаний.",
   }),
-  entry("businessImport.result.testAnswers", {
-    en: "Test AI answers",
-    es: "Probar respuestas de IA",
-    fr: "Tester les réponses IA",
-    de: "KI-Antworten testen",
-    pt: "Testar respostas da IA",
-    ru: "Проверить ответы AI",
+  entry("businessImport.result.reviewDraft", {
+    en: "Review draft readiness",
+    es: "Revisar preparación del borrador",
+    fr: "Vérifier l’état du brouillon",
+    de: "Entwurfsbereitschaft prüfen",
+    pt: "Revisar preparação do rascunho",
+    ru: "Проверить готовность черновика",
   }),
   entry("businessImport.result.openBusinessInformation", {
     en: "Open business information",

@@ -16,6 +16,9 @@ const PROJECTION_SCHEMA = "leadvirt.business-information-projection.v1";
 const IDENTITY_FACT_SCHEMA = "leadvirt.business-identity-fact.v1";
 const OFFERING_FACT_SCHEMA = "leadvirt.business-offering-fact.v1";
 const MANIFEST_SCHEMA = "leadvirt.business-information-knowledge-manifest.v1";
+export const BUSINESS_INFORMATION_PRICE_EFFECTIVE_WINDOW_POLICY_ID =
+  "leadvirt.business-information.price-effective-window.explicit-or-owner-approval-90d.v1";
+const OWNER_APPROVAL_PRICE_FRESHNESS_MS = 90 * 24 * 60 * 60_000;
 
 type ProjectionStage = "VALIDATING" | "PROJECTING" | "FINALIZING";
 
@@ -144,6 +147,9 @@ interface ProjectedFactInput {
   timeZone: string | null;
   locale: string;
   scope: Prisma.InputJsonObject;
+  effectiveFrom: Date | null;
+  effectiveUntil: Date | null;
+  effectiveWindowPolicyId: string | null;
   riskLevel: "LOW" | "MEDIUM" | "HIGH";
   authorities: ReadonlySet<string>;
   ownerApproval: { userId: string; approvedAt: Date } | null;
@@ -187,23 +193,60 @@ export function businessInformationProjectionGovernance(input: {
   projectedAt: Date;
   ownerApproval: { userId: string; approvedAt: Date } | null;
 }) {
-  const authority =
+  const provenanceAuthority =
     input.authorities.size > 0 && [...input.authorities].every((item) => item === "IMPORTED")
       ? ("IMPORTED" as const)
       : ("MANUAL" as const);
   if (input.riskLevel === "HIGH" && !input.ownerApproval) {
     return {
-      authority,
+      authority: provenanceAuthority,
       verificationStatus: "PENDING_REVIEW" as const,
       verifiedByUserId: null,
       verifiedAt: null,
     };
   }
   return {
-    authority,
+    authority:
+      input.riskLevel === "HIGH" && input.ownerApproval
+        ? ("OWNER_VERIFIED" as const)
+        : provenanceAuthority,
     verificationStatus: "VERIFIED" as const,
     verifiedByUserId: input.ownerApproval?.userId ?? input.requestedByUserId,
     verifiedAt: input.ownerApproval?.approvedAt ?? input.projectedAt,
+  };
+}
+
+export function businessInformationProjectionOfferingEffectiveWindow(input: {
+  prices: ReadonlyArray<{ effectiveFrom: Date | null; effectiveUntil: Date | null }>;
+  ownerApproval: { approvedAt: Date } | null;
+}) {
+  if (input.prices.length === 0) {
+    return {
+      effectiveFrom: null,
+      effectiveUntil: null,
+      policyId: null,
+    };
+  }
+  const starts = input.prices
+    .map((price) => price.effectiveFrom)
+    .filter((value): value is Date => value !== null);
+  const effectiveFrom =
+    starts.length > 0 ? new Date(Math.max(...starts.map((value) => value.getTime()))) : null;
+  const approvalFreshUntil = input.ownerApproval
+    ? new Date(input.ownerApproval.approvedAt.getTime() + OWNER_APPROVAL_PRICE_FRESHNESS_MS)
+    : null;
+  const expiries = input.prices.map((price) => price.effectiveUntil ?? approvalFreshUntil);
+  if (expiries.some((value) => value === null)) {
+    return {
+      effectiveFrom,
+      effectiveUntil: null,
+      policyId: BUSINESS_INFORMATION_PRICE_EFFECTIVE_WINDOW_POLICY_ID,
+    };
+  }
+  return {
+    effectiveFrom,
+    effectiveUntil: new Date(Math.min(...expiries.map((value) => value!.getTime()))),
+    policyId: BUSINESS_INFORMATION_PRICE_EFFECTIVE_WINDOW_POLICY_ID,
   };
 }
 
@@ -718,6 +761,15 @@ async function projectFact(
   projectedAt: Date,
 ) {
   const previous = existing?.versions[0] ?? null;
+  const evidence = input.effectiveWindowPolicyId
+    ? input.evidence.map((item) => ({
+        ...item,
+        metadata: {
+          ...item.metadata,
+          effectiveWindowPolicyId: input.effectiveWindowPolicyId,
+        },
+      }))
+    : input.evidence;
   const previousOwned =
     !previous ||
     previous.evidence.some((evidence) => {
@@ -770,6 +822,9 @@ async function projectFact(
     locale: input.locale,
     localeBehavior: "LOCALE_SPECIFIC",
     scope: input.scope,
+    effectiveFrom: input.effectiveFrom?.toISOString() ?? null,
+    effectiveUntil: input.effectiveUntil?.toISOString() ?? null,
+    effectiveWindowPolicyId: input.effectiveWindowPolicyId,
     riskLevel: input.riskLevel,
     authority: governance.authority,
     lifecycleStatus: input.lifecycleStatus,
@@ -780,7 +835,7 @@ async function projectFact(
     verifiedByUserId: governance.verifiedByUserId,
     verifiedAt: governance.verifiedAt?.toISOString() ?? null,
     createdAt: projectedAt.toISOString(),
-    evidence: input.evidence,
+    evidence,
   });
   if (!existing) {
     await tx.knowledgeV2Fact.create({
@@ -830,13 +885,15 @@ async function projectFact(
       locale: input.locale,
       localeBehavior: "LOCALE_SPECIFIC",
       scope: input.scope,
+      effectiveFrom: input.effectiveFrom,
+      effectiveUntil: input.effectiveUntil,
       riskLevel: input.riskLevel,
       authority: governance.authority,
       lifecycleStatus: input.lifecycleStatus,
       verificationStatus: governance.verificationStatus,
       extractionConfidence:
-        input.evidence.length > 0 && input.evidence.every((item) => item.confidence !== null)
-          ? Math.min(...input.evidence.map((item) => item.confidence!))
+        evidence.length > 0 && evidence.every((item) => item.confidence !== null)
+          ? Math.min(...evidence.map((item) => item.confidence!))
           : null,
       changeReason: "Business Information revision projection",
       supersedesVersionId: previous?.id ?? null,
@@ -847,7 +904,7 @@ async function projectFact(
       createdAt: projectedAt,
     },
   });
-  for (const item of input.evidence) {
+  for (const item of evidence) {
     await tx.knowledgeV2Evidence.create({
       data: {
         id: stableId("kv2_bio_evidence", input.versionId, item.key),
@@ -1488,6 +1545,9 @@ export async function processBusinessInformationProjectionJob(
                   segments: [],
                   locales: [identity.defaultLocale],
                 },
+                effectiveFrom: null,
+                effectiveUntil: null,
+                effectiveWindowPolicyId: null,
                 riskLevel: "LOW",
                 authorities: identityAuthorities,
                 ownerApproval: null,
@@ -1564,6 +1624,12 @@ export async function processBusinessInformationProjectionJob(
                 : offering.duration || offering.bookingNotes
                   ? ("MEDIUM" as const)
                   : ("LOW" as const);
+            const ownerApproval =
+              riskLevel === "HIGH" ? (ownerApprovalByOffering.get(offering.id) ?? null) : null;
+            const effectiveWindow = businessInformationProjectionOfferingEffectiveWindow({
+              prices: offering.prices,
+              ownerApproval,
+            });
             manifestItems.push(
               await projectFact(
                 tx,
@@ -1603,12 +1669,12 @@ export async function processBusinessInformationProjectionJob(
                     segments: [],
                     locales: [offering.locale],
                   },
+                  effectiveFrom: effectiveWindow.effectiveFrom,
+                  effectiveUntil: effectiveWindow.effectiveUntil,
+                  effectiveWindowPolicyId: effectiveWindow.policyId,
                   riskLevel,
                   authorities: offeringAuthorities,
-                  ownerApproval:
-                    riskLevel === "HIGH"
-                      ? (ownerApprovalByOffering.get(offering.id) ?? null)
-                      : null,
+                  ownerApproval,
                   lifecycleStatus: offering.active ? "DRAFT" : "ARCHIVED",
                   evidence,
                 },

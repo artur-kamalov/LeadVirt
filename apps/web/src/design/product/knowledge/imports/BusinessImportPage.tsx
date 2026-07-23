@@ -24,12 +24,12 @@ import {
   CheckCircle2,
   ChevronDown,
   Circle,
+  ClipboardCheck,
   Clock3,
   Eye,
   FileSearch,
   FileSpreadsheet,
   FileUp,
-  FlaskConical,
   Loader2,
   Pencil,
   RefreshCw,
@@ -1212,7 +1212,6 @@ export function BusinessImportPage({ importId }: { importId: string }) {
   );
   const reviewMutationLocked =
     operation !== null || pendingIds.size > 0 || previewOpen || loading || !candidateSetComplete;
-  const testReady = Boolean(resource?.projection.ready || application?.projection.ready);
 
   return (
     <ProductLayout title="Knowledge" mobileTitle={t("businessImport.page.mobileTitle")}>
@@ -1422,7 +1421,7 @@ export function BusinessImportPage({ importId }: { importId: string }) {
             ) : null}
 
             {resource.state === "APPLIED" ? (
-              <AppliedState resource={resource} application={application} testReady={testReady} />
+              <AppliedState resource={resource} application={application} />
             ) : null}
 
             {TERMINAL_FAILURE_STATES.has(resource.state) ? (
@@ -1697,11 +1696,9 @@ export function BusinessImportPage({ importId }: { importId: string }) {
   function AppliedState({
     resource: item,
     application: currentApplication,
-    testReady: ready,
   }: {
     resource: BusinessImportView;
     application: BusinessImportApplicationView | null;
-    testReady: boolean;
   }) {
     return (
       <section
@@ -1725,19 +1722,12 @@ export function BusinessImportPage({ importId }: { importId: string }) {
               {t("businessImport.result.publicationBoundary")}
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
-              {ready ? (
-                <Button asChild data-testid="business-import-test-answers">
-                  <Link href={`/app/knowledge?view=test&importId=${encodeURIComponent(item.id)}`}>
-                    <FlaskConical className="h-4 w-4" />
-                    {t("businessImport.result.testAnswers")}
-                  </Link>
-                </Button>
-              ) : (
-                <Button disabled data-testid="business-import-test-answers">
-                  <FlaskConical className="h-4 w-4" />
-                  {t("businessImport.result.testAnswers")}
-                </Button>
-              )}
+              <Button asChild data-testid="business-import-review-draft">
+                <Link href="/app/knowledge?view=overview">
+                  <ClipboardCheck className="h-4 w-4" />
+                  {t("businessImport.result.reviewDraft")}
+                </Link>
+              </Button>
               <Button asChild variant="outline">
                 <Link href="/app/knowledge?view=business">
                   {t("businessImport.result.openBusinessInformation")}

@@ -439,31 +439,34 @@ export function KnowledgeOverview({
             {t("knowledge.overview.draftAttention")}
           </h2>
           <div className="mt-3 space-y-2">
-            {gates.map((gate) => (
-              <div
-                key={`${gate.code}:${gate.resource?.id ?? "workspace"}`}
-                className="flex flex-col gap-3 rounded-lg border border-white/10 bg-white/[0.025] px-4 py-3 sm:flex-row sm:items-center"
-              >
-                {gate.status === "BLOCKED" ? (
-                  <FileWarning className="h-4 w-4 shrink-0 text-rose-400" />
-                ) : (
-                  <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-zinc-200">{gate.title}</p>
-                  <p className="mt-0.5 text-xs text-zinc-500">{gate.message}</p>
+            {gates.map((gate) => {
+              const resource = gate.remediation?.resource ?? gate.resource;
+              return (
+                <div
+                  key={`${gate.code}:${gate.resource?.id ?? "workspace"}`}
+                  className="flex flex-col gap-3 rounded-lg border border-white/10 bg-white/[0.025] px-4 py-3 sm:flex-row sm:items-center"
+                >
+                  {gate.status === "BLOCKED" ? (
+                    <FileWarning className="h-4 w-4 shrink-0 text-rose-400" />
+                  ) : (
+                    <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-zinc-200">{gate.title}</p>
+                    <p className="mt-0.5 text-xs text-zinc-500">{gate.message}</p>
+                  </div>
+                  {resource?.type === "FACT" ? (
+                    <Button size="sm" variant="ghost" onClick={() => onNavigate("business")}>
+                      {t("knowledge.common.resolve")}
+                    </Button>
+                  ) : resource?.type === "GUIDANCE_RULE" ? (
+                    <Button size="sm" variant="ghost" onClick={() => onNavigate("guidance")}>
+                      {t("knowledge.common.resolve")}
+                    </Button>
+                  ) : null}
                 </div>
-                {gate.remediation?.resource?.type === "FACT" ? (
-                  <Button size="sm" variant="ghost" onClick={() => onNavigate("business")}>
-                    {t("knowledge.common.resolve")}
-                  </Button>
-                ) : gate.remediation?.resource?.type === "GUIDANCE_RULE" ? (
-                  <Button size="sm" variant="ghost" onClick={() => onNavigate("guidance")}>
-                    {t("knowledge.common.resolve")}
-                  </Button>
-                ) : null}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       ) : null}

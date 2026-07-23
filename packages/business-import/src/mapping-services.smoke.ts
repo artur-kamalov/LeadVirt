@@ -616,6 +616,56 @@ assert.deepEqual(
   [true, false, true, false, true, true, false, false],
 );
 
+const teplodomCsv = bytes(
+  [
+    "ID услуги,Название,Категория,Описание,Цена от,Валюта,Единица цены,Активна",
+    "SRV-001,Установка кондиционера,Монтаж,Стандартный монтаж настенного кондиционера с базовой трассой.,14900,RUB,за услугу,Да",
+  ].join("\r\n"),
+);
+const teplodom = await analyzeBusinessServicesCsv(teplodomCsv);
+const teplodomProposal = proposeBusinessServiceMapping(teplodom);
+assert.deepEqual(
+  teplodomProposal.columns.map((column) => column.target),
+  [
+    "external_id",
+    "name",
+    "category",
+    "description",
+    "price_from",
+    "currency",
+    "price_unit",
+    "active",
+  ],
+);
+const teplodomParsed = await parseMappedBusinessServicesCsv(teplodomCsv, {
+  tableKey: teplodom.tableKey,
+  schemaHash: teplodom.schemaHash,
+  headerRow: teplodom.headerRow,
+  columns: teplodomProposal.columns.map((column) => ({
+    sourceColumnKey: column.columnKey,
+    target: column.target,
+  })),
+  defaults: {
+    locale: "ru",
+    numberFormat: "DECIMAL_DOT",
+    currency: null,
+    timezone: null,
+    unit: null,
+  },
+});
+assert.equal(teplodomParsed.counts.validRows, 1);
+assert.equal(teplodomParsed.rows[0]?.externalId, "SRV-001");
+assert.deepEqual(teplodomParsed.rows[0]?.price, {
+  type: "FROM",
+  amount: null,
+  from: "14900",
+  to: null,
+  currency: "RUB",
+  unit: "за услугу",
+  taxNote: null,
+});
+assert.equal(teplodomParsed.rows[0]?.active, true);
+
 const incompatibleLeaves = await analyzeBusinessServicesCsv(
   bytes("Service;Amount;From;To\nAudit;50;100;200\n"),
 );

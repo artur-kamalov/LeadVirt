@@ -7,7 +7,9 @@ import {
 } from "./identity.js";
 import {
   BUSINESS_SERVICES_CSV_HEADERS,
+  canonicalBusinessImportDecimal,
   type BusinessImportDiagnostic,
+  type BusinessServiceCsvHeader,
   type ParsedBusinessServiceRow,
 } from "./service-csv.js";
 
@@ -92,8 +94,58 @@ function addBinding(
   index.set(key, [...(index.get(key) ?? []), binding]);
 }
 
-function incompleteReplacementDiagnostic(row: ParsedBusinessServiceRow) {
-  const missing = BUSINESS_SERVICES_CSV_HEADERS.filter((field) => !(field in row.evidence));
+function csvFieldValue(row: ParsedBusinessServiceRow, field: BusinessServiceCsvHeader) {
+  switch (field) {
+    case "external_id":
+      return normalizeBusinessExternalId(row.externalId);
+    case "category":
+      return row.category;
+    case "name":
+      return row.name;
+    case "description":
+      return row.description;
+    case "price_type":
+      return row.price?.type ?? null;
+    case "price_amount":
+      return canonicalBusinessImportDecimal(row.price?.amount ?? null);
+    case "price_from":
+      return canonicalBusinessImportDecimal(row.price?.from ?? null);
+    case "price_to":
+      return canonicalBusinessImportDecimal(row.price?.to ?? null);
+    case "currency":
+      return row.price?.currency ?? null;
+    case "price_unit":
+      return row.price?.unit ?? null;
+    case "tax_note":
+      return row.price?.taxNote ?? null;
+    case "duration_minutes":
+      return row.duration?.minimumMinutes ?? null;
+    case "duration_max_minutes":
+      return row.duration?.maximumMinutes ?? null;
+    case "location_external_id":
+      return row.locationExternalId;
+    case "booking_notes":
+      return row.bookingNotes;
+    case "active":
+      return row.active;
+    case "valid_from":
+      return row.validFrom;
+    case "valid_until":
+      return row.validUntil;
+    case "language":
+      return row.language;
+  }
+}
+
+function incompleteReplacementDiagnostic(
+  row: ParsedBusinessServiceRow,
+  current?: ParsedBusinessServiceRow,
+) {
+  const missing = BUSINESS_SERVICES_CSV_HEADERS.filter(
+    (field) =>
+      !(field in row.evidence) &&
+      (!current || csvFieldValue(row, field) !== csvFieldValue(current, field)),
+  );
   if (missing.length === 0) return null;
   return {
     severity: "ERROR" as const,
@@ -198,6 +250,35 @@ export function diffBusinessServiceRows(input: {
     }
     if (exact.length === 1) {
       const exactOffering = exact[0]!;
+      const exactSourceBindings = input.sourceBindings.filter(
+        (item) => item.offeringId === exactOffering.id,
+      );
+      if (
+        externalKey &&
+        matchingBindings.length === 0 &&
+        exactSourceBindings.length === 1 &&
+        exactSourceBindings[0]?.identityKey === identityKey &&
+        !matchedOfferingIds.has(exactOffering.id)
+      ) {
+        matchedOfferingIds.add(exactOffering.id);
+        const changed = exactOffering.valueHash !== proposedValueHash;
+        const incomplete = changed
+          ? incompleteReplacementDiagnostic(row, exactOffering.value)
+          : null;
+        return {
+          candidateKey,
+          action: incomplete ? "INVALID" : changed ? "UPDATE" : "UNCHANGED",
+          riskLevel: risk(row),
+          confidence: "HIGH",
+          proposed: row,
+          current: exactOffering,
+          targetOfferingId: exactOffering.id,
+          sourceExternalKey: row.externalId,
+          identityKey,
+          proposedValueHash,
+          diagnostics: incomplete ? [...row.diagnostics, incomplete] : row.diagnostics,
+        };
+      }
       if (
         !input.sourceBindings.some((item) => item.offeringId === exactOffering.id) &&
         businessOfferingCanonicalValueHash(exactOffering.value) ===

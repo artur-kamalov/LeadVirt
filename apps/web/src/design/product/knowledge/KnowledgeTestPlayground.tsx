@@ -66,6 +66,7 @@ import {
 import { Button } from "../../components/ui/Button";
 import { cn } from "../../lib/utils";
 import { EmptyState, LoadingOverlay, Modal, Select, Spinner, StatusBadge } from "../ui";
+import type { KnowledgeViewId } from "./knowledge-views";
 
 const TEST_CASE_PAGE_SIZE = 25;
 const SEARCH_DELAY_MS = 300;
@@ -393,9 +394,11 @@ function assignDraftField<Key extends TestCaseDraftKey>(
 
 export function KnowledgeTestPlayground({
   overview,
+  onNavigate,
   onChanged,
 }: {
   overview: KnowledgeV2OverviewView;
+  onNavigate: (view: KnowledgeViewId) => void;
   onChanged: () => void;
 }) {
   const { t } = useI18n();
@@ -457,6 +460,7 @@ export function KnowledgeTestPlayground({
           scopeOptions={scopeOptions}
           savedCase={selectedSavedCase}
           onClearSavedCase={() => setSelectedSavedCase(null)}
+          onNavigate={onNavigate}
         />
       ) : (
         <TestCasesPanel
@@ -506,11 +510,13 @@ function PlaygroundPanel({
   scopeOptions,
   savedCase,
   onClearSavedCase,
+  onNavigate,
 }: {
   overview: KnowledgeV2OverviewView;
   scopeOptions: ScopeOptions;
   savedCase: KnowledgeV2TestCaseView | null;
   onClearSavedCase: () => void;
+  onNavigate: (view: KnowledgeViewId) => void;
 }) {
   const { t, locale: interfaceLocale, formatDate, formatNumber } = useI18n();
   const version = savedCase?.currentVersion;
@@ -618,6 +624,9 @@ function PlaygroundPanel({
       setValidationError(true);
       return;
     }
+    if (target === "DRAFT" && !overview.readiness.draft.validationId) {
+      return;
+    }
     if (target === "ACTIVE" && !overview.readiness.activePublicationId) {
       setRunError(new ApiClientError(t("knowledge.test.playground.targetUnavailable"), 409));
       return;
@@ -637,14 +646,16 @@ function PlaygroundPanel({
               testCaseId: savedCase.id,
               target: "DRAFT",
               candidateId: overview.readiness.draft.candidateId,
-              candidateVersion: overview.readiness.candidateVersion,
+              candidateVersion: overview.readiness.draft.candidateVersion,
+              candidateManifestHash: overview.readiness.draft.candidateManifestHash,
             }
           : {
               ...context,
               question: question.trim(),
               target: "DRAFT",
               candidateId: overview.readiness.draft.candidateId,
-              candidateVersion: overview.readiness.candidateVersion,
+              candidateVersion: overview.readiness.draft.candidateVersion,
+              candidateManifestHash: overview.readiness.draft.candidateManifestHash,
             }
         : savedCase
           ? { ...context, testCaseId: savedCase.id, target: "ACTIVE" }
@@ -678,6 +689,8 @@ function PlaygroundPanel({
   const brandOptions = unique([...(brandId ? [brandId] : []), ...scopeOptions.brands]);
   const locationOptions = unique([...(locationId ? [locationId] : []), ...scopeOptions.locations]);
   const running = Boolean(run && activeRun(run.status));
+  const draftTestUnavailable = target === "DRAFT" && !overview.readiness.draft.validationId;
+  const draftHasBlockers = overview.readiness.draft.blockers.length > 0;
 
   return (
     <div className="min-w-0 space-y-5" data-testid="knowledge-test-playground">
@@ -798,28 +811,59 @@ function PlaygroundPanel({
                 },
               ]}
             />
-            {!overview.readiness.activePublicationId ? (
+            {draftTestUnavailable ? (
+              <p
+                id="knowledge-test-draft-validation-required"
+                className="mt-1.5 text-xs text-amber-300"
+                data-testid="knowledge-test-draft-validation-required"
+              >
+                {t(
+                  draftHasBlockers
+                    ? "knowledge.test.playground.draftHasBlockers"
+                    : "knowledge.test.playground.draftNeedsValidation",
+                )}
+              </p>
+            ) : !overview.readiness.activePublicationId ? (
               <p className="mt-1.5 text-xs text-amber-300">
                 {t("knowledge.test.playground.targetUnavailable")}
               </p>
             ) : null}
           </div>
-          <Button
-            disabled={starting || running}
-            onClick={() => void startRun()}
-            data-testid="knowledge-test-run"
-          >
-            {starting || running ? (
-              <Spinner className="mr-2 h-4 w-4" />
-            ) : (
-              <CirclePlay className="mr-2 h-4 w-4" />
-            )}
-            {t(
-              starting || running
-                ? "knowledge.test.playground.running"
-                : "knowledge.test.playground.run",
-            )}
-          </Button>
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            {draftTestUnavailable ? (
+              <Button
+                variant="outline"
+                onClick={() => onNavigate(draftHasBlockers ? "overview" : "history")}
+                data-testid="knowledge-test-draft-remediation"
+              >
+                {t(
+                  draftHasBlockers
+                    ? "knowledge.test.playground.draftResolveAction"
+                    : "knowledge.history.validate",
+                )}
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            ) : null}
+            <Button
+              disabled={starting || running || draftTestUnavailable}
+              aria-describedby={
+                draftTestUnavailable ? "knowledge-test-draft-validation-required" : undefined
+              }
+              onClick={() => void startRun()}
+              data-testid="knowledge-test-run"
+            >
+              {starting || running ? (
+                <Spinner className="mr-2 h-4 w-4" />
+              ) : (
+                <CirclePlay className="mr-2 h-4 w-4" />
+              )}
+              {t(
+                starting || running
+                  ? "knowledge.test.playground.running"
+                  : "knowledge.test.playground.run",
+              )}
+            </Button>
+          </div>
         </div>
       </div>
 

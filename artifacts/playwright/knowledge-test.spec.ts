@@ -58,6 +58,7 @@ function overview(): KnowledgeV2OverviewView {
         candidateId: "workspace-v2",
         candidateVersion: 9,
         candidateManifestHash: "a".repeat(64),
+        validationId: "validation-9",
         evaluationTestCaseSetHash: "d".repeat(64),
         itemCounts: {
           documentRevisions: 3,
@@ -394,7 +395,10 @@ function capture(route: Route): CapturedMutation {
 
 async function installMocks(
   page: Page,
-  options: Partial<Pick<TestMockState, "runMode" | "conflictNextUpdate" | "forbidInput">> = {},
+  options: Partial<Pick<TestMockState, "runMode" | "conflictNextUpdate" | "forbidInput">> & {
+    draftValidated?: boolean;
+    draftBlocked?: boolean;
+  } = {},
 ) {
   const state: TestMockState = {
     cases: testCases(),
@@ -463,7 +467,22 @@ async function installMocks(
     const pathname = url.pathname;
 
     if (pathname === "/api/knowledge/v2/overview" && method === "GET") {
-      await fulfill(route, { data: overview() });
+      const data = overview();
+      if (options.draftValidated === false) data.readiness.draft.validationId = null;
+      if (options.draftBlocked) {
+        data.readiness.draft.validationId = null;
+        data.readiness.draft.blockers = [
+          {
+            code: "KNOWLEDGE_PUBLICATION_FACT_REVIEW_REQUIRED",
+            status: "BLOCKED",
+            title: "Business fact needs review",
+            message: "Review this fact before validating the draft.",
+            resource: { type: "FACT", id: "fact-price", label: "Installation price" },
+          },
+        ];
+        data.readiness.blockerCount = 1;
+      }
+      await fulfill(route, { data });
       return;
     }
     if (pathname === "/api/knowledge/v2/sources" && method === "GET") {
@@ -634,8 +653,7 @@ async function installMocks(
         publicationSequence: body.target === "ACTIVE" ? 8 : null,
         candidateId: body.target === "DRAFT" ? body.candidateId : null,
         candidateVersion: body.target === "DRAFT" ? body.candidateVersion : null,
-        candidateManifestHash:
-          body.target === "DRAFT" ? (body.candidateManifestHash ?? "candidate-manifest-9") : null,
+        candidateManifestHash: body.target === "DRAFT" ? body.candidateManifestHash : null,
       };
       state.runPolls = 0;
       await fulfill(
@@ -734,6 +752,72 @@ test("question test shows the authoritative response, evidence, disposition, and
   });
 });
 
+test("saved draft tests send the exact validated manifest identity", async ({ page }) => {
+  const state = await installMocks(page);
+  await openTest(page);
+  await page.getByRole("tab", { name: "Saved tests" }).click();
+  await expect(page.getByTestId("knowledge-test-case-detail")).toContainText(
+    "First consultation price",
+  );
+  await page.getByTestId("knowledge-test-case-run").click();
+  await expect(page.getByText("First consultation price")).toBeVisible();
+
+  await page.getByLabel("Knowledge version").click();
+  await page.getByRole("option", { name: "Exact draft version 9" }).click();
+  await page.getByTestId("knowledge-test-run").click();
+
+  await expect.poll(() => state.runRequests.length).toBe(1);
+  expect(state.runRequests[0]).toMatchObject({
+    testCaseId: "case-pricing",
+    target: "DRAFT",
+    candidateId: "workspace-v2",
+    candidateVersion: 9,
+    candidateManifestHash: "a".repeat(64),
+  });
+});
+
+test("an unvalidated draft explains the blocker and cannot start a test", async ({ page }) => {
+  const state = await installMocks(page, { draftValidated: false });
+  await openTest(page);
+  await page.getByTestId("knowledge-test-question").fill("Can this draft answer me?");
+  await page.getByLabel("Knowledge version").click();
+  await page.getByRole("option", { name: "Exact draft version 9" }).click();
+
+  await expect(page.getByTestId("knowledge-test-draft-validation-required")).toHaveText(
+    "Validate this draft before running a test.",
+  );
+  await expect(page.getByTestId("knowledge-test-draft-remediation")).toHaveText("Check draft");
+  const runButton = page.getByTestId("knowledge-test-run");
+  await expect(runButton).toBeDisabled();
+  await runButton.evaluate((element) => (element as HTMLButtonElement).click());
+  await page.getByTestId("knowledge-test-draft-remediation").click();
+  await expect(page).toHaveURL(/\/app\/knowledge\?view=history(?:&|$)/);
+  expect(state.runRequests).toEqual([]);
+  expect(
+    state.mutations.filter((entry) => entry.pathname === "/api/knowledge/v2/test-runs"),
+  ).toEqual([]);
+});
+
+test("a blocked draft routes directly to its readiness blockers", async ({ page }, testInfo) => {
+  const state = await installMocks(page, { draftBlocked: true });
+  await openTest(page);
+  await page.getByLabel("Knowledge version").click();
+  await page.getByRole("option", { name: "Exact draft version 9" }).click();
+
+  await expect(page.getByTestId("knowledge-test-draft-validation-required")).toHaveText(
+    "This draft has blockers that must be resolved before validation.",
+  );
+  await expect(page.getByTestId("knowledge-test-run")).toBeDisabled();
+  await page.screenshot({
+    path: testInfo.outputPath("knowledge-test-blocked-draft.png"),
+    fullPage: false,
+    animations: "disabled",
+  });
+  await page.getByTestId("knowledge-test-draft-remediation").click();
+  await expect(page).toHaveURL(/\/app\/knowledge\?view=overview(?:&|$)/);
+  expect(state.runRequests).toEqual([]);
+});
+
 test("failed tests never fabricate a successful answer", async ({ page }) => {
   await installMocks(page, { runMode: "FAILED" });
   await openTest(page);
@@ -744,7 +828,9 @@ test("failed tests never fabricate a successful answer", async ({ page }) => {
   ).toBeVisible();
   await expect(page.getByText("Test failed")).toBeVisible({ timeout: 10_000 });
   await expect(
-    page.getByText("Question testing is not available in this deployment. No result was generated."),
+    page.getByText(
+      "Question testing is not available in this deployment. No result was generated.",
+    ),
   ).toBeVisible();
   await expect(page.getByText("Would send automatically")).toHaveCount(0);
   await expect(page.getByText("Final response")).toHaveCount(0);
@@ -882,6 +968,7 @@ test("redacted mobile result is localized, hides internal links, and does not ov
     target: "DRAFT",
     candidateId: "workspace-v2",
     candidateVersion: 9,
+    candidateManifestHash: "a".repeat(64),
   });
   const dimensions = await page.evaluate(() => ({
     viewport: document.documentElement.clientWidth,

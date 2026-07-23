@@ -136,6 +136,127 @@ async function waitForRecovery(prisma: PrismaClient, outboxId: string, jobId: st
   throw new Error("Committed publication was not reconciled after dispatcher recovery.");
 }
 
+test("owner verification derives an immutable OWNER_VERIFIED successor from an imported fact", async ({
+  request,
+}) => {
+  await signup(request, "imported-verification");
+
+  const tenantResponse = await request.get(`${apiBase}/current-tenant`);
+  expect(tenantResponse.ok(), await tenantResponse.text()).toBeTruthy();
+  const tenant = (await tenantResponse.json()) as ApiEnvelope<{ id: string }>;
+  const prisma = new PrismaClient({
+    datasources: {
+      db: {
+        url:
+          process.env.DATABASE_URL ??
+          "postgresql://postgres:postgres@localhost:5432/leadvirt?schema=public",
+      },
+    },
+  });
+
+  try {
+    const owner = await prisma.membership.findFirstOrThrow({
+      where: { tenantId: tenant.data.id, role: "OWNER" },
+      select: { userId: true },
+    });
+    const factKey = `catalog/imported-service-${Date.now()}`;
+    const source = await prisma.$transaction(async (tx) => {
+      const fact = await tx.knowledgeV2Fact.create({
+        data: {
+          tenantId: tenant.data.id,
+          entityType: "CATALOG_ITEM",
+          factKey,
+          fieldType: "TEXT",
+          latestVersionNumber: 1,
+          createdByUserId: owner.userId,
+          updatedByUserId: owner.userId,
+        },
+      });
+      const version = await tx.knowledgeV2FactVersion.create({
+        data: {
+          tenantId: tenant.data.id,
+          factId: fact.id,
+          versionNumber: 1,
+          normalizedValue: "Imported air-conditioner installation",
+          displayValue: "Imported air-conditioner installation",
+          locale: "en",
+          localeBehavior: "LANGUAGE_NEUTRAL",
+          riskLevel: "LOW",
+          authority: "IMPORTED",
+          lifecycleStatus: "DRAFT",
+          verificationStatus: "UNVERIFIED",
+          immutableHash: key("imported-source-hash"),
+          createdByUserId: owner.userId,
+        },
+      });
+      await tx.knowledgeV2Evidence.create({
+        data: {
+          tenantId: tenant.data.id,
+          kind: "EXTERNAL_REFERENCE",
+          factVersionId: version.id,
+          label: "Imported CSV fixture",
+          locator: "fixture://services.csv",
+          sourceReference: { fixture: "services.csv", factKey },
+          createdByUserId: owner.userId,
+        },
+      });
+      return version;
+    });
+
+    const factsResponse = await request.get(
+      `${apiBase}/knowledge/v2/facts?query=${encodeURIComponent(factKey)}`,
+    );
+    expect(factsResponse.ok(), await factsResponse.text()).toBeTruthy();
+    const facts = (await factsResponse.json()) as ApiEnvelope<{
+      items: KnowledgeV2FactView[];
+    }>;
+    const importedFact = facts.data.items.find((item) => item.factKey === factKey);
+    if (!importedFact) throw new Error("Seeded imported fact was not returned by the API.");
+    expect(importedFact.authority).toBe("IMPORTED");
+    expect(importedFact.verificationStatus).toBe("UNVERIFIED");
+    expect(importedFact.allowedActions).toContain("VERIFY");
+
+    const verifiedResponse = await request.post(
+      `${apiBase}/knowledge/v2/facts/${importedFact.id}/verify`,
+      {
+        headers: {
+          "Idempotency-Key": key("verify-imported-fact"),
+          "If-Match": importedFact.etag,
+        },
+        data: { note: "Owner verified the imported service." },
+      },
+    );
+    expect(verifiedResponse.ok(), await verifiedResponse.text()).toBeTruthy();
+    const verified = (
+      (await verifiedResponse.json()) as ApiEnvelope<KnowledgeV2MutationResult<KnowledgeV2FactView>>
+    ).data.resource;
+    expect(verified.version).toBe(2);
+    expect(verified.authority).toBe("OWNER_VERIFIED");
+    expect(verified.verificationStatus).toBe("VERIFIED");
+
+    const lineage = await prisma.knowledgeV2FactVersion.findMany({
+      where: { tenantId: tenant.data.id, factId: importedFact.id },
+      orderBy: { versionNumber: "asc" },
+      include: { evidence: true },
+    });
+    expect(lineage).toHaveLength(2);
+    expect(lineage[0]?.id).toBe(source.id);
+    expect(lineage[0]?.authority).toBe("IMPORTED");
+    expect(lineage[0]?.verificationStatus).toBe("UNVERIFIED");
+    expect(lineage[0]?.verifiedByUserId).toBeNull();
+    expect(lineage[0]?.immutableHash).toBe(source.immutableHash);
+    expect(lineage[0]?.evidence).toHaveLength(1);
+    expect(lineage[1]?.supersedesVersionId).toBe(source.id);
+    expect(lineage[1]?.authority).toBe("OWNER_VERIFIED");
+    expect(lineage[1]?.verificationStatus).toBe("VERIFIED");
+    expect(lineage[1]?.verifiedByUserId).toBe(owner.userId);
+    expect(lineage[1]?.immutableHash).not.toBe(source.immutableHash);
+    expect(lineage[1]?.evidence).toHaveLength(2);
+  } finally {
+    await prisma.$disconnect();
+  }
+});
+
 test("Knowledge v2 supports conditional drafts, explicit publication, and exact rollback", async ({
   request,
 }) => {

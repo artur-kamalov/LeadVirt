@@ -2578,7 +2578,7 @@ export type KnowledgeV2CreateTestRunRequest = KnowledgeV2TestRunContextInput &
         target: "DRAFT";
         candidateId: string;
         candidateVersion: number;
-        candidateManifestHash?: string | null;
+        candidateManifestHash: string;
       }
   );
 

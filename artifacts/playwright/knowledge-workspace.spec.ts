@@ -260,6 +260,7 @@ function readiness(
           status: "WARNING",
           title: "Optional escalation guidance is missing",
           message: "The draft can publish, but escalation coverage can be improved.",
+          resource: { type: "FACT", id: "fact-escalation", label: "Escalation policy" },
         },
       ],
       latestJob: jobStatus ? publicationJob(jobStatus) : null,
@@ -1065,6 +1066,10 @@ test("app Knowledge navigation preserves all views and shows honest availability
     fullPage: true,
     animations: "disabled",
   });
+  await page.getByRole("button", { name: "Resolve", exact: true }).click();
+  await expect(page).toHaveURL(/\/app\/knowledge\?view=business(?:&|$)/);
+  await page.getByTestId("knowledge-tab-overview").click();
+  await expect(page.getByTestId("knowledge-overview")).toBeVisible();
 
   const tabs = [
     "overview",

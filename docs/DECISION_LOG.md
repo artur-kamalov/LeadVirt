@@ -4276,3 +4276,28 @@ Consequences:
 - The high-entropy signed setup link remains valid only while that connection's welcome is pending. Consumption or reconnecting invalidates it; the separate normal-message fallback retains its 30-minute limit.
 - The Inbox presents the setup welcome as a bot/system response and keeps the conversation actionable for the owner's first manual reply.
 - The authenticated integration response carries the same per-connection activation timestamp stored on the channel. Inbox polling matches `activationWelcomeAt` against that boundary, so a fast webhook or a newer unrelated unread chat cannot hide or replace the setup conversation.
+
+## 2026-07-23: Make Approved Imported Prices Publishable And Time-Bounded
+
+Decision: An exact immutable owner/admin approval of a HIGH-risk imported offering projects `OWNER_VERIFIED` authority. A price keeps its explicit validity end when present; otherwise it expires 90 days after the exact approval grant. A multi-price fact uses the intersection of its price windows, and the window policy, dates, approval, and source evidence are immutable-hash inputs.
+
+Context: The Teplodom import was approved by the workspace owner, but imported price facts remained `IMPORTED` with no fact-level expiry. Publication correctly rejected all 30 facts, while neither the import flow nor the fact editor offered a practical way to repair them.
+
+Consequences:
+
+- Source provenance remains imported evidence; derived verification authority records the owner's separate approval decision.
+- Retries cannot refresh stale prices because fallback expiry is anchored to the stored approval grant, never projection time.
+- Explicit owner/admin verification may derive an immutable `OWNER_VERIFIED` successor from either `MANUAL` or `IMPORTED` authority.
+- Re-import may adopt a newly recognized external ID only for one exact same-source identity with one matching binding; ambiguous or cross-source matches remain conflicts.
+
+## 2026-07-23: Test Only An Exact Validated Knowledge Draft
+
+Decision: A draft AI test requires the exact candidate ID, version, manifest hash, and current validation. The client disables execution without that validation and routes users to draft blockers or validation instead of sending a request that must fail.
+
+Context: The captured production request omitted `candidateManifestHash` and failed DTO validation before any AI call. The same draft also had no validation and 33 publication blockers, so adding only the missing field would have produced a second failure.
+
+Consequences:
+
+- Saved and ad hoc tests use the same exact draft identity contract.
+- Import completion routes to draft readiness rather than implying that AI testing is immediately available.
+- Readiness remediation accepts either the gate's direct resource or its nested remediation resource.

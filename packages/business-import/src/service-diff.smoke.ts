@@ -58,13 +58,15 @@ assert.equal(linked[0]?.targetOfferingId, unboundExisting.id);
 assert.equal(linked[0]?.riskLevel, "LOW");
 assert.equal(linked[0]?.proposedValueHash, businessOfferingValueHash(original));
 
-const differentlyBound = diffBusinessServiceRows({
+const identityMismatchedBinding = diffBusinessServiceRows({
   sourceLineageId: "source-1",
   rows: [original],
   existing: [unboundExisting],
-  sourceBindings: [{ ...binding, externalKey: "another-source-key" }],
+  sourceBindings: [
+    { ...binding, externalKey: "another-source-key", identityKey: "another-identity" },
+  ],
 });
-assert.equal(differentlyBound[0]?.action, "CONFLICT");
+assert.equal(identityMismatchedBinding[0]?.action, "CONFLICT");
 
 const duplicateBindingTarget = { ...existing, id: "offering-2" };
 const duplicateExternalBinding = diffBusinessServiceRows({
@@ -117,6 +119,68 @@ assert.equal(
   duplicateCanonicalIdentity[0]?.diagnostics.at(-1)?.code,
   "BUSINESS_IMPORT_AMBIGUOUS_CANONICAL_IDENTITY",
 );
+
+const legacySource = await parseBusinessServicesCsv(
+  new Uint8Array(
+    Buffer.from(
+      [
+        "category,name,description,price_type,price_from,currency,price_unit,active",
+        "Installation,Air conditioner installation,Standard installation,FROM,14900,RUB,service,true",
+      ].join("\n"),
+    ),
+  ),
+);
+const legacyRow = legacySource.rows[0] as ParsedBusinessServiceRow;
+const legacyIdentityKey = businessOfferingIdentityKey(legacyRow);
+const legacyExistingValue = { ...legacyRow, externalId: legacyIdentityKey };
+const legacyExisting = {
+  id: "offering-stable-id-adoption",
+  value: legacyExistingValue,
+  valueHash: businessOfferingValueHash(legacyExistingValue),
+};
+const explicitStableIdSource = await parseBusinessServicesCsv(
+  new Uint8Array(
+    Buffer.from(
+      [
+        "external_id,category,name,description,price_type,price_from,currency,price_unit,active",
+        "SRV-001,Installation,Air conditioner installation,Standard installation,FROM,14900,RUB,per service,true",
+      ].join("\n"),
+    ),
+  ),
+);
+const explicitStableIdRow = explicitStableIdSource.rows[0] as ParsedBusinessServiceRow;
+const legacyBinding = {
+  offeringId: legacyExisting.id,
+  externalKey: legacyIdentityKey,
+  identityKey: legacyIdentityKey,
+  sourceValueHash: businessOfferingValueHash(legacyRow),
+};
+const stableIdAdoption = diffBusinessServiceRows({
+  sourceLineageId: "source-1",
+  rows: [explicitStableIdRow],
+  existing: [legacyExisting],
+  sourceBindings: [legacyBinding],
+});
+assert.equal(stableIdAdoption.length, 1);
+assert.equal(stableIdAdoption[0]?.action, "UPDATE");
+assert.equal(stableIdAdoption[0]?.targetOfferingId, legacyExisting.id);
+assert.equal(stableIdAdoption[0]?.sourceExternalKey, "SRV-001");
+assert.equal(
+  stableIdAdoption.some((candidate) => candidate.action === "MISSING"),
+  false,
+);
+
+const ambiguousStableIdAdoption = diffBusinessServiceRows({
+  sourceLineageId: "source-1",
+  rows: [explicitStableIdRow],
+  existing: [legacyExisting],
+  sourceBindings: [
+    legacyBinding,
+    { ...legacyBinding, externalKey: `${legacyIdentityKey}-duplicate` },
+  ],
+});
+assert.equal(ambiguousStableIdAdoption[0]?.action, "CONFLICT");
+assert.equal(ambiguousStableIdAdoption[0]?.targetOfferingId, legacyExisting.id);
 
 const decimalEquivalent = await parseBusinessServicesCsv(
   new Uint8Array(

@@ -43,6 +43,7 @@ import {
   type BusinessImportRuntimeData,
 } from "../../apps/worker/src/business-import/business-import-processor.js";
 import {
+  BUSINESS_INFORMATION_PRICE_EFFECTIVE_WINDOW_POLICY_ID,
   createBusinessInformationProjectionDependencies,
   processBusinessInformationProjectionJob,
   type BusinessInformationProjectionRuntimeData,
@@ -400,6 +401,8 @@ async function main() {
     assert.equal(candidate.requiresApproval, true);
     assert.equal(candidate.version, 1);
     assert.equal(candidate.decision, "PENDING");
+    const candidateValue = candidate.normalizedValue as Record<string, unknown>;
+    assert.equal(candidateValue.validUntil, null);
     await review.decideCandidate(
       context,
       intent.importId,
@@ -562,10 +565,17 @@ async function main() {
     const normalized = factVersion.normalizedValue as Record<string, unknown>;
     const prices = normalized.prices as Array<Record<string, unknown>>;
     const duration = normalized.duration as Record<string, unknown>;
+    const expectedEffectiveUntil = new Date(
+      approvedGrant.grantedAt.getTime() + 90 * 24 * 60 * 60_000,
+    );
     assert.equal(factVersion.lifecycleStatus, "DRAFT");
     assert.equal(factVersion.riskLevel, "HIGH");
+    assert.equal(factVersion.authority, "OWNER_VERIFIED");
     assert.equal(factVersion.verificationStatus, "VERIFIED");
     assert.equal(factVersion.verifiedByUserId, user.id);
+    assert.equal(factVersion.verifiedAt?.toISOString(), approvedGrant.grantedAt.toISOString());
+    assert.equal(factVersion.effectiveFrom?.toISOString(), "2026-07-01T00:00:00.000Z");
+    assert.equal(factVersion.effectiveUntil?.toISOString(), expectedEffectiveUntil.toISOString());
     assert.equal(factVersion.displayValue, "Strategy Session");
     assert.equal(normalized.schema, "leadvirt.business-offering-fact.v1");
     assert.equal(normalized.name, "Strategy Session");
@@ -575,6 +585,22 @@ async function main() {
     assert.equal(duration.minimumMinutes, 60);
     assert.equal(duration.maximumMinutes, 75);
     assert(factVersion.evidence.length > 0);
+    const importedEvidence = factVersion.evidence.find(
+      (item) => item.kind === "EXTERNAL_REFERENCE",
+    );
+    assert(importedEvidence);
+    const importedSourceReference = importedEvidence.sourceReference as Record<string, unknown>;
+    assert.equal(importedSourceReference.importId, intent.importId);
+    assert.equal(importedSourceReference.candidateId, candidate.id);
+    assert.equal(importedSourceReference.candidateVersion, approvedCandidate.version);
+    assert.equal(importedSourceReference.candidateValueHash, approvedCandidate.normalizedValueHash);
+    assert.equal(importedSourceReference.applicationId, application.id);
+    const importedEvidenceMetadata = importedEvidence.metadata as Record<string, unknown>;
+    assert.equal(
+      importedEvidenceMetadata.effectiveWindowPolicyId,
+      BUSINESS_INFORMATION_PRICE_EFFECTIVE_WINDOW_POLICY_ID,
+    );
+    assert.match(factVersion.immutableHash, /^[a-f0-9]{64}$/u);
 
     const finalApplication = await prisma.businessImportApplication.findUniqueOrThrow({
       where: { id: application.id },
@@ -603,6 +629,8 @@ async function main() {
     const factVersionCount = await prisma.knowledgeV2FactVersion.count({
       where: { factId: fact.id },
     });
+    const factVersionImmutableHash = factVersion.immutableHash;
+    const factVersionEvidenceIds = factVersion.evidence.map((item) => item.id).sort();
     const settingsBeforeReplay = await prisma.knowledgeV2Settings.findUniqueOrThrow({
       where: { tenantId: tenant.id },
     });
@@ -619,6 +647,19 @@ async function main() {
     assert.equal(
       await prisma.knowledgeV2FactVersion.count({ where: { factId: fact.id } }),
       factVersionCount,
+    );
+    const factVersionAfterReplay = await prisma.knowledgeV2FactVersion.findUniqueOrThrow({
+      where: { id: factVersion.id },
+      include: { evidence: { orderBy: { id: "asc" } } },
+    });
+    assert.equal(factVersionAfterReplay.immutableHash, factVersionImmutableHash);
+    assert.equal(
+      factVersionAfterReplay.effectiveUntil?.toISOString(),
+      expectedEffectiveUntil.toISOString(),
+    );
+    assert.deepEqual(
+      factVersionAfterReplay.evidence.map((item) => item.id),
+      factVersionEvidenceIds,
     );
     const settingsAfterReplay = await prisma.knowledgeV2Settings.findUniqueOrThrow({
       where: { tenantId: tenant.id },

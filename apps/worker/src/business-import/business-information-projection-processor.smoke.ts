@@ -3,10 +3,12 @@ import { createHash, randomUUID } from "node:crypto";
 import { prisma } from "@leadvirt/db";
 import { parseRuntimeQueueEnvelope } from "@leadvirt/runtime-queue";
 import {
+  BUSINESS_INFORMATION_PRICE_EFFECTIVE_WINDOW_POLICY_ID,
   businessInformationProjectionExactOwnerApproval,
   businessInformationProjectionGovernance,
   businessInformationProjectionHash,
   businessInformationProjectionImportedEvidence,
+  businessInformationProjectionOfferingEffectiveWindow,
   businessInformationLinkProjectionCanReuse,
   createBusinessInformationProjectionDependencies,
   isBusinessInformationProjectionRuntimeData,
@@ -314,11 +316,98 @@ assert.deepEqual(
     ownerApproval: { userId, approvedAt: governanceApprovedAt },
   }),
   {
-    authority: "IMPORTED",
+    authority: "OWNER_VERIFIED",
     verificationStatus: "VERIFIED",
     verifiedByUserId: userId,
     verifiedAt: governanceApprovedAt,
   },
+);
+const ownerApprovalFreshUntil = new Date(governanceApprovedAt.getTime() + 90 * 24 * 60 * 60_000);
+assert.deepEqual(
+  businessInformationProjectionOfferingEffectiveWindow({
+    prices: [{ effectiveFrom: null, effectiveUntil: null }],
+    ownerApproval: { approvedAt: governanceApprovedAt },
+  }),
+  {
+    effectiveFrom: null,
+    effectiveUntil: ownerApprovalFreshUntil,
+    policyId: BUSINESS_INFORMATION_PRICE_EFFECTIVE_WINDOW_POLICY_ID,
+  },
+);
+assert.deepEqual(
+  businessInformationProjectionOfferingEffectiveWindow({
+    prices: [
+      {
+        effectiveFrom: new Date("2026-07-01T00:00:00.000Z"),
+        effectiveUntil: new Date("2026-08-15T00:00:00.000Z"),
+      },
+      {
+        effectiveFrom: new Date("2026-07-15T00:00:00.000Z"),
+        effectiveUntil: null,
+      },
+    ],
+    ownerApproval: { approvedAt: governanceApprovedAt },
+  }),
+  {
+    effectiveFrom: new Date("2026-07-15T00:00:00.000Z"),
+    effectiveUntil: new Date("2026-08-15T00:00:00.000Z"),
+    policyId: BUSINESS_INFORMATION_PRICE_EFFECTIVE_WINDOW_POLICY_ID,
+  },
+);
+assert.deepEqual(
+  businessInformationProjectionOfferingEffectiveWindow({
+    prices: [
+      {
+        effectiveFrom: null,
+        effectiveUntil: new Date("2026-12-01T00:00:00.000Z"),
+      },
+      { effectiveFrom: null, effectiveUntil: null },
+    ],
+    ownerApproval: { approvedAt: governanceApprovedAt },
+  }),
+  {
+    effectiveFrom: null,
+    effectiveUntil: ownerApprovalFreshUntil,
+    policyId: BUSINESS_INFORMATION_PRICE_EFFECTIVE_WINDOW_POLICY_ID,
+  },
+);
+assert.deepEqual(
+  businessInformationProjectionOfferingEffectiveWindow({
+    prices: [{ effectiveFrom: null, effectiveUntil: null }],
+    ownerApproval: null,
+  }),
+  {
+    effectiveFrom: null,
+    effectiveUntil: null,
+    policyId: BUSINESS_INFORMATION_PRICE_EFFECTIVE_WINDOW_POLICY_ID,
+  },
+);
+assert.deepEqual(
+  businessInformationProjectionOfferingEffectiveWindow({
+    prices: [
+      {
+        effectiveFrom: new Date("2026-07-01T00:00:00.000Z"),
+        effectiveUntil: new Date("2026-10-01T00:00:00.000Z"),
+      },
+      {
+        effectiveFrom: new Date("2026-08-01T00:00:00.000Z"),
+        effectiveUntil: new Date("2026-09-01T00:00:00.000Z"),
+      },
+    ],
+    ownerApproval: null,
+  }),
+  {
+    effectiveFrom: new Date("2026-08-01T00:00:00.000Z"),
+    effectiveUntil: new Date("2026-09-01T00:00:00.000Z"),
+    policyId: BUSINESS_INFORMATION_PRICE_EFFECTIVE_WINDOW_POLICY_ID,
+  },
+);
+assert.deepEqual(
+  businessInformationProjectionOfferingEffectiveWindow({
+    prices: [],
+    ownerApproval: null,
+  }),
+  { effectiveFrom: null, effectiveUntil: null, policyId: null },
 );
 
 async function cleanup() {
@@ -850,10 +939,20 @@ try {
   assert.equal(activeFact.versions[0].verificationStatus, "PENDING_REVIEW");
   assert.equal(activeFact.versions[0].verifiedByUserId, null);
   assert.equal(activeFact.versions[0].verifiedAt, null);
+  assert.equal(activeFact.versions[0].effectiveFrom?.toISOString(), "2026-07-01T00:00:00.000Z");
+  assert.equal(activeFact.versions[0].effectiveUntil, null);
   assert.equal(identityFact.versions[0].verificationStatus, "VERIFIED");
   assert.equal(archivedFact.versions[0].lifecycleStatus, "ARCHIVED");
   assert.match(activeFact.versions[0].immutableHash, /^[a-f0-9]{64}$/u);
   assert.equal(activeFact.versions[0].evidence.length, 1);
+  const activeEvidenceMetadata = activeFact.versions[0].evidence[0]?.metadata as Record<
+    string,
+    unknown
+  >;
+  assert.equal(
+    activeEvidenceMetadata.effectiveWindowPolicyId,
+    BUSINESS_INFORMATION_PRICE_EFFECTIVE_WINDOW_POLICY_ID,
+  );
   const normalized = activeFact.versions[0].normalizedValue as Record<string, unknown>;
   const prices = normalized.prices as Array<Record<string, unknown>>;
   const duration = normalized.duration as Record<string, unknown>;

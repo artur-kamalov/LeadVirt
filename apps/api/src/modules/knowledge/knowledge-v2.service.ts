@@ -1140,7 +1140,7 @@ export class KnowledgeV2Service {
             : this.factMaterial({}, previous, settings);
         if (
           operation === "verify" &&
-          material.authority === "MANUAL" &&
+          (material.authority === "MANUAL" || material.authority === "IMPORTED") &&
           (context.role === "OWNER" || context.role === "ADMIN")
         ) {
           material = { ...material, authority: "OWNER_VERIFIED" };

@@ -2124,10 +2124,15 @@ test("desktop review exposes source evidence, saves edits, and applies an exact 
   await expect(page.getByTestId("business-import-applied")).toContainText(
     "Added 1; updated 1; linked 0.",
   );
-  await expect(page.getByTestId("business-import-test-answers")).toHaveAttribute(
+  await expect(page.getByTestId("business-import-review-draft")).toHaveAttribute(
     "href",
-    `/app/knowledge?view=test&importId=${importId}`,
+    "/app/knowledge?view=overview",
   );
+  await page.screenshot({
+    path: testInfo.outputPath("business-import-applied.png"),
+    fullPage: true,
+    animations: "disabled",
+  });
   expect(state.applies).toHaveLength(1);
   expect(state.applies[0].body).toEqual({
     candidateIds: ["candidate-add", "candidate-update"],
