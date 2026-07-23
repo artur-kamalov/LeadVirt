@@ -28,6 +28,7 @@ import {
   businessImportEtag,
   businessInformationEtag,
 } from "../../apps/api/src/modules/business-profile/business-import-http.js";
+import { BusinessImportMappingService } from "../../apps/api/src/modules/business-profile/business-import-mapping.service.js";
 import type { BusinessImportQueueService } from "../../apps/api/src/modules/business-profile/business-import-queue.service.js";
 import { BusinessImportReviewService } from "../../apps/api/src/modules/business-profile/business-import-review.service.js";
 import { BusinessImportRuntimeService } from "../../apps/api/src/modules/business-profile/business-import-runtime.service.js";
@@ -66,6 +67,9 @@ const csv = new TextEncoder().encode(
   ].join("\n"),
 );
 const malformedCsv = new TextEncoder().encode('external_id,name\nsvc-bad,"unterminated\n');
+const arbitraryCsv = new TextEncoder().encode(
+  ["Код;Услуга;Цена;Время", "mapped-e2e;Mapped Advisory;от 50 EUR;45 минут"].join("\n"),
+);
 
 function command(args: string[], env: NodeJS.ProcessEnv) {
   const executable = process.platform === "win32" ? "cmd.exe" : "corepack";
@@ -125,9 +129,11 @@ const scanner: BusinessImportFileScanner = {
     const expectedBytes =
       input.filename === "services.csv"
         ? csv
-        : input.filename === "malformed-services.csv"
-          ? malformedCsv
-          : null;
+        : input.filename === "arbitrary-services.csv"
+          ? arbitraryCsv
+          : input.filename === "malformed-services.csv"
+            ? malformedCsv
+            : null;
     assert(expectedBytes, `Unexpected scanner fixture: ${input.filename}`);
     assert.equal(input.mimeType, "text/csv");
     assert.deepEqual(input.bytes, expectedBytes);
@@ -193,6 +199,7 @@ async function main() {
       dispatch() {},
     } as unknown as BusinessImportQueueService;
     const workflow = new BusinessImportWorkflowService(prisma, idempotency, queue, runtime, views);
+    const mappings = new BusinessImportMappingService(prisma, idempotency, queue, runtime);
     const review = new BusinessImportReviewService(prisma, idempotency, runtime, views);
     const applications = new BusinessImportApplicationService(
       prisma,
@@ -628,6 +635,209 @@ async function main() {
       where: { id: intent.importId },
     });
     assert.equal(finalImport.state, "APPLIED");
+
+    const arbitraryIntent = await upload.createIntent(
+      context,
+      {
+        filename: "arbitrary-services.csv",
+        declaredMimeType: "text/csv",
+        byteSize: arbitraryCsv.byteLength,
+        sourceName: "Customer price list",
+      },
+      "csv-e2e-arbitrary-intent",
+    );
+    await upload.upload(
+      arbitraryIntent.importId,
+      arbitraryIntent.headers.Authorization,
+      "text/csv",
+      String(arbitraryCsv.byteLength),
+      Readable.from([arbitraryCsv]),
+    );
+    await workflow.finalize(context, arbitraryIntent.importId, "csv-e2e-arbitrary-finalize");
+    const arbitraryParseOutbox = await prisma.runtimeOutbox.findUniqueOrThrow({
+      where: {
+        tenantId_dedupeKey: {
+          tenantId: tenant.id,
+          dedupeKey: `business-import:${arbitraryIntent.importId}:1`,
+        },
+      },
+    });
+    await prisma.runtimeOutbox.update({
+      where: { id: arbitraryParseOutbox.id },
+      data: { status: "PUBLISHED", publishedAt: new Date() },
+    });
+    const arbitraryParseEnvelope = parseRuntimeQueueEnvelope(arbitraryParseOutbox.payload);
+    const arbitraryParseData = {
+      ...(arbitraryParseEnvelope.data as unknown as BusinessImportParseJobData),
+      runtimeEventId: arbitraryParseOutbox.id,
+      runtimeGeneration: arbitraryParseOutbox.generation,
+    } satisfies BusinessImportRuntimeData;
+    const mappingRequired = await processBusinessImportJob(
+      {
+        id: arbitraryParseEnvelope.jobId,
+        name: arbitraryParseEnvelope.jobName,
+        data: arbitraryParseData,
+        signal: new AbortController().signal,
+      },
+      processorDependencies,
+    );
+    assert.equal(mappingRequired.status, "succeeded");
+    assert.equal(mappingRequired.state, "MAPPING_REQUIRED");
+    assert.equal(mappingRequired.candidateCount, 0);
+
+    const mappingView = await mappings.get(context, arbitraryIntent.importId);
+    assert.equal(mappingView.table.headerRow, 1);
+    assert.equal(mappingView.table.totalRows, 1);
+    assert.deepEqual(
+      mappingView.table.columns.map((column) => [
+        column.header,
+        column.proposedTarget,
+        column.examples[0],
+      ]),
+      [
+        ["Код", "external_id", "mapped-e2e"],
+        ["Услуга", "name", "Mapped Advisory"],
+        ["Цена", "price", "от 50 EUR"],
+        ["Время", "duration", "45 минут"],
+      ],
+    );
+    const mappingReceipt = await mappings.confirm(
+      context,
+      arbitraryIntent.importId,
+      {
+        tableKey: mappingView.table.tableKey,
+        schemaHash: mappingView.table.schemaHash,
+        headerRow: mappingView.table.headerRow,
+        columns: mappingView.table.columns.map((column) => ({
+          sourceColumnKey: column.sourceColumnKey,
+          target: column.proposedTarget,
+        })),
+        defaults: {
+          locale: "ru",
+          numberFormat: "DECIMAL_DOT",
+          currency: "EUR",
+          timezone: null,
+          unit: "session",
+        },
+      },
+      mappingView.etag,
+      "csv-e2e-arbitrary-mapping",
+    );
+    assert.equal(mappingReceipt.state, "PARSING");
+    assert.equal(mappingReceipt.generation, 2);
+    assert.equal(mappingReceipt.idempotencyReplayed, false);
+
+    const staleMappedParseOutbox = await prisma.runtimeOutbox.findUniqueOrThrow({
+      where: {
+        tenantId_dedupeKey: {
+          tenantId: tenant.id,
+          dedupeKey: `business-import:${arbitraryIntent.importId}:2`,
+        },
+      },
+    });
+    await prisma.businessImport.update({
+      where: { id: arbitraryIntent.importId },
+      data: {
+        state: "FAILED_RETRYABLE",
+        retryable: true,
+        failureCode: "BUSINESS_IMPORT_STORAGE_UNAVAILABLE",
+        failureStage: "STORAGE",
+        etag: { increment: 1 },
+      },
+    });
+    const failedMappedImport = await prisma.businessImport.findUniqueOrThrow({
+      where: { id: arbitraryIntent.importId },
+    });
+    const retriedMappedImport = await workflow.retry(
+      context,
+      arbitraryIntent.importId,
+      { generation: failedMappedImport.generation },
+      businessImportEtag(arbitraryIntent.importId, failedMappedImport.etag),
+      "csv-e2e-arbitrary-mapped-retry",
+    );
+    assert.equal(retriedMappedImport.state, "PARSING");
+    assert.equal(retriedMappedImport.generation, 3);
+
+    await prisma.runtimeOutbox.update({
+      where: { id: staleMappedParseOutbox.id },
+      data: { status: "PUBLISHED", publishedAt: new Date() },
+    });
+    const staleMappedParseEnvelope = parseRuntimeQueueEnvelope(staleMappedParseOutbox.payload);
+    const staleMappedResult = await processBusinessImportJob(
+      {
+        id: staleMappedParseEnvelope.jobId,
+        name: staleMappedParseEnvelope.jobName,
+        data: {
+          ...(staleMappedParseEnvelope.data as unknown as BusinessImportParseJobData),
+          runtimeEventId: staleMappedParseOutbox.id,
+          runtimeGeneration: staleMappedParseOutbox.generation,
+        },
+        signal: new AbortController().signal,
+      },
+      processorDependencies,
+    );
+    assert.equal(staleMappedResult.status, "cancelled");
+    assert.equal(staleMappedResult.reason, "stale_generation");
+
+    const mappedParseOutbox = await prisma.runtimeOutbox.findUniqueOrThrow({
+      where: {
+        tenantId_dedupeKey: {
+          tenantId: tenant.id,
+          dedupeKey: `business-import:${arbitraryIntent.importId}:3`,
+        },
+      },
+    });
+    await prisma.runtimeOutbox.update({
+      where: { id: mappedParseOutbox.id },
+      data: { status: "PUBLISHED", publishedAt: new Date() },
+    });
+    const mappedParseEnvelope = parseRuntimeQueueEnvelope(mappedParseOutbox.payload);
+    const mappedParseData = {
+      ...(mappedParseEnvelope.data as unknown as BusinessImportParseJobData),
+      runtimeEventId: mappedParseOutbox.id,
+      runtimeGeneration: mappedParseOutbox.generation,
+    } satisfies BusinessImportRuntimeData;
+    const mappedResult = await processBusinessImportJob(
+      {
+        id: mappedParseEnvelope.jobId,
+        name: mappedParseEnvelope.jobName,
+        data: mappedParseData,
+        signal: new AbortController().signal,
+      },
+      processorDependencies,
+    );
+    assert.equal(mappedResult.status, "succeeded");
+    assert.equal(mappedResult.state, "READY_FOR_REVIEW");
+    assert.equal(mappedResult.candidateCount, 1);
+    const mappedImport = await prisma.businessImport.findUniqueOrThrow({
+      where: { id: arbitraryIntent.importId },
+      include: {
+        candidates: true,
+        candidateRevisions: true,
+        parsedRevisions: true,
+        mappings: true,
+        quotaReservation: true,
+      },
+    });
+    assert.equal(mappedImport.state, "READY_FOR_REVIEW");
+    assert.equal(mappedImport.generation, 3);
+    assert(mappedImport.reviewReadyAt);
+    assert.equal(mappedImport.parsedRevisions.length, 2);
+    assert.equal(mappedImport.mappings.length, 1);
+    assert.equal(mappedImport.candidates.length, 1);
+    assert.equal(mappedImport.candidates[0]?.mappingId, mappingReceipt.mappingId);
+    assert.equal(mappedImport.candidateRevisions[0]?.mappingId, mappingReceipt.mappingId);
+    assert.equal(mappedImport.quotaReservation?.status, "CONSUMED");
+    const mappedValue = mappedImport.candidates[0]?.normalizedValue as Record<string, unknown>;
+    const mappedPrice = mappedValue.price as Record<string, unknown>;
+    const mappedDuration = mappedValue.duration as Record<string, unknown>;
+    assert.equal(mappedValue.name, "Mapped Advisory");
+    assert.equal(mappedValue.language, "ru");
+    assert.equal(mappedPrice.type, "FROM");
+    assert.equal(mappedPrice.from, "50");
+    assert.equal(mappedPrice.currency, "EUR");
+    assert.equal(mappedPrice.unit, "session");
+    assert.equal(mappedDuration.minimumMinutes, 45);
 
     const failedIntent = await upload.createIntent(
       context,

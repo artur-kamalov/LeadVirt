@@ -8,6 +8,7 @@ import {
 import type { PrismaService } from "../database/prisma.service.js";
 
 export const BUSINESS_IMPORT_PENDING_RETENTION_PREFIX = "BUSINESS_IMPORT_PENDING";
+export const BUSINESS_IMPORT_REPROCESS_RETENTION_MS = 30 * 24 * 60 * 60_000;
 
 const DELETE_CLAIM_PREFIX = "BUSINESS_IMPORT_PENDING_DELETE_CLAIM";
 
@@ -27,25 +28,29 @@ export interface PendingBusinessImportObject {
   retainUntil: Date;
 }
 
+export interface RetainedBusinessImportObject {
+  ledgerId: string;
+  objectKind: "RAW_ARTIFACT" | "PARSED_MANIFEST";
+  objectStorageKey: string;
+  encryptionKeyRef: string;
+  retentionClass: "BUSINESS_IMPORT_RAW" | "BUSINESS_IMPORT_PARSED_MANIFEST";
+}
+
 function exactHash(value: Uint8Array) {
   return createHash("sha256").update(value).digest("hex");
 }
 
-function ledgerId(input: {
-  tenantId: string;
-  objectStorageKey: string;
-  encryptionKeyRef: string;
-}) {
+function ledgerId(input: { tenantId: string; objectStorageKey: string; encryptionKeyRef: string }) {
   return `biol_${createHash("sha256")
-    .update(
-      `${input.tenantId}\0${input.objectStorageKey}\0${input.encryptionKeyRef}`,
-      "utf8",
-    )
+    .update(`${input.tenantId}\0${input.objectStorageKey}\0${input.encryptionKeyRef}`, "utf8")
     .digest("hex")}`;
 }
 
 export function pendingBusinessImportRetentionClass(scope: string) {
-  const normalized = scope.trim().replace(/[^A-Za-z0-9:._-]+/gu, "_").slice(0, 300);
+  const normalized = scope
+    .trim()
+    .replace(/[^A-Za-z0-9:._-]+/gu, "_")
+    .slice(0, 300);
   if (!normalized) throw new Error("BUSINESS_IMPORT_PENDING_SCOPE_INVALID");
   return `${BUSINESS_IMPORT_PENDING_RETENTION_PREFIX}:${normalized}`;
 }
@@ -136,10 +141,7 @@ export async function putPendingBusinessImportObject(
       if (!(error instanceof KnowledgeObjectStoreError) || error.code !== "OBJECT_EXISTS") {
         throw error;
       }
-      const existing = await store.get(
-        reservation.objectStorageKey,
-        reservation.encryptionKeyRef,
-      );
+      const existing = await store.get(reservation.objectStorageKey, reservation.encryptionKeyRef);
       if (exactHash(existing) !== exactHash(bytes)) {
         throw new Error("BUSINESS_IMPORT_PENDING_OBJECT_CONTENT_CONFLICT");
       }
@@ -182,6 +184,68 @@ export async function adoptPendingBusinessImportObject(
   if (adopted.count !== 1) {
     throw new Error("BUSINESS_IMPORT_PENDING_OBJECT_ADOPTION_CONFLICT");
   }
+}
+
+export async function lockAndExtendRetainedBusinessImportObjects(
+  tx: Prisma.TransactionClient,
+  input: {
+    tenantId: string;
+    objects: readonly RetainedBusinessImportObject[];
+    now: Date;
+  },
+) {
+  const ordered = [...input.objects].sort((left, right) =>
+    left.ledgerId.localeCompare(right.ledgerId),
+  );
+  const ids = ordered.map((object) => object.ledgerId);
+  if (!ids.length || new Set(ids).size !== ids.length) return false;
+
+  await tx.$queryRaw(Prisma.sql`
+    SELECT "id"
+    FROM "BusinessImportObjectLedger"
+    WHERE "tenantId" = ${input.tenantId}
+      AND "id" IN (${Prisma.join(ids)})
+    ORDER BY "id"
+    FOR UPDATE
+  `);
+  const rows = await tx.businessImportObjectLedger.findMany({
+    where: { tenantId: input.tenantId, id: { in: ids } },
+  });
+  if (rows.length !== ordered.length) return false;
+
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  const extendTo = new Date(input.now.getTime() + BUSINESS_IMPORT_REPROCESS_RETENTION_MS);
+  for (const expected of ordered) {
+    const row = byId.get(expected.ledgerId);
+    if (
+      !row ||
+      row.objectKind !== expected.objectKind ||
+      row.objectStorageKey !== expected.objectStorageKey ||
+      row.encryptionKeyRef !== expected.encryptionKeyRef ||
+      row.retentionClass !== expected.retentionClass ||
+      row.deletionState !== "RETAINED" ||
+      (row.retainUntil !== null && row.retainUntil <= input.now)
+    ) {
+      return false;
+    }
+    if (row.retainUntil !== null && row.retainUntil < extendTo) {
+      const extended = await tx.businessImportObjectLedger.updateMany({
+        where: {
+          id: row.id,
+          tenantId: input.tenantId,
+          objectKind: expected.objectKind,
+          objectStorageKey: expected.objectStorageKey,
+          encryptionKeyRef: expected.encryptionKeyRef,
+          retentionClass: expected.retentionClass,
+          deletionState: "RETAINED",
+          retainUntil: row.retainUntil,
+        },
+        data: { retainUntil: extendTo },
+      });
+      if (extended.count !== 1) return false;
+    }
+  }
+  return true;
 }
 
 export async function cleanupPendingBusinessImportObject(

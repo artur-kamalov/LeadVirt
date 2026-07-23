@@ -245,6 +245,7 @@ function allowedActions(state: BusinessImportState, canEdit: boolean) {
   if (canEdit) {
     if (state === "CREATED") actions.push("UPLOAD");
     if (state === "UPLOADED") actions.push("FINALIZE");
+    if (state === "MAPPING_REQUIRED") actions.push("MAP");
     if (["READY_FOR_REVIEW", "AWAITING_APPROVAL", "PARTIALLY_APPLIED"].includes(state)) {
       actions.push("REBASE", "APPLY");
     }

@@ -4,6 +4,8 @@ import type {
   BusinessImportApplyPreviewView,
   BusinessImportCandidateView,
   BusinessImportFormat,
+  BusinessImportMappingConfirmRequest,
+  BusinessImportMappingView,
   BusinessImportView,
   BusinessProfileData,
   BusinessProfileView,
@@ -33,6 +35,12 @@ interface ImportMockState {
   applies: Array<{ body: Record<string, unknown>; headers: Record<string, string> }>;
   bulkDecisions: Array<{ body: Record<string, unknown>; headers: Record<string, string> }>;
   bulkApprovals: Array<{ body: Record<string, unknown>; headers: Record<string, string> }>;
+  mapping: BusinessImportMappingView;
+  mappingRequests: number;
+  mappingConfirms: Array<{
+    body: BusinessImportMappingConfirmRequest;
+    headers: Record<string, string>;
+  }>;
 }
 
 function profileData(): BusinessProfileData {
@@ -118,6 +126,97 @@ function readyImport(initiallySelected = false): BusinessImportView {
     createdAt: now,
     updatedAt: now,
     reviewReadyAt: now,
+  };
+}
+
+function mappingRequiredImport(): BusinessImportView {
+  return {
+    ...readyImport(false),
+    state: "MAPPING_REQUIRED",
+    counts: {
+      total: 0,
+      valid: 0,
+      invalid: 0,
+      additions: 0,
+      updates: 0,
+      linked: 0,
+      unchanged: 0,
+      conflicts: 0,
+      pendingApproval: 0,
+      applied: 0,
+    },
+    allowedActions: ["CANCEL"],
+    applyEligibility: {
+      eligible: false,
+      selectedCandidates: 0,
+      blockingConflicts: 0,
+      blockingInvalid: 0,
+      pendingApprovals: 0,
+      staleCandidates: 0,
+      reasonCodes: ["BUSINESS_IMPORT_MAPPING_REQUIRED"],
+    },
+    reviewReadyAt: null,
+  };
+}
+
+function mappingProposal(): BusinessImportMappingView {
+  return {
+    importId,
+    etag: '"business-import-1"',
+    format: "CSV",
+    table: {
+      tableKey: "csv:services",
+      schemaHash: "a".repeat(64),
+      headerRow: 1,
+      totalRows: 3,
+      totalColumns: 4,
+      columns: [
+        {
+          sourceColumnKey: "column:1",
+          index: 1,
+          header: "Наименование",
+          examples: ["Консультация", "Настройка рекламы", "Аудит"],
+          proposedTarget: "name",
+          status: "MATCHED",
+        },
+        {
+          sourceColumnKey: "column:2",
+          index: 2,
+          header: "Стоимость",
+          examples: ["5 000", "от 12 000", "по запросу"],
+          proposedTarget: "price",
+          status: "CHECK_MAPPING",
+        },
+        {
+          sourceColumnKey: "column:3",
+          index: 3,
+          header: "Подробности",
+          examples: ["60 минут", "Запуск под ключ"],
+          proposedTarget: "description",
+          status: "MATCHED",
+        },
+        {
+          sourceColumnKey: "column:4",
+          index: 4,
+          header: "Внутренняя метка",
+          examples: ["A-101", "A-102"],
+          proposedTarget: "IGNORE",
+          status: "NOT_USED",
+        },
+      ],
+    },
+    defaults: {
+      locale: "ru",
+      numberFormat: "DECIMAL_COMMA",
+      currency: null,
+      timezone: "Europe/Paris",
+      unit: null,
+    },
+    validation: {
+      canConfirm: true,
+      errorCodes: [],
+      warningCodes: ["BUSINESS_IMPORT_MAPPING_UNUSED_COLUMNS"],
+    },
   };
 }
 
@@ -280,10 +379,15 @@ async function installMocks(
     paginateCandidates?: boolean;
     initiallySelected?: boolean;
     locale?: Locale;
+    mappingRequired?: boolean;
+    mappingLoadOutcomes?: Array<"SUCCESS" | "FAIL">;
+    mappingConfirmOutcomes?: Array<"SUCCESS" | "CONFLICT" | "TRANSIENT">;
   } = {},
 ) {
   const state: ImportMockState = {
-    view: readyImport(options.initiallySelected ?? false),
+    view: options.mappingRequired
+      ? mappingRequiredImport()
+      : readyImport(options.initiallySelected ?? false),
     candidates: options.paginateCandidates
       ? twoPageCandidates()
       : importCandidates(options.initiallySelected ?? false),
@@ -297,6 +401,9 @@ async function installMocks(
     applies: [],
     bulkDecisions: [],
     bulkApprovals: [],
+    mapping: mappingProposal(),
+    mappingRequests: 0,
+    mappingConfirms: [],
   };
   if (options.paginateCandidates) {
     state.view = {
@@ -319,7 +426,10 @@ async function installMocks(
   }
   const role = options.role ?? "OWNER";
   if (role === "VIEWER") {
-    state.view = { ...state.view, allowedActions: ["REVIEW"] };
+    state.view = {
+      ...state.view,
+      allowedActions: state.view.state === "MAPPING_REQUIRED" ? [] : ["REVIEW"],
+    };
     state.candidates = state.candidates.map((candidate) => ({
       ...candidate,
       canEditProposed: false,
@@ -541,7 +651,95 @@ async function installMocks(
       return;
     }
     if (pathname === `/api/business-profile/imports/${importId}` && method === "GET") {
-      await json(route, { data: state.view }, 200, { etag: state.view.etag });
+      const current = state.view;
+      await json(route, { data: current }, 200, { etag: current.etag });
+      if (current.state === "PARSING" && state.mappingConfirms.length > 0) {
+        state.view = {
+          ...readyImport(false),
+          etag: '"business-import-mapped-ready"',
+          generation: current.generation,
+        };
+      }
+      return;
+    }
+    if (pathname === `/api/business-profile/imports/${importId}/mapping` && method === "GET") {
+      state.mappingRequests += 1;
+      const outcome = options.mappingLoadOutcomes?.shift() ?? "SUCCESS";
+      if (outcome === "FAIL") {
+        await json(
+          route,
+          {
+            error: {
+              code: "BUSINESS_IMPORT_MAPPING_UNAVAILABLE",
+              message: "The detected columns could not be loaded.",
+              retryable: true,
+            },
+          },
+          503,
+        );
+        return;
+      }
+      await json(route, { data: state.mapping }, 200, { etag: state.mapping.etag });
+      return;
+    }
+    if (
+      pathname === `/api/business-profile/imports/${importId}/mapping/confirm` &&
+      method === "POST"
+    ) {
+      const body = request.postDataJSON() as BusinessImportMappingConfirmRequest;
+      state.mappingConfirms.push({ body, headers: request.headers() });
+      const outcome = options.mappingConfirmOutcomes?.shift() ?? "SUCCESS";
+      if (outcome === "TRANSIENT") {
+        await json(
+          route,
+          {
+            error: {
+              code: "BUSINESS_IMPORT_MAPPING_TEMPORARILY_UNAVAILABLE",
+              message: "The mapping could not be saved yet.",
+              retryable: true,
+            },
+          },
+          503,
+        );
+        return;
+      }
+      if (outcome === "CONFLICT") {
+        state.mapping = { ...state.mapping, etag: '"business-import-refreshed"' };
+        state.view = { ...state.view, etag: state.mapping.etag };
+        await json(
+          route,
+          {
+            error: {
+              code: "BUSINESS_IMPORT_MAPPING_STALE",
+              message: "The mapping changed.",
+              retryable: false,
+            },
+          },
+          412,
+        );
+        return;
+      }
+      state.view = {
+        ...state.view,
+        state: "PARSING",
+        generation: state.view.generation + 1,
+        etag: '"business-import-mapped"',
+      };
+      await json(
+        route,
+        {
+          data: {
+            importId,
+            mappingId: "mapping-1",
+            generation: state.view.generation,
+            state: "PARSING",
+            etag: state.view.etag,
+            idempotencyReplayed: false,
+          },
+        },
+        202,
+        { etag: state.view.etag },
+      );
       return;
     }
     if (pathname === `/api/business-profile/imports/${importId}/candidates` && method === "GET") {
@@ -1073,6 +1271,378 @@ test("XLSX follows the enabled policy and PDF stays unavailable without mapping"
     }),
   ]);
   expect(state.uploads).toHaveLength(1);
+});
+
+test("arbitrary price-list columns are mapped, confirmed, and prepared for review", async ({
+  context,
+  page,
+}, testInfo) => {
+  const state = await installMocks(page, { mappingRequired: true });
+  await context.addCookies([
+    { name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" },
+  ]);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(`${webBase}/app/knowledge/imports/${importId}`, {
+    waitUntil: "domcontentloaded",
+  });
+
+  const workspace = page.getByTestId("business-import-mapping-workspace");
+  await expect(workspace).toBeVisible();
+  await expect(page.getByTestId("business-import-metrics")).toHaveCount(0);
+  await expect(workspace).toContainText("Наименование");
+  await expect(workspace).toContainText("Консультация");
+  await expect(workspace).toContainText("2 matched");
+  await expect(workspace).toContainText("1 to check");
+  await expect(workspace).toContainText("1 not used");
+  await expect(page.getByTestId("business-import-mapping-confirm")).toBeDisabled();
+  await expect(page.getByTestId("business-import-mapping-cancel")).toBeVisible();
+  await page.screenshot({
+    path: testInfo.outputPath("business-import-mapping-desktop.png"),
+    fullPage: true,
+  });
+
+  await page.getByTestId("business-import-mapping-target-column:4").click();
+  await expect(page.getByRole("option", { name: "Amount", exact: true })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await page.getByTestId("business-import-mapping-advanced-toggle").click();
+  await page.getByTestId("business-import-mapping-target-column:4").click();
+  await expect(page.getByRole("option", { name: "Amount", exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  await page.getByTestId("business-import-mapping-target-column:2").click();
+  await page.getByRole("option", { name: "Price (detect format)", exact: true }).click();
+  await expect(page.getByTestId("business-import-mapping-default-currency")).toBeVisible();
+  await expect(page.getByTestId("business-import-mapping-confirm")).toBeEnabled();
+  await page.getByTestId("business-import-mapping-default-currency").click();
+  await page.getByRole("option", { name: "EUR · €", exact: true }).click();
+  await page.getByTestId("business-import-mapping-default-unit").fill("session");
+
+  await expect(page.getByTestId("business-import-mapping-confirm")).toBeEnabled();
+  await page.getByTestId("business-import-mapping-confirm").click();
+  await expect(page.getByTestId("business-import-review-table")).toBeVisible({ timeout: 10_000 });
+
+  expect(state.mappingConfirms).toHaveLength(1);
+  expect(state.mappingConfirms[0].body).toEqual({
+    tableKey: "csv:services",
+    schemaHash: "a".repeat(64),
+    headerRow: 1,
+    columns: [
+      { sourceColumnKey: "column:1", target: "name" },
+      { sourceColumnKey: "column:2", target: "price" },
+      { sourceColumnKey: "column:3", target: "description" },
+      { sourceColumnKey: "column:4", target: "IGNORE" },
+    ],
+    defaults: {
+      locale: "ru",
+      numberFormat: "DECIMAL_COMMA",
+      currency: "EUR",
+      timezone: "Europe/Paris",
+      unit: "session",
+    },
+  });
+  expect(state.mappingConfirms[0].headers["if-match"]).toBe('"business-import-1"');
+  expect(state.mappingConfirms[0].headers["idempotency-key"]).toMatch(/^business-import:/u);
+});
+
+test("server validation blocks mapping confirmation after local checks pass", async ({
+  context,
+  page,
+}) => {
+  const state = await installMocks(page, { mappingRequired: true });
+  state.mapping = {
+    ...state.mapping,
+    validation: {
+      canConfirm: false,
+      errorCodes: ["BUSINESS_IMPORT_MAPPING_SOURCE_BLOCKED"],
+      warningCodes: [],
+    },
+  };
+  await context.addCookies([
+    { name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" },
+  ]);
+  await page.goto(`${webBase}/app/knowledge/imports/${importId}`, {
+    waitUntil: "domcontentloaded",
+  });
+
+  await page.getByTestId("business-import-mapping-target-column:2").click();
+  await page.getByRole("option", { name: "Price (detect format)", exact: true }).click();
+  await expect(
+    page.getByText(
+      "This file has a validation issue that must be resolved before mapping can continue.",
+    ),
+  ).toBeVisible();
+  await expect(page.getByTestId("business-import-mapping-confirm")).toBeDisabled();
+  expect(state.mappingConfirms).toHaveLength(0);
+});
+
+test("mapping requires one service-name column and reloads stale proposals", async ({
+  context,
+  page,
+}) => {
+  const state = await installMocks(page, {
+    mappingRequired: true,
+    mappingConfirmOutcomes: ["CONFLICT"],
+  });
+  state.mapping = {
+    ...state.mapping,
+    table: {
+      ...state.mapping.table,
+      columns: state.mapping.table.columns.map((column) =>
+        column.proposedTarget === "name" ? { ...column, status: "CHECK_MAPPING" as const } : column,
+      ),
+    },
+  };
+  await context.addCookies([
+    { name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" },
+  ]);
+  await page.goto(`${webBase}/app/knowledge/imports/${importId}`, {
+    waitUntil: "domcontentloaded",
+  });
+
+  await expect(page.getByText("Choose exactly one column for Service name.")).toBeVisible();
+  await expect(page.getByTestId("business-import-mapping-confirm")).toBeDisabled();
+  await page.getByTestId("business-import-mapping-target-column:1").click();
+  await page.getByRole("option", { name: "Service name", exact: true }).click();
+  await page.getByTestId("business-import-mapping-target-column:2").click();
+  await page.getByRole("option", { name: "Price (detect format)", exact: true }).click();
+  await page.getByTestId("business-import-mapping-default-currency").click();
+  await page.getByRole("option", { name: "EUR · €", exact: true }).click();
+  await page.getByTestId("business-import-mapping-confirm").click();
+
+  await expect(page.getByTestId("business-import-mapping-save-error")).toContainText(
+    "changed in another session",
+  );
+  expect(state.mappingRequests).toBeGreaterThanOrEqual(2);
+  expect(state.mappingConfirms).toHaveLength(1);
+  await page.getByTestId("business-import-mapping-target-column:2").click();
+  await page.getByRole("option", { name: "Price (detect format)", exact: true }).click();
+  await expect(page.getByTestId("business-import-mapping-save-error")).toHaveCount(0);
+});
+
+test("smart price mapping can use a separate currency column", async ({ context, page }) => {
+  const state = await installMocks(page, { mappingRequired: true });
+  const priceColumn = state.mapping.table.columns.find(
+    (column) => column.sourceColumnKey === "column:2",
+  )!;
+  state.mapping = {
+    ...state.mapping,
+    table: {
+      ...state.mapping.table,
+      totalColumns: 6,
+      columns: [
+        ...state.mapping.table.columns.map((column) =>
+          column.sourceColumnKey === priceColumn.sourceColumnKey
+            ? { ...column, status: "MATCHED" as const }
+            : column,
+        ),
+        {
+          sourceColumnKey: "column:5",
+          index: 5,
+          header: "Валюта",
+          examples: ["RUB", "RUB", "RUB"],
+          proposedTarget: "currency",
+          status: "MATCHED",
+        },
+        {
+          sourceColumnKey: "column:6",
+          index: 6,
+          header: "Language",
+          examples: ["en", "ru", "de"],
+          proposedTarget: "language",
+          status: "MATCHED",
+        },
+      ],
+    },
+  };
+  await context.addCookies([
+    { name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" },
+  ]);
+  await page.goto(`${webBase}/app/knowledge/imports/${importId}`, {
+    waitUntil: "domcontentloaded",
+  });
+
+  await expect(page.getByTestId("business-import-mapping-confirm")).toBeEnabled();
+  await expect(page.getByTestId("business-import-mapping-number-format")).toBeVisible();
+  await expect(page.getByTestId("business-import-mapping-default-locale")).toHaveCount(0);
+  await page.getByTestId("business-import-mapping-target-column:2").click();
+  await expect(
+    page.getByRole("option", {
+      name: "Price (detect format)",
+      exact: true,
+    }),
+  ).not.toHaveAttribute("data-disabled");
+  await page.keyboard.press("Escape");
+  await page.getByTestId("business-import-mapping-target-column:5").click();
+  await expect(page.getByRole("option", { name: "Currency", exact: true })).not.toHaveAttribute(
+    "data-disabled",
+  );
+});
+
+test("a failed mapping proposal can be retried without replacing the import", async ({
+  context,
+  page,
+}) => {
+  const state = await installMocks(page, {
+    mappingRequired: true,
+    mappingLoadOutcomes: ["FAIL", "SUCCESS"],
+  });
+  await context.addCookies([
+    { name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" },
+  ]);
+  await page.goto(`${webBase}/app/knowledge/imports/${importId}`, {
+    waitUntil: "domcontentloaded",
+  });
+
+  const error = page.getByTestId("business-import-mapping-error");
+  await expect(error).toBeVisible();
+  await expect(error.getByTestId("business-import-mapping-cancel")).toBeVisible();
+  await error.getByRole("button", { name: "Try again" }).click();
+  await expect(page.getByTestId("business-import-mapping-workspace")).toBeVisible();
+  expect(state.mappingRequests).toBe(2);
+});
+
+test("a failed mapping refresh preserves unsaved column choices", async ({ context, page }) => {
+  const state = await installMocks(page, {
+    mappingRequired: true,
+    mappingLoadOutcomes: ["SUCCESS", "FAIL", "SUCCESS"],
+  });
+  await context.addCookies([
+    { name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" },
+  ]);
+  await page.goto(`${webBase}/app/knowledge/imports/${importId}`, {
+    waitUntil: "domcontentloaded",
+  });
+  await page.getByTestId("business-import-mapping-target-column:2").click();
+  await page.getByRole("option", { name: "Price (detect format)", exact: true }).click();
+  await expect(page.getByTestId("business-import-mapping-target-column:2")).toContainText(
+    "Price (detect format)",
+  );
+
+  await page.getByTestId("business-import-refresh").click();
+  const refreshError = page.getByTestId("business-import-mapping-refresh-error");
+  await expect(refreshError).toBeVisible();
+  await expect(page.getByTestId("business-import-mapping-target-column:2")).toContainText(
+    "Price (detect format)",
+  );
+  await refreshError.getByRole("button", { name: "Try again" }).click();
+  await expect(refreshError).toHaveCount(0);
+  await expect(page.getByTestId("business-import-mapping-target-column:2")).toContainText(
+    "Price (detect format)",
+  );
+  expect(state.mappingRequests).toBe(3);
+});
+
+test("mapping confirmation reuses one idempotency key after a transient failure", async ({
+  context,
+  page,
+}) => {
+  const state = await installMocks(page, {
+    mappingRequired: true,
+    mappingConfirmOutcomes: ["TRANSIENT", "SUCCESS"],
+  });
+  await context.addCookies([
+    { name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" },
+  ]);
+  await page.goto(`${webBase}/app/knowledge/imports/${importId}`, {
+    waitUntil: "domcontentloaded",
+  });
+  await page.getByTestId("business-import-mapping-target-column:2").click();
+  await page.getByRole("option", { name: "Price (detect format)", exact: true }).click();
+  await page.getByTestId("business-import-mapping-confirm").click();
+  await expect(page.getByTestId("business-import-mapping-save-error")).toBeVisible();
+  await page.getByTestId("business-import-mapping-confirm").click();
+  await expect(page.getByTestId("business-import-review-table")).toBeVisible({ timeout: 10_000 });
+
+  expect(state.mappingConfirms).toHaveLength(2);
+  expect(state.mappingConfirms[1].body).toEqual(state.mappingConfirms[0].body);
+  expect(state.mappingConfirms[1].headers["idempotency-key"]).toBe(
+    state.mappingConfirms[0].headers["idempotency-key"],
+  );
+});
+
+test("non-CSV mapping states fail truthfully without calling the CSV mapper", async ({
+  context,
+  page,
+}) => {
+  const state = await installMocks(page, { mappingRequired: true });
+  state.view = {
+    ...state.view,
+    format: "XLSX",
+    originalFilename: "services.xlsx",
+  };
+  await context.addCookies([
+    { name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" },
+  ]);
+  await page.goto(`${webBase}/app/knowledge/imports/${importId}`, {
+    waitUntil: "domcontentloaded",
+  });
+
+  await expect(page.getByTestId("business-import-mapping-unsupported")).toContainText(
+    "XLSX column mapping is not available",
+  );
+  await expect(page.getByTestId("business-import-mapping-workspace")).toHaveCount(0);
+  await expect(
+    page.getByTestId("business-import-mapping-unsupported").getByRole("button"),
+  ).toBeVisible();
+  expect(state.mappingRequests).toBe(0);
+});
+
+test("editors can complete mapping on mobile without overflow", async ({
+  context,
+  page,
+}, testInfo) => {
+  await installMocks(page, { mappingRequired: true });
+  await context.addCookies([
+    { name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" },
+  ]);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${webBase}/app/knowledge/imports/${importId}`, {
+    waitUntil: "domcontentloaded",
+  });
+
+  await page.getByTestId("business-import-mapping-target-mobile-column:2").click();
+  await page.getByRole("option", { name: "Price (detect format)", exact: true }).click();
+  await expect(page.getByTestId("business-import-mapping-confirm")).toBeEnabled();
+  await expectTouchTarget(page.getByTestId("business-import-mapping-confirm"));
+  await expectTouchTarget(page.getByTestId("business-import-mapping-cancel"));
+  const geometry = await page.evaluate(() => ({
+    viewportWidth: window.innerWidth,
+    documentWidth: document.documentElement.scrollWidth,
+  }));
+  expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewportWidth);
+  await page.screenshot({
+    path: testInfo.outputPath("business-import-mapping-editor-mobile.png"),
+    fullPage: true,
+  });
+});
+
+test("viewers can inspect mapping samples on mobile without mutation or overflow", async ({
+  context,
+  page,
+}, testInfo) => {
+  await installMocks(page, { mappingRequired: true, role: "VIEWER" });
+  await context.addCookies([
+    { name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" },
+  ]);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${webBase}/app/knowledge/imports/${importId}`, {
+    waitUntil: "domcontentloaded",
+  });
+
+  await expect(page.getByTestId("business-import-mapping-mobile")).toBeVisible();
+  await expect(page.getByTestId("business-import-mapping-read-only")).toBeVisible();
+  await expect(page.getByTestId("business-import-mapping-confirm")).toHaveCount(0);
+  await expect(page.getByTestId("business-import-mapping-target-mobile-column:1")).toBeDisabled();
+  await expectTouchTarget(page.getByTestId("business-import-mapping-target-mobile-column:1"));
+  const geometry = await page.evaluate(() => ({
+    viewportWidth: window.innerWidth,
+    documentWidth: document.documentElement.scrollWidth,
+  }));
+  expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewportWidth);
+  await page.screenshot({
+    path: testInfo.outputPath("business-import-mapping-mobile.png"),
+    fullPage: true,
+  });
 });
 
 test("fresh pending services can be included in one visible-scope decision", async ({ page }) => {

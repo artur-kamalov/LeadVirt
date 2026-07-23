@@ -10,6 +10,8 @@ import type {
   BusinessImportCandidateAction,
   BusinessImportCandidateView,
   BusinessImportDiagnosticView,
+  BusinessImportMappingConfirmRequest,
+  BusinessImportMappingView,
   BusinessImportOfferingValue,
   BusinessImportState,
   BusinessImportView,
@@ -45,9 +47,11 @@ import {
   bulkApproveBusinessImportCandidates,
   bulkDecideBusinessImportCandidates,
   cancelBusinessImport,
+  confirmBusinessImportMapping,
   createBusinessImportIdempotencyKey,
   decideBusinessImportApproval,
   getBusinessImport,
+  getBusinessImportMapping,
   listBusinessImportApplications,
   listBusinessImportCandidates,
   previewBusinessImportApply,
@@ -64,6 +68,7 @@ import { ProductLayout } from "../../ProductLayout";
 import { useProductPermissions } from "../../CurrentUser";
 import { EmptyState, LoadingOverlay, Modal, Select, StatusBadge } from "../../ui";
 import { BusinessImportUploadDialog } from "./BusinessImportUploadDialog";
+import { BusinessImportMappingWorkspace } from "./BusinessImportMappingWorkspace";
 import { businessImportStateKeys, businessImportStateTone } from "./businessImportPresentation";
 
 const IMPORT_POLL_INTERVAL_MS = 3_000;
@@ -302,6 +307,10 @@ export function BusinessImportPage({ importId }: { importId: string }) {
   const [resource, setResource] = React.useState<BusinessImportView | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState<ApiClientError | null>(null);
+  const [mapping, setMapping] = React.useState<BusinessImportMappingView | null>(null);
+  const [mappingLoading, setMappingLoading] = React.useState(false);
+  const [mappingError, setMappingError] = React.useState<ApiClientError | null>(null);
+  const [mappingSaveError, setMappingSaveError] = React.useState<ApiClientError | null>(null);
   const [candidates, setCandidates] = React.useState<BusinessImportCandidateView[]>([]);
   const [candidateLoading, setCandidateLoading] = React.useState(false);
   const [candidateError, setCandidateError] = React.useState<ApiClientError | null>(null);
@@ -323,6 +332,7 @@ export function BusinessImportPage({ importId }: { importId: string }) {
     | "retry"
     | "cancel"
     | "rebase"
+    | "mapping"
     | null
   >(null);
   const [operationError, setOperationError] = React.useState<ApiClientError | null>(null);
@@ -347,6 +357,8 @@ export function BusinessImportPage({ importId }: { importId: string }) {
   const [cancelConfirmOpen, setCancelConfirmOpen] = React.useState(false);
   const mounted = React.useRef(false);
   const requestSequence = React.useRef(0);
+  const mappingRequestSequence = React.useRef(0);
+  const mappingMutation = React.useRef<{ request: string; idempotencyKey: string } | null>(null);
   const candidateRequestSequence = React.useRef(0);
   const applicationRequestSequence = React.useRef(0);
 
@@ -373,6 +385,24 @@ export function BusinessImportPage({ importId }: { importId: string }) {
     },
     [importId, t],
   );
+
+  const loadMapping = React.useCallback(async () => {
+    const sequence = ++mappingRequestSequence.current;
+    setMappingLoading(true);
+    setMappingError(null);
+    try {
+      const next = await getBusinessImportMapping(importId);
+      if (!mounted.current || sequence !== mappingRequestSequence.current) return;
+      setMapping((current) => (current?.etag === next.etag ? current : next));
+    } catch (caught) {
+      if (!mounted.current || sequence !== mappingRequestSequence.current) return;
+      setMappingError(asApiError(caught, t("businessImport.mapping.loadError")));
+    } finally {
+      if (mounted.current && sequence === mappingRequestSequence.current) {
+        setMappingLoading(false);
+      }
+    }
+  }, [importId, t]);
 
   const loadCandidates = React.useCallback(
     async (expectedTotalOverride?: number) => {
@@ -483,6 +513,13 @@ export function BusinessImportPage({ importId }: { importId: string }) {
       const next = await loadImport(showLoading);
       if (!next) return;
       const tasks: Promise<void>[] = [];
+      if (next.state === "MAPPING_REQUIRED" && next.format === "CSV") {
+        tasks.push(loadMapping());
+      } else {
+        setMapping(null);
+        setMappingError(null);
+        setMappingSaveError(null);
+      }
       if (
         REVIEW_STATES.has(next.state) ||
         ["PROJECTING", "PROJECTION_DELAYED", "APPLIED"].includes(next.state)
@@ -496,7 +533,7 @@ export function BusinessImportPage({ importId }: { importId: string }) {
       }
       await Promise.all(tasks);
     },
-    [loadApplications, loadCandidates, loadImport],
+    [loadApplications, loadCandidates, loadImport, loadMapping],
   );
 
   const refreshAfterConflict = React.useCallback(
@@ -517,6 +554,7 @@ export function BusinessImportPage({ importId }: { importId: string }) {
     return () => {
       mounted.current = false;
       requestSequence.current += 1;
+      mappingRequestSequence.current += 1;
       candidateRequestSequence.current += 1;
       applicationRequestSequence.current += 1;
     };
@@ -543,6 +581,16 @@ export function BusinessImportPage({ importId }: { importId: string }) {
 
   React.useEffect(() => {
     if (!resource) return;
+    if (resource.state === "MAPPING_REQUIRED" && resource.format === "CSV") {
+      void loadMapping();
+    } else {
+      mappingRequestSequence.current += 1;
+      mappingMutation.current = null;
+      setMapping(null);
+      setMappingError(null);
+      setMappingSaveError(null);
+      setMappingLoading(false);
+    }
     if (
       REVIEW_STATES.has(resource.state) ||
       ["PROJECTING", "PROJECTION_DELAYED", "APPLIED"].includes(resource.state)
@@ -554,7 +602,7 @@ export function BusinessImportPage({ importId }: { importId: string }) {
     ) {
       void loadApplications();
     }
-  }, [loadApplications, loadCandidates, resource?.id, resource?.state]);
+  }, [loadApplications, loadCandidates, loadMapping, resource?.id, resource?.state]);
 
   function replaceCandidate(next: BusinessImportCandidateView) {
     setCandidates((current) => current.map((item) => (item.id === next.id ? next : item)));
@@ -980,6 +1028,62 @@ export function BusinessImportPage({ importId }: { importId: string }) {
     }
   }
 
+  async function confirmMapping(request: BusinessImportMappingConfirmRequest) {
+    if (!resource || !mapping || !canEdit || operation || resource.state !== "MAPPING_REQUIRED") {
+      return;
+    }
+    setOperation("mapping");
+    setMappingSaveError(null);
+    const serializedRequest = JSON.stringify(request);
+    if (mappingMutation.current?.request !== serializedRequest) {
+      mappingMutation.current = {
+        request: serializedRequest,
+        idempotencyKey: createBusinessImportIdempotencyKey(),
+      };
+    }
+    try {
+      const response = await confirmBusinessImportMapping(importId, request, {
+        "If-Match": mapping.etag,
+        "Idempotency-Key": mappingMutation.current.idempotencyKey,
+      });
+      mappingMutation.current = null;
+      setMapping(null);
+      setResource((current) =>
+        current
+          ? {
+              ...current,
+              state: response.data.state,
+              generation: response.data.generation,
+              etag: response.data.etag,
+            }
+          : current,
+      );
+      await loadImport(false);
+    } catch (caught) {
+      const error = asApiError(caught, t("businessImport.mapping.saveError"));
+      if (error.status === 412) {
+        mappingMutation.current = null;
+        await loadImport(false);
+        await loadMapping();
+        setMappingSaveError(
+          new ApiClientError(
+            t("businessImport.mapping.conflict"),
+            412,
+            error.code,
+            false,
+            undefined,
+            undefined,
+            error.requestId,
+          ),
+        );
+      } else {
+        setMappingSaveError(error);
+      }
+    } finally {
+      setOperation(null);
+    }
+  }
+
   async function retry() {
     if (!resource || operation || pendingIds.size > 0 || !resource.allowedActions.includes("RETRY"))
       return;
@@ -1244,7 +1348,7 @@ export function BusinessImportPage({ importId }: { importId: string }) {
 
         {resource ? (
           <>
-            <ImportMetrics resource={resource} />
+            {resource.state !== "MAPPING_REQUIRED" ? <ImportMetrics resource={resource} /> : null}
             {resource.diagnostics.length > 0 ? (
               <ImportDiagnostics diagnostics={resource.diagnostics} />
             ) : null}
@@ -1258,36 +1362,27 @@ export function BusinessImportPage({ importId }: { importId: string }) {
               />
             ) : null}
 
-            {resource.state === "MAPPING_REQUIRED" ? (
-              <EmptyState
-                icon={FileSearch}
-                title={t("businessImport.mapping.title")}
-                description={t("businessImport.mapping.phaseOneDescription")}
-                action={
-                  <div className="flex flex-wrap justify-center gap-2">
-                    {canEdit ? (
-                      <Button
-                        variant="outline"
-                        disabled={operation !== null}
-                        onClick={() => setRevisionUploadOpen(true)}
-                        data-testid="business-import-mapping-replace"
-                      >
-                        <FileUp className="h-4 w-4" />
-                        {t("businessImport.mapping.replaceFile")}
-                      </Button>
-                    ) : null}
-                    {resource.allowedActions.includes("CANCEL") ? (
-                      <Button
-                        variant="outline"
-                        disabled={operation !== null}
-                        onClick={openCancelConfirmation}
-                        data-testid="business-import-mapping-cancel"
-                      >
-                        {t("businessImport.processing.cancel")}
-                      </Button>
-                    ) : null}
-                  </div>
-                }
+            {resource.state === "MAPPING_REQUIRED" && resource.format === "CSV" ? (
+              <BusinessImportMappingWorkspace
+                mapping={mapping}
+                loading={mappingLoading}
+                error={mappingError}
+                saveError={mappingSaveError}
+                busy={operation === "mapping"}
+                canEdit={canEdit}
+                canCancel={resource.allowedActions.includes("CANCEL")}
+                onRetry={() => void loadMapping()}
+                onEdit={() => setMappingSaveError(null)}
+                onCancel={openCancelConfirmation}
+                onConfirm={(request) => void confirmMapping(request)}
+              />
+            ) : null}
+
+            {resource.state === "MAPPING_REQUIRED" && resource.format !== "CSV" ? (
+              <UnsupportedMappingState
+                resource={resource}
+                onCancel={openCancelConfirmation}
+                busy={operation !== null}
               />
             ) : null}
 
@@ -1555,6 +1650,46 @@ export function BusinessImportPage({ importId }: { importId: string }) {
           })}
         </ol>
         <p className="mt-4 text-xs text-zinc-500">{t("businessImport.processing.leave")}</p>
+      </section>
+    );
+  }
+
+  function UnsupportedMappingState({
+    resource: item,
+    onCancel,
+    busy,
+  }: {
+    resource: BusinessImportView;
+    onCancel: () => void;
+    busy: boolean;
+  }) {
+    return (
+      <section
+        className="flex min-w-0 flex-col gap-4 border-y border-amber-500/20 bg-amber-500/[0.05] px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-5"
+        data-testid="business-import-mapping-unsupported"
+        role="alert"
+      >
+        <div className="flex min-w-0 items-start gap-3">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold text-amber-100">
+              {t("businessImport.mapping.unsupportedTitle")}
+            </h2>
+            <p className="mt-1 text-sm leading-6 text-amber-100/65">
+              {t("businessImport.mapping.unsupportedDescription", { format: item.format })}
+            </p>
+          </div>
+        </div>
+        {item.allowedActions.includes("CANCEL") ? (
+          <Button
+            variant="outline"
+            className="min-h-11 shrink-0"
+            disabled={busy}
+            onClick={onCancel}
+          >
+            {t("businessImport.processing.cancel")}
+          </Button>
+        ) : null}
       </section>
     );
   }

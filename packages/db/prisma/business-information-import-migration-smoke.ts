@@ -200,10 +200,11 @@ async function verifyIntegrityContracts(database: PrismaClient) {
 
       INSERT INTO "BusinessImportMapping" (
         "id", "tenantId", "sourceId", "importId", "tableKey", "schemaHash", "targetCategory",
-        "fieldMappings", "revision", "etag", "createdAt", "updatedAt"
+        "fieldMappings", "revision", "etag", "confirmedByUserId", "confirmedAt", "createdAt", "updatedAt"
       ) VALUES (
         'integrity-mapping-1', 'integrity-tenant', 'integrity-source', 'integrity-import', 'services',
-        repeat('c', 64), 'OFFERINGS', '{}'::jsonb, 1, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        repeat('c', 64), 'OFFERINGS', '{}'::jsonb, 1, 1, 'integrity-user', approval_time,
+        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
       );
 
       BEGIN
@@ -223,7 +224,8 @@ async function verifyIntegrityContracts(database: PrismaClient) {
         "fieldMappings", "revision", "etag", "supersedesMappingId", "supersedesRevision", "createdAt", "updatedAt"
       ) VALUES (
         'integrity-mapping-2', 'integrity-tenant', 'integrity-source', 'integrity-import', 'services',
-        repeat('c', 64), 'OFFERINGS', '{}'::jsonb, 2, 1, 'integrity-mapping-1', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        repeat('c', 64), 'OFFERINGS', '{}'::jsonb, 2, 1, 'integrity-mapping-1', 1,
+        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
       );
 
       BEGIN
@@ -231,6 +233,35 @@ async function verifyIntegrityContracts(database: PrismaClient) {
         RAISE EXCEPTION 'mapping lineage unexpectedly mutated';
       EXCEPTION WHEN check_violation THEN
         IF SQLERRM NOT LIKE '%lineage is immutable%' THEN RAISE; END IF;
+      END;
+
+      UPDATE "BusinessImportMapping"
+      SET "confirmedByUserId" = 'integrity-user', "confirmedAt" = approval_time
+      WHERE "id" = 'integrity-mapping-2';
+
+      BEGIN
+        UPDATE "BusinessImportMapping"
+        SET "fieldMappings" = '{"service_name":"name"}'::jsonb
+        WHERE "id" = 'integrity-mapping-2';
+        RAISE EXCEPTION 'confirmed mapping content unexpectedly mutated';
+      EXCEPTION WHEN check_violation THEN
+        IF SQLERRM NOT LIKE '%confirmed mapping is immutable%' THEN RAISE; END IF;
+      END;
+
+      BEGIN
+        UPDATE "BusinessImportMapping"
+        SET "confirmedAt" = approval_time + INTERVAL '1 second'
+        WHERE "id" = 'integrity-mapping-2';
+        RAISE EXCEPTION 'mapping confirmation metadata unexpectedly mutated';
+      EXCEPTION WHEN check_violation THEN
+        IF SQLERRM NOT LIKE '%confirmed mapping is immutable%' THEN RAISE; END IF;
+      END;
+
+      BEGIN
+        DELETE FROM "BusinessImportMapping" WHERE "id" = 'integrity-mapping-2';
+        RAISE EXCEPTION 'confirmed mapping unexpectedly deleted';
+      EXCEPTION WHEN check_violation THEN
+        IF SQLERRM NOT LIKE '%confirmed mapping is immutable%' THEN RAISE; END IF;
       END;
 
       INSERT INTO "BusinessImportCandidate" (
@@ -814,6 +845,10 @@ async function main() {
       output(initialMigration),
       /Applied business_import_application_idempotency_request migration \(5 statements\)/u,
     );
+    assert.match(
+      output(initialMigration),
+      /Applied business_import_mapping_confirmation_immutability migration \(2 statements\)/u,
+    );
 
     const repeatedMigration = await migrate();
     assert.equal(repeatedMigration.status, 0, output(repeatedMigration));
@@ -845,6 +880,10 @@ async function main() {
       output(repeatedMigration),
       /Business import application idempotency request contract already exists; skipping business_import_application_idempotency_request migration/u,
     );
+    assert.match(
+      output(repeatedMigration),
+      /Business import mapping confirmation immutability already exists; skipping business_import_mapping_confirmation_immutability migration/u,
+    );
     assert.doesNotMatch(
       output(repeatedMigration),
       /Applied business_information_import_foundation migration/u,
@@ -868,6 +907,10 @@ async function main() {
     assert.doesNotMatch(
       output(repeatedMigration),
       /Applied business_import_application_idempotency_request migration/u,
+    );
+    assert.doesNotMatch(
+      output(repeatedMigration),
+      /Applied business_import_mapping_confirmation_immutability migration/u,
     );
 
     database = new PrismaClient({ datasources: { db: { url: smokeUrl.toString() } } });

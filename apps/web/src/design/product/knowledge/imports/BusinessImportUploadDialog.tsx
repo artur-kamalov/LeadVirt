@@ -397,7 +397,7 @@ export function BusinessImportUploadDialog({
               ) : null}
             </div>
 
-            <div className="flex flex-col gap-3 rounded-md border border-white/10 bg-white/[0.025] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-zinc-300">
                   {t("businessImport.upload.templateTitle")}

@@ -1,5 +1,24 @@
 # Decision Log
 
+## 2026-07-23: Make Existing Price Lists The Primary Import Contract
+
+Decision: LeadVirt accepts an existing services CSV with arbitrary column names, analyzes it deterministically, and asks the user to confirm one complete mapping only when the schema is not the exact LeadVirt contract. The confirmed mapping is immutable, bound to the import schema and parsed revision, and reprocessed from the retained encrypted artifact through a new import generation.
+
+Context: The 19-column LeadVirt template is an implementation contract, not a client-friendly starting point. The existing `MAPPING_REQUIRED` state discarded headers and samples, exposed no mapping action, and could not reprocess after staging deletion.
+
+Consequences:
+
+- Uploading the client's price list is primary; downloading the simple template is secondary.
+- Mapping proposals use stable positional column keys, bounded encrypted-manifest samples, localized aliases, and deterministic value shapes. Ambiguous delimiters, decimal separators, signs, currencies, ranges, mixed units, and incompatible target combinations fail closed instead of guessing.
+- Blank prices remain unknown, never `FREE`; composite price and duration values preserve their exact source cell as evidence while confirmed defaults remain system provenance.
+- Numeric format and default service language are independent: one controls deterministic decimal parsing, while the other only fills a missing service language. Neither is inferred from the interface locale.
+- Currency codes are validated against the current ISO 4217 List One snapshot published by SIX on 2026-01-01; testing code `XTS` and no-currency code `XXX` are rejected.
+- One idempotent, ETag-fenced confirmation persists every source column including `IGNORE`, advances the import generation, and queues reprocessing without exposing raw values in the queue or audit log.
+- Confirmation and mapped retry lock the exact raw and manifest ledgers, require an active source and retained objects, and extend finite retention before enqueueing. An accepted transition therefore cannot race normal pruning.
+- The mapper presents common business fields first, keeps technical leaf fields behind an advanced control, supports optional fallback currency/language/unit values, preserves unsaved edits after a failed refresh, and always exposes cancellation to editors.
+- Mapped candidates and immutable candidate revisions reference the confirmed import-local mapping. PostgreSQL rejects updates and deletes after confirmation; changes create a successor mapping revision. Existing review, apply-to-draft, test, and publication gates remain unchanged.
+- CSV ships first. XLSX remains rollout-gated until the same mapping and sandbox acceptance suite passes; PDF and generic JSON remain out of scope.
+
 ## 2026-07-22: Normalize Existing Artifact Keys And Provision Missing Keys Explicitly
 
 Decision: Before strict production readiness, deployment canonicalizes an existing effective artifact encryption key's base64 text only when it decodes to exactly 32 bytes. Multiple exact assignments are normalized with the existing Compose and env-parser last-wins semantics: the last assignment is retained and earlier shadowed assignments are removed. The effective decoded key bytes and key ID do not change. A missing key must be provisioned explicitly by an operator; deployment never generates or rotates it.

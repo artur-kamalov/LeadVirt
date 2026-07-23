@@ -1,7 +1,7 @@
 # Business Data File Import Design
 
-Status: proposed target design
-Date: 2026-07-21
+Status: Release A and A.1 implemented; later phases remain proposed
+Date: 2026-07-23
 Scope: structured business information import from XLSX, CSV, and PDF
 
 ## 1. Executive decision
@@ -109,20 +109,28 @@ The target engine is broad, but the product should not expose categories before 
    - LeadVirt CSV template.
    - Services, categories, descriptions, prices, currency, units, duration, and active state.
    - Exact diff, review, attribution, draft apply, test, and publication.
-2. **Release B: deterministic XLSX services**
+2. **Release A.1: existing CSV price lists**
+   - Existing customer CSV files with arbitrary localized column names.
+   - Deterministic table analysis, bounded examples, and a proposed one-to-one column mapping.
+   - One explicit confirmation when the schema is not the exact LeadVirt contract.
+   - Fail-closed composite price and duration parsing without inventing missing values or silently resolving ambiguous separators, signs, currencies, ranges, or units.
+   - Independent number-format and default-service-language controls; the product interface locale never changes imported values.
+   - Reprocessing from the retained encrypted artifact into the same exact diff and review path.
+   - Transactionally fenced raw/manifest retention for confirmation and mapped retry.
+3. **Release B: deterministic XLSX services**
    - LeadVirt XLSX template.
    - The same service contract and review path as CSV.
    - OOXML admission and multi-sheet extraction without manual mapping.
-3. **Release C: arbitrary spreadsheets and broader data**
+4. **Release C: arbitrary spreadsheets and broader data**
    - Header detection and manual column mapping.
    - Business identity, locations, regular hours, and FAQ.
-4. **Release D: native-text PDF**
+5. **Release D: native-text PDF**
    - Layout and table extraction with page evidence.
    - Services, prices, FAQ, and policies.
-5. **Release E: OCR PDF**
+6. **Release E: OCR PDF**
    - Scanned menus and price lists.
    - Strict capacity limits and lower-confidence review.
-6. **Release F: advanced business data**
+7. **Release F: advanced business data**
    - Holiday hours, promotions, public team profiles, and handoff proposals.
 
 Do not expose all formats and all categories in one release. PDF OCR is the highest-risk and highest-resource component and should ship last.
@@ -1506,6 +1514,17 @@ Each phase ships only when its own gate passes; later formats do not block a saf
 - Identical re-import is no-change. Stable external IDs update existing services. Ambiguous renamed rows become conflicts and never silent duplicates.
 - Cancellation works in every pre-commit stage; retry and replay are idempotent; an unpublished application has a concurrency-safe revert preview.
 - Desktop and mobile complete upload, review, partial apply, projection wait, test, publish, and Telegram-answer acceptance in all supported UI locales.
+
+#### Release A.1: existing CSV price lists
+
+- A customer can upload an existing comma-, semicolon-, or tab-delimited service catalog without first editing a LeadVirt template.
+- Exact LeadVirt templates bypass mapping; other CSV files expose bounded source examples and require explicit confirmation of one service-name mapping.
+- Price, currency, price unit, duration, description, category, and status mappings are deterministic, one-to-one, versioned, and linked to the exact retained artifact.
+- Ambiguous delimiters, number formats, currency symbols, ranges, durations, and conflicting target mappings fail closed instead of producing guessed values.
+- Number format controls only numeric parsing, service language controls only missing language values, and current ISO 4217 validation rejects fabricated or obsolete currency codes.
+- Mapping confirmation is tenant-bound, role-gated, ETag-fenced, idempotent, audited without source values, and safe to retry after a transient failure.
+- Confirmed mapping rows are database-enforced append-only; changes create a successor revision. They reprocess the retained clean artifact and cannot be replaced by stale queue generations or expired evidence.
+- Editors and read-only roles can complete or inspect the localized mapping workspace on desktop and mobile without horizontal overflow.
 
 #### Phase 2: LeadVirt XLSX services
 

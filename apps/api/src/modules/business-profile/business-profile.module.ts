@@ -11,6 +11,7 @@ import {
 } from "./business-import.controller.js";
 import { BusinessImportRuntimeService } from "./business-import-runtime.service.js";
 import { BusinessImportApplicationService } from "./business-import-application.service.js";
+import { BusinessImportMappingService } from "./business-import-mapping.service.js";
 import { BusinessImportQueueService } from "./business-import-queue.service.js";
 import { BusinessImportRebaseService } from "./business-import-rebase.service.js";
 import { BusinessImportReviewService } from "./business-import-review.service.js";
@@ -30,6 +31,7 @@ import { BusinessInformationStateService } from "./business-information-state.se
   providers: [
     BusinessProfileService,
     BusinessImportApplicationService,
+    BusinessImportMappingService,
     BusinessImportQueueService,
     BusinessImportRebaseService,
     BusinessImportReviewService,

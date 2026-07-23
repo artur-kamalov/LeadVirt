@@ -15,6 +15,9 @@ import type {
   BusinessImportCreateIntentRequest,
   BusinessImportFormat,
   BusinessImportListQuery,
+  BusinessImportMappingConfirmReceipt,
+  BusinessImportMappingConfirmRequest,
+  BusinessImportMappingView,
   BusinessImportPage,
   BusinessImportRebaseRequest,
   BusinessImportRetryRequest,
@@ -119,6 +122,21 @@ export function finalizeBusinessImport(importId: string, headers: BusinessImport
 
 export function getBusinessImport(importId: string) {
   return apiData<BusinessImportView>(`${basePath}/${resourceId(importId)}`);
+}
+
+export function getBusinessImportMapping(importId: string) {
+  return apiData<BusinessImportMappingView>(`${basePath}/${resourceId(importId)}/mapping`);
+}
+
+export function confirmBusinessImportMapping(
+  importId: string,
+  body: BusinessImportMappingConfirmRequest,
+  headers: BusinessImportUpdateHeaders,
+) {
+  return apiDataResponse<BusinessImportMappingConfirmReceipt>(
+    `${basePath}/${resourceId(importId)}/mapping/confirm`,
+    { method: "POST", headers, ...jsonBody(body) },
+  );
 }
 
 export function listBusinessImportCandidates(

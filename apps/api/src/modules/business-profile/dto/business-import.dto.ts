@@ -1,9 +1,17 @@
+import {
+  BUSINESS_IMPORT_CURRENCY_CODES,
+  BUSINESS_SERVICE_MAPPING_TARGETS,
+} from "@leadvirt/business-import";
 import type {
   BusinessImportApplyPreviewRequest,
   BusinessImportApplyRequest,
   BusinessImportBulkApprovalRequest,
   BusinessImportCandidateDecisionRequest,
   BusinessImportCreateIntentRequest,
+  BusinessImportMappingAssignment,
+  BusinessImportMappingConfirmRequest,
+  BusinessImportMappingDefaults,
+  BusinessImportMappingTarget,
   BusinessImportOfferingValue,
 } from "@leadvirt/types";
 import { Type } from "class-transformer";
@@ -11,6 +19,7 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   ArrayUnique,
+  IsDefined,
   IsArray,
   IsBoolean,
   IsIn,
@@ -58,6 +67,9 @@ const IMPORT_STATES = [
   "CANCELLED",
   "EXPIRED",
 ] as const;
+const MAPPING_TARGETS =
+  BUSINESS_SERVICE_MAPPING_TARGETS satisfies readonly BusinessImportMappingTarget[];
+const MAPPING_KEY = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/;
 
 export class BusinessImportCreateIntentDto implements BusinessImportCreateIntentRequest {
   @IsString()
@@ -359,4 +371,75 @@ export class BusinessImportRetryDto {
   @IsInt()
   @Min(1)
   generation!: number;
+}
+
+export class BusinessImportMappingAssignmentDto implements BusinessImportMappingAssignment {
+  @IsString()
+  @Matches(MAPPING_KEY)
+  sourceColumnKey!: string;
+
+  @IsIn(MAPPING_TARGETS)
+  target!: BusinessImportMappingTarget;
+}
+
+export class BusinessImportMappingDefaultsDto implements BusinessImportMappingDefaults {
+  @IsDefined()
+  @ValidateIf((_object, value: unknown) => value !== null)
+  @IsString()
+  @Matches(LANGUAGE)
+  locale!: string | null;
+
+  @IsDefined()
+  @ValidateIf((_object, value: unknown) => value !== null)
+  @IsIn(["DECIMAL_DOT", "DECIMAL_COMMA"])
+  numberFormat!: BusinessImportMappingDefaults["numberFormat"];
+
+  @IsDefined()
+  @ValidateIf((_object, value: unknown) => value !== null)
+  @IsString()
+  @IsIn(BUSINESS_IMPORT_CURRENCY_CODES)
+  currency!: string | null;
+
+  @IsDefined()
+  @ValidateIf((_object, value: unknown) => value !== null)
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  @Matches(/^[A-Za-z0-9._+-]+(?:\/[A-Za-z0-9._+-]+)*$/)
+  timezone!: string | null;
+
+  @IsDefined()
+  @ValidateIf((_object, value: unknown) => value !== null)
+  @IsString()
+  @MinLength(1)
+  @MaxLength(80)
+  unit!: string | null;
+}
+
+export class BusinessImportMappingConfirmDto implements BusinessImportMappingConfirmRequest {
+  @IsString()
+  @Matches(MAPPING_KEY)
+  tableKey!: string;
+
+  @IsString()
+  @Matches(/^[a-f0-9]{64}$/)
+  schemaHash!: string;
+
+  @IsInt()
+  @Min(1)
+  @Max(10_000)
+  headerRow!: number;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(100)
+  @ArrayUnique((item: BusinessImportMappingAssignmentDto) => item.sourceColumnKey)
+  @ValidateNested({ each: true })
+  @Type(() => BusinessImportMappingAssignmentDto)
+  columns!: BusinessImportMappingAssignmentDto[];
+
+  @IsDefined()
+  @ValidateNested()
+  @Type(() => BusinessImportMappingDefaultsDto)
+  defaults!: BusinessImportMappingDefaultsDto;
 }

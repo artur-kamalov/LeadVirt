@@ -425,7 +425,7 @@ test("Telegram connects from one bot token while LeadVirt manages webhook securi
   await expect(page.getByTestId("telegram-bot-token")).toHaveValue("");
   await expect(connectedDialog.getByTestId("telegram-open-bot")).toHaveAttribute(
     "href",
-    "https://t.me/client_magic_bot?start=leadvirt",
+    "https://t.me/client_magic_bot",
   );
   await expect(page.getByTestId("integration-card-telegram")).toContainText("Подключено");
   await expect(page.getByTestId("integrations-refresh-error")).toBeVisible();
@@ -436,7 +436,7 @@ test("Telegram connects from one bot token while LeadVirt manages webhook securi
   await expect(page.getByTestId("integration-configure-telegram")).toBeFocused();
   await expect(page.getByTestId("telegram-card-open-bot")).toHaveAttribute(
     "href",
-    "https://t.me/client_magic_bot?start=leadvirt",
+    "https://t.me/client_magic_bot",
   );
   await expect(page.getByTestId("telegram-card-open-bot")).toContainText("@client_magic_bot");
   await page.getByTestId("integration-card-telegram").screenshot({
@@ -828,7 +828,7 @@ test("integrations expose only live self-service controls and preserve channel w
   ).toBeVisible();
   await expect(telegramDialog.getByTestId("telegram-open-bot")).toHaveAttribute(
     "href",
-    "https://t.me/demo_telegram_bot?start=leadvirt",
+    "https://t.me/demo_telegram_bot",
   );
   await telegramDialog.screenshot({
     path: "artifacts/playwright/telegram-connected-bot-cta.png",

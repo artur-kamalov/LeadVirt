@@ -5,6 +5,7 @@ import {
   businessOfferingIdentityKey,
   canonicalBusinessImportDecimal,
   compareBusinessImportDecimals,
+  isBusinessImportCurrencyCode,
   normalizeBusinessExternalId,
   reviseBusinessImportFieldProvenance,
   type BusinessImportFieldProvenance,
@@ -90,7 +91,7 @@ function normalizedOffering(input: BusinessImportOfferingValue): BusinessImportO
       }
     : null;
   if (price) {
-    if (price.currency !== null && !/^[A-Z]{3}$/u.test(price.currency)) invalidValue();
+    if (price.currency !== null && !isBusinessImportCurrencyCode(price.currency)) invalidValue();
     if (
       price.type === "FIXED" &&
       (price.amount === null || price.from !== null || price.to !== null)

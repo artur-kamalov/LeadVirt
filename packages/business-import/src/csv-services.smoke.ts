@@ -152,10 +152,7 @@ assert.ok(
 
 const incompleteBlocks = await parseBusinessServicesCsv(
   bytes(
-    [
-      "name,currency,duration_max_minutes,valid_from",
-      "Incomplete,EUR,90,2026-03-01",
-    ].join("\n"),
+    ["name,currency,duration_max_minutes,valid_from", "Incomplete,EUR,90,2026-03-01"].join("\n"),
   ),
 );
 assert.deepEqual(
@@ -204,6 +201,16 @@ const invalid = await parseBusinessServicesCsv(
 assert.equal(invalid.counts.invalidRows, 1);
 assert.ok(
   invalid.rows[0]?.diagnostics.some((item) => item.code === "BUSINESS_IMPORT_DURATION_INVALID"),
+);
+
+const invalidCurrency = await parseBusinessServicesCsv(
+  bytes("name,price_type,price_amount,currency\nAudit,FIXED,12,ZZZ\n"),
+);
+assert.equal(invalidCurrency.rows[0]?.valid, false);
+assert.ok(
+  invalidCurrency.rows[0]?.diagnostics.some(
+    (item) => item.code === "BUSINESS_IMPORT_CURRENCY_INVALID",
+  ),
 );
 
 const russianHeaders = await parseBusinessServicesCsv(

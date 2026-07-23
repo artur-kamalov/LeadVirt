@@ -14,5 +14,6 @@ artifacts/screenshots
 artifacts/reports
 artifacts/.knowledge-acceptance
 artifacts/playwright/*.png
+artifacts/tmp/
 playwright-report
 *.tsbuildinfo

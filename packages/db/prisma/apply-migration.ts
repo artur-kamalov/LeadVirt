@@ -190,6 +190,10 @@ const businessImportApplicationIdempotencyRequestMigrationUrl = new URL(
   "./migrations/20260721160000_business_import_application_idempotency_request/migration.sql",
   import.meta.url,
 );
+const businessImportMappingConfirmationImmutabilityMigrationUrl = new URL(
+  "./migrations/20260723110000_business_import_mapping_confirmation_immutability/migration.sql",
+  import.meta.url,
+);
 const migrationRunnerLockPrefix = "leadvirt.custom-migration-runner.v1";
 const migrationRunnerMaxWaitMs = 30_000;
 const migrationRunnerTimeoutMs = 15 * 60_000;
@@ -4548,6 +4552,50 @@ async function businessImportApplicationIdempotencyRequestState(prisma: PrismaCl
   };
 }
 
+async function businessImportMappingConfirmationImmutabilityState(prisma: PrismaClient) {
+  const rows = await prisma.$queryRaw<
+    Array<{
+      function_ready: boolean;
+      trigger_ready: boolean;
+    }>
+  >`
+    SELECT
+      EXISTS (
+        SELECT 1
+        FROM pg_proc
+        INNER JOIN pg_namespace ON pg_namespace.oid = pg_proc.pronamespace
+        WHERE pg_namespace.nspname = current_schema()
+          AND pg_proc.proname = 'business_import_mapping_confirmation_guard'
+          AND pg_proc.prorettype = 'trigger'::regtype
+          AND pg_get_functiondef(pg_proc.oid) LIKE '%OLD."confirmedAt" IS NOT NULL%'
+          AND pg_get_functiondef(pg_proc.oid) LIKE '%OLD."confirmedByUserId" IS NOT NULL%'
+          AND pg_get_functiondef(pg_proc.oid) LIKE '%confirmed mapping is immutable%'
+      ) AS "function_ready",
+      EXISTS (
+        SELECT 1
+        FROM pg_trigger
+        WHERE tgrelid = to_regclass(
+            format('%I.%I', current_schema(), 'BusinessImportMapping')
+          )
+          AND tgname = 'BusinessImportMapping_confirmed_immutable'
+          AND NOT tgisinternal
+          AND (tgtype & 1) = 1
+          AND (tgtype & 2) = 2
+          AND (tgtype & 8) = 8
+          AND (tgtype & 16) = 16
+          AND pg_get_triggerdef(oid) LIKE '%business_import_mapping_confirmation_guard%'
+      ) AS "trigger_ready"
+  `;
+  const state = rows[0];
+  return {
+    present: Boolean(state && (state.function_ready || state.trigger_ready)),
+    complete: Boolean(state && state.function_ready && state.trigger_ready),
+    diagnostics: state
+      ? `function=${state.function_ready}, trigger=${state.trigger_ready}`
+      : "state query returned no row",
+  };
+}
+
 function splitSqlStatements(sql: string) {
   const statements: string[] = [];
   let start = 0;
@@ -5475,6 +5523,32 @@ async function runMigrations(databaseUrl: string, testStopAfter: MigrationTestSt
       }
       console.log(
         `Applied business_import_application_idempotency_request migration (${statementCount} statements).`,
+      );
+    }
+
+    const businessImportMappingConfirmationImmutability =
+      await businessImportMappingConfirmationImmutabilityState(prisma);
+    if (businessImportMappingConfirmationImmutability.complete) {
+      console.log(
+        "Business import mapping confirmation immutability already exists; skipping business_import_mapping_confirmation_immutability migration.",
+      );
+    } else if (businessImportMappingConfirmationImmutability.present) {
+      throw new Error(
+        `Business import mapping confirmation immutability is partially installed; refusing to replay its DDL (${businessImportMappingConfirmationImmutability.diagnostics}).`,
+      );
+    } else {
+      const statementCount = await applySqlFile(
+        prisma,
+        businessImportMappingConfirmationImmutabilityMigrationUrl,
+      );
+      const installed = await businessImportMappingConfirmationImmutabilityState(prisma);
+      if (!installed.complete) {
+        throw new Error(
+          `Business import mapping confirmation immutability migration completed without its append-only confirmation contract (${installed.diagnostics}).`,
+        );
+      }
+      console.log(
+        `Applied business_import_mapping_confirmation_immutability migration (${statementCount} statements).`,
       );
     }
   } finally {

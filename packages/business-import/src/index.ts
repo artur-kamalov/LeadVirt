@@ -1,4 +1,5 @@
 export * from "./service-csv.js";
+export * from "./service-mapping.js";
 export * from "./service-xlsx.js";
 export * from "./identity.js";
 export * from "./service-diff.js";

@@ -1141,6 +1141,7 @@ export type BusinessOfferingPriceType = "FIXED" | "FROM" | "RANGE" | "FREE" | "O
 export type BusinessImportAllowedAction =
   | "UPLOAD"
   | "FINALIZE"
+  | "MAP"
   | "REVIEW"
   | "REBASE"
   | "APPLY"
@@ -1194,6 +1195,97 @@ export interface BusinessImportDiagnosticView {
   row?: number | null;
   column?: number | null;
   field?: string | null;
+}
+
+export type BusinessImportMappingTarget =
+  | "IGNORE"
+  | "external_id"
+  | "category"
+  | "name"
+  | "description"
+  | "price"
+  | "price_type"
+  | "price_amount"
+  | "price_from"
+  | "price_to"
+  | "currency"
+  | "price_unit"
+  | "tax_note"
+  | "duration"
+  | "duration_minutes"
+  | "duration_max_minutes"
+  | "location_external_id"
+  | "booking_notes"
+  | "active"
+  | "valid_from"
+  | "valid_until"
+  | "language";
+
+export type BusinessImportMappingColumnStatus = "MATCHED" | "CHECK_MAPPING" | "NOT_USED";
+
+export interface BusinessImportMappingColumnView {
+  sourceColumnKey: string;
+  index: number;
+  header: string;
+  examples: string[];
+  proposedTarget: BusinessImportMappingTarget;
+  status: BusinessImportMappingColumnStatus;
+}
+
+export interface BusinessImportMappingTableView {
+  tableKey: string;
+  schemaHash: string;
+  headerRow: number;
+  totalRows: number;
+  totalColumns: number;
+  columns: BusinessImportMappingColumnView[];
+}
+
+export interface BusinessImportMappingDefaults {
+  locale: string | null;
+  numberFormat: BusinessImportNumberFormat | null;
+  currency: string | null;
+  timezone: string | null;
+  unit: string | null;
+}
+
+export type BusinessImportNumberFormat = "DECIMAL_DOT" | "DECIMAL_COMMA";
+
+export interface BusinessImportMappingValidationView {
+  canConfirm: boolean;
+  errorCodes: string[];
+  warningCodes: string[];
+}
+
+export interface BusinessImportMappingView {
+  importId: string;
+  etag: string;
+  format: BusinessImportFormat;
+  table: BusinessImportMappingTableView;
+  defaults: BusinessImportMappingDefaults;
+  validation: BusinessImportMappingValidationView;
+}
+
+export interface BusinessImportMappingAssignment {
+  sourceColumnKey: string;
+  target: BusinessImportMappingTarget;
+}
+
+export interface BusinessImportMappingConfirmRequest {
+  tableKey: string;
+  schemaHash: string;
+  headerRow: number;
+  columns: BusinessImportMappingAssignment[];
+  defaults: BusinessImportMappingDefaults;
+}
+
+export interface BusinessImportMappingConfirmReceipt {
+  importId: string;
+  mappingId: string;
+  generation: number;
+  state: "PARSING";
+  etag: string;
+  idempotencyReplayed: boolean;
 }
 
 export interface BusinessImportCountsView {

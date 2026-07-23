@@ -3,6 +3,8 @@ import { isAbsolute } from "node:path";
 import { Readable } from "node:stream";
 import {
   admitBusinessImportFile,
+  analyzeBusinessServicesCsv,
+  BUSINESS_SERVICES_CSV_SCHEMA_VERSION,
   BusinessImportFileAdmissionError,
   BusinessServicesCsvError,
   BusinessServicesXlsxError,
@@ -11,14 +13,19 @@ import {
   businessOfferingValueHash,
   createBusinessImportFieldProvenance,
   diffBusinessServiceRows,
+  isExactBusinessServicesCsvContract,
+  parseMappedBusinessServicesCsv,
   parseBusinessServicesCsv,
   parseBusinessServicesXlsx,
+  proposeBusinessServiceMapping,
   type AcceptedBusinessImportFile,
   type BusinessImportCellEvidence,
   type BusinessImportDiagnostic,
   type BusinessImportFileScanner,
   type BusinessServiceCsvHeader,
   type BusinessServiceDiffCandidate,
+  type BusinessServiceMappingTarget,
+  type ConfirmedBusinessServiceMapping,
   type ParsedBusinessServiceRow,
 } from "@leadvirt/business-import";
 import { Prisma, type BusinessImportObjectKind, type PrismaClient } from "@leadvirt/db";
@@ -145,7 +152,10 @@ export class BusinessImportProcessorError extends Error {
   }
 }
 
+type BusinessImportMappingNumberFormat = "DECIMAL_DOT" | "DECIMAL_COMMA";
+
 interface ImportSnapshot {
+  mode: "INITIAL" | "MAPPED";
   tenantId: string;
   sourceId: string;
   sourceLineageId: string;
@@ -155,9 +165,28 @@ interface ImportSnapshot {
   originalFilename: string;
   declaredMimeType: string;
   expectedByteSize: number;
-  stagingObjectKey: string;
-  stagingEncryptionKeyRef: string;
-  stagingObjectLedgerId: string;
+  stagingObjectKey: string | null;
+  stagingEncryptionKeyRef: string | null;
+  stagingObjectLedgerId: string | null;
+  artifact: ArtifactSnapshot | null;
+  mapping: {
+    id: string;
+    revision: number;
+    tableKey: string;
+    schemaHash: string;
+    headerRow: number;
+    sourceGeneration: number;
+    parsedRevisionId: string;
+    parsedManifestHash: string;
+    columns: Array<{ sourceColumnKey: string; target: string }>;
+    defaults: {
+      locale: string | null;
+      numberFormat: BusinessImportMappingNumberFormat | null;
+      currency: string | null;
+      timezone: string | null;
+      unit: string | null;
+    };
+  } | null;
   requestedByUserId: string;
 }
 
@@ -166,6 +195,22 @@ interface StagingObjectReference {
   stagingObjectKey: string;
   stagingEncryptionKeyRef: string;
   stagingObjectLedgerId: string;
+}
+
+function stagingObjectReference(snapshot: ImportSnapshot): StagingObjectReference | null {
+  if (
+    !snapshot.stagingObjectKey ||
+    !snapshot.stagingEncryptionKeyRef ||
+    !snapshot.stagingObjectLedgerId
+  ) {
+    return null;
+  }
+  return {
+    tenantId: snapshot.tenantId,
+    stagingObjectKey: snapshot.stagingObjectKey,
+    stagingEncryptionKeyRef: snapshot.stagingEncryptionKeyRef,
+    stagingObjectLedgerId: snapshot.stagingObjectLedgerId,
+  };
 }
 
 interface ArtifactSnapshot {
@@ -403,6 +448,114 @@ function record(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+const businessImportMappingTargets = new Set([
+  "IGNORE",
+  "external_id",
+  "category",
+  "name",
+  "description",
+  "price",
+  "price_type",
+  "price_amount",
+  "price_from",
+  "price_to",
+  "currency",
+  "price_unit",
+  "tax_note",
+  "duration",
+  "duration_minutes",
+  "duration_max_minutes",
+  "location_external_id",
+  "booking_notes",
+  "active",
+  "valid_from",
+  "valid_until",
+  "language",
+]);
+const decimalCommaLanguages = new Set(["de", "es", "fr", "it", "pt", "ru", "uk"]);
+
+function legacyMappingNumberFormat(
+  locale: string | null,
+): BusinessImportMappingNumberFormat | null {
+  if (!locale) return null;
+  return decimalCommaLanguages.has(locale.toLowerCase().split("-")[0] ?? "")
+    ? "DECIMAL_COMMA"
+    : "DECIMAL_DOT";
+}
+
+function confirmedMappingPayload(value: unknown) {
+  const payload = record(value);
+  if (
+    (payload.version !== 1 && payload.version !== 2) ||
+    typeof payload.sourceGeneration !== "number" ||
+    !Number.isInteger(payload.sourceGeneration) ||
+    payload.sourceGeneration < 1 ||
+    !validOpaqueId(payload.parsedRevisionId) ||
+    typeof payload.parsedManifestHash !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(payload.parsedManifestHash) ||
+    !Array.isArray(payload.columns) ||
+    payload.columns.length < 1 ||
+    payload.columns.length > 100
+  ) {
+    throw new BusinessImportProcessorError("BUSINESS_IMPORT_MAPPING_INVALID", false, "VALIDATION");
+  }
+  const numberFormat: BusinessImportMappingNumberFormat | null | undefined =
+    payload.version === 1
+      ? null
+      : payload.numberFormat === null ||
+          payload.numberFormat === "DECIMAL_DOT" ||
+          payload.numberFormat === "DECIMAL_COMMA"
+        ? payload.numberFormat
+        : undefined;
+  if (numberFormat === undefined) {
+    throw new BusinessImportProcessorError("BUSINESS_IMPORT_MAPPING_INVALID", false, "VALIDATION");
+  }
+  const seenColumns = new Set<string>();
+  const seenTargets = new Set<string>();
+  const columns = payload.columns.map((entry) => {
+    const column = record(entry);
+    const sourceColumnKey =
+      typeof column.sourceColumnKey === "string" &&
+      /^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/u.test(column.sourceColumnKey)
+        ? column.sourceColumnKey
+        : null;
+    const target =
+      typeof column.target === "string" && businessImportMappingTargets.has(column.target)
+        ? column.target
+        : null;
+    if (
+      !sourceColumnKey ||
+      !target ||
+      seenColumns.has(sourceColumnKey) ||
+      (target !== "IGNORE" && seenTargets.has(target))
+    ) {
+      throw new BusinessImportProcessorError(
+        "BUSINESS_IMPORT_MAPPING_INVALID",
+        false,
+        "VALIDATION",
+      );
+    }
+    seenColumns.add(sourceColumnKey);
+    if (target !== "IGNORE") seenTargets.add(target);
+    return { sourceColumnKey, target };
+  });
+  if (!seenTargets.has("name")) {
+    throw new BusinessImportProcessorError(
+      "BUSINESS_IMPORT_MAPPING_NAME_REQUIRED",
+      false,
+      "VALIDATION",
+    );
+  }
+  return {
+    version: payload.version,
+    sourceGeneration: payload.sourceGeneration,
+    parsedRevisionId: payload.parsedRevisionId,
+    parsedManifestHash: payload.parsedManifestHash,
+    numberFormat,
+    columns,
+  };
 }
 
 function finiteNumber(value: unknown, minimum: number, maximum: number) {
@@ -745,6 +898,50 @@ function mappingRequiredResult(
   };
 }
 
+function csvMappingRequiredResult(
+  snapshot: ImportSnapshot,
+  analysis: Awaited<ReturnType<typeof analyzeBusinessServicesCsv>>,
+  proposal: ReturnType<typeof proposeBusinessServiceMapping>,
+): ParsedImport {
+  const diagnostic: BusinessImportDiagnostic = {
+    severity: "WARNING",
+    code: "BUSINESS_IMPORT_MAPPING_CONFIRMATION_REQUIRED",
+    message: "Confirm how the source columns map to service information.",
+  };
+  return {
+    state: "MAPPING_REQUIRED",
+    parserVersion: CSV_PARSER_VERSION,
+    ocrVersion: null,
+    schemaVersion: BUSINESS_SERVICES_CSV_SCHEMA_VERSION,
+    schemaHash: analysis.schemaHash,
+    manifest: {
+      contractVersion: EXTRACTION_CONTRACT_VERSION,
+      format: "CSV",
+      status: "MAPPING_REQUIRED",
+      parserVersion: CSV_PARSER_VERSION,
+      schemaHash: analysis.schemaHash,
+      analysis,
+      proposal,
+      diagnostics: [diagnostic],
+    },
+    rows: [],
+    diagnostics: [diagnostic],
+    metrics: {
+      ...emptyMetrics(),
+      sheetCount: 1,
+      rowCount: analysis.rowCount,
+      columnCount: analysis.columns.length,
+      cellCount: analysis.rowCount * analysis.columns.length,
+      extractedCharacters: analysis.columns.reduce(
+        (total, column) =>
+          total +
+          column.samples.reduce((sampleTotal, sample) => sampleTotal + sample.value.length, 0),
+        0,
+      ),
+    },
+  };
+}
+
 async function parseAcceptedFile(
   snapshot: ImportSnapshot,
   accepted: AcceptedBusinessImportFile,
@@ -753,11 +950,34 @@ async function parseAcceptedFile(
 ): Promise<ParsedImport> {
   try {
     if (snapshot.format === "CSV") {
-      const parsed = await parseBusinessServicesCsv(accepted.bytes, {
+      const analysis = await analyzeBusinessServicesCsv(accepted.bytes, {
         maxBytes: dependencies.maxFileBytes,
       });
+      const proposal = proposeBusinessServiceMapping(analysis);
+      if (snapshot.mode === "INITIAL" && !isExactBusinessServicesCsvContract(analysis, proposal)) {
+        return csvMappingRequiredResult(snapshot, analysis, proposal);
+      }
+      const confirmedMapping: ConfirmedBusinessServiceMapping | null = snapshot.mapping
+        ? {
+            tableKey: snapshot.mapping.tableKey,
+            schemaHash: snapshot.mapping.schemaHash,
+            headerRow: snapshot.mapping.headerRow,
+            columns: snapshot.mapping.columns.map((column) => ({
+              sourceColumnKey: column.sourceColumnKey,
+              target: column.target as BusinessServiceMappingTarget,
+            })),
+            defaults: snapshot.mapping.defaults,
+          }
+        : null;
+      const parsed = confirmedMapping
+        ? await parseMappedBusinessServicesCsv(accepted.bytes, confirmedMapping, {
+            maxBytes: dependencies.maxFileBytes,
+          })
+        : await parseBusinessServicesCsv(accepted.bytes, {
+            maxBytes: dependencies.maxFileBytes,
+          });
       const evidence = evidenceMetrics(parsed.rows);
-      const schemaHash = hash(canonicalBusinessImportJson({ headers: parsed.headers }));
+      const schemaHash = analysis.schemaHash;
       return {
         state: "READY_FOR_REVIEW",
         parserVersion: CSV_PARSER_VERSION,
@@ -770,6 +990,16 @@ async function parseAcceptedFile(
           parserVersion: CSV_PARSER_VERSION,
           schemaHash,
           parsed,
+          ...(snapshot.mapping
+            ? {
+                mapping: {
+                  id: snapshot.mapping.id,
+                  revision: snapshot.mapping.revision,
+                  tableKey: snapshot.mapping.tableKey,
+                  schemaHash: snapshot.mapping.schemaHash,
+                },
+              }
+            : {}),
         },
         rows: parsed.rows,
         diagnostics: parsed.diagnostics,
@@ -777,8 +1007,8 @@ async function parseAcceptedFile(
           ...emptyMetrics(),
           sheetCount: 1,
           rowCount: parsed.counts.totalRows,
-          columnCount: parsed.headers.length,
-          cellCount: parsed.counts.totalRows * parsed.headers.length,
+          columnCount: analysis.columns.length,
+          cellCount: parsed.counts.totalRows * analysis.columns.length,
           extractedCharacters: evidence.extractedCharacters,
         },
       };
@@ -1302,6 +1532,16 @@ async function beginImport(
         include: {
           source: true,
           stagingObjectLedger: true,
+          artifact: { include: { objectLedger: true } },
+          mappings: {
+            where: {
+              confirmedAt: { not: null },
+              targetCategory: "OFFERINGS",
+              tableKey: "csv:services",
+            },
+            orderBy: [{ revision: "desc" }, { createdAt: "desc" }],
+            take: 1,
+          },
         },
       });
       if (!value || value.sourceId !== input.data.sourceId) {
@@ -1380,18 +1620,70 @@ async function beginImport(
         value.purpose !== "SERVICES" ||
         !Array.isArray(value.selectedCategories) ||
         !value.selectedCategories.includes("OFFERINGS") ||
-        !value.stagingObjectKey ||
-        !value.stagingEncryptionKeyRef ||
-        !value.stagingObjectLedgerId ||
-        value.stagingObjectKind !== "STAGING" ||
-        !value.stagingObjectLedger ||
-        value.stagingObjectLedger.objectKind !== "STAGING" ||
-        value.stagingObjectLedger.objectStorageKey !== value.stagingObjectKey ||
-        value.stagingObjectLedger.encryptionKeyRef !== value.stagingEncryptionKeyRef ||
-        value.stagingObjectLedger.deletionState !== "RETAINED" ||
         value.expectedByteSize <= 0n ||
         value.expectedByteSize > BigInt(dependencies.maxFileBytes)
       ) {
+        throw new BusinessImportProcessorError(
+          "BUSINESS_IMPORT_JOB_STATE_INVALID",
+          false,
+          "VALIDATION",
+        );
+      }
+      const hasInitialStaging =
+        Boolean(value.stagingObjectKey) &&
+        Boolean(value.stagingEncryptionKeyRef) &&
+        Boolean(value.stagingObjectLedgerId) &&
+        value.stagingObjectKind === "STAGING" &&
+        value.stagingObjectLedger?.objectKind === "STAGING" &&
+        value.stagingObjectLedger.objectStorageKey === value.stagingObjectKey &&
+        value.stagingObjectLedger.encryptionKeyRef === value.stagingEncryptionKeyRef &&
+        value.stagingObjectLedger.deletionState === "RETAINED";
+      const mappingRecord = value.mappings[0] ?? null;
+      const mappingPayload = mappingRecord
+        ? confirmedMappingPayload(mappingRecord.fieldMappings)
+        : null;
+      const mappingSourceRevision =
+        mappingRecord && mappingPayload && value.artifactId && value.artifactSha256
+          ? await tx.businessImportParsedRevision.findFirst({
+              where: {
+                id: mappingPayload.parsedRevisionId,
+                tenantId: value.tenantId,
+                sourceId: value.sourceId,
+                importId: value.id,
+                importGeneration: mappingPayload.sourceGeneration,
+                artifactId: value.artifactId,
+                artifactSha256: value.artifactSha256,
+                manifestHash: mappingPayload.parsedManifestHash,
+              },
+              select: { id: true },
+            })
+          : null;
+      const hasMappedArtifact =
+        Boolean(mappingRecord) &&
+        mappingRecord?.targetCategory === "OFFERINGS" &&
+        mappingRecord.headerRow !== null &&
+        typeof mappingPayload?.sourceGeneration === "number" &&
+        mappingPayload.sourceGeneration < value.generation &&
+        Boolean(mappingSourceRevision) &&
+        Boolean(value.artifactId) &&
+        Boolean(value.artifactSha256) &&
+        value.artifact?.id === value.artifactId &&
+        value.artifact.sha256 === value.artifactSha256 &&
+        value.artifact.byteSize === value.expectedByteSize &&
+        value.artifact.malwareStatus === "CLEAN" &&
+        value.artifact.mimeValidationStatus === "VALID" &&
+        value.artifact.objectKind === "RAW_ARTIFACT" &&
+        value.artifact.objectLedger.objectKind === "RAW_ARTIFACT" &&
+        value.artifact.objectLedger.objectStorageKey === value.artifact.objectStorageKey &&
+        value.artifact.objectLedger.encryptionKeyRef === value.artifact.encryptionKeyRef &&
+        value.artifact.objectLedger.deletionState === "RETAINED";
+      const mode =
+        hasInitialStaging && !mappingRecord
+          ? ("INITIAL" as const)
+          : !hasInitialStaging && hasMappedArtifact
+            ? ("MAPPED" as const)
+            : null;
+      if (!mode) {
         throw new BusinessImportProcessorError(
           "BUSINESS_IMPORT_JOB_STATE_INVALID",
           false,
@@ -1416,7 +1708,7 @@ async function beginImport(
         await tx.businessImport.update({
           where: { id: value.id },
           data: {
-            state: "SCANNING",
+            state: mode === "INITIAL" ? "SCANNING" : "PARSING",
             failureCode: null,
             failureStage: null,
             retryable: false,
@@ -1424,7 +1716,32 @@ async function beginImport(
           },
         });
       }
+      const mapping =
+        mode === "MAPPED" && mappingRecord && mappingPayload
+          ? {
+              id: mappingRecord.id,
+              revision: mappingRecord.revision,
+              tableKey: mappingRecord.tableKey,
+              schemaHash: mappingRecord.schemaHash,
+              headerRow: mappingRecord.headerRow!,
+              sourceGeneration: mappingPayload.sourceGeneration,
+              parsedRevisionId: mappingPayload.parsedRevisionId,
+              parsedManifestHash: mappingPayload.parsedManifestHash,
+              columns: mappingPayload.columns,
+              defaults: {
+                locale: mappingRecord.defaultLocale,
+                numberFormat:
+                  mappingPayload.version === 1
+                    ? legacyMappingNumberFormat(mappingRecord.defaultLocale)
+                    : mappingPayload.numberFormat,
+                currency: mappingRecord.defaultCurrency,
+                timezone: mappingRecord.defaultTimezone,
+                unit: mappingRecord.defaultUnit,
+              },
+            }
+          : null;
       return {
+        mode,
         tenantId: value.tenantId,
         sourceId: value.sourceId,
         sourceLineageId: value.source.lineageKey,
@@ -1437,6 +1754,16 @@ async function beginImport(
         stagingObjectKey: value.stagingObjectKey,
         stagingEncryptionKeyRef: value.stagingEncryptionKeyRef,
         stagingObjectLedgerId: value.stagingObjectLedgerId,
+        artifact:
+          mode === "MAPPED" && value.artifact
+            ? {
+                id: value.artifact.id,
+                sha256: value.artifact.sha256,
+                objectKey: value.artifact.objectStorageKey,
+                encryptionKeyRef: value.artifact.encryptionKeyRef,
+              }
+            : null,
+        mapping,
         requestedByUserId: input.data.requestedByUserId,
       } satisfies ImportSnapshot;
     },
@@ -2093,7 +2420,7 @@ async function persistPublication(
           await tx.businessImportCandidate.update({
             where: { id: candidateId },
             data: {
-              mappingId: null,
+              mappingId: snapshot.mapping?.id ?? null,
               targetCategory: "OFFERINGS",
               semanticTargetKey: prepared.semanticTargetKey,
               action: prepared.action,
@@ -2123,6 +2450,7 @@ async function persistPublication(
               tenantId: snapshot.tenantId,
               sourceId: snapshot.sourceId,
               importId: snapshot.importId,
+              mappingId: snapshot.mapping?.id ?? null,
               candidateKey: prepared.candidateKey,
               targetCategory: "OFFERINGS",
               semanticTargetKey: prepared.semanticTargetKey,
@@ -2155,6 +2483,7 @@ async function persistPublication(
             artifactId: artifact.id,
             artifactSha256: artifact.sha256,
             parsedManifestHash: publication.manifestHash,
+            mappingId: snapshot.mapping?.id ?? null,
             targetCategory: "OFFERINGS",
             semanticTargetKey: prepared.semanticTargetKey,
             action: prepared.action,
@@ -2266,10 +2595,25 @@ async function persistPublication(
         where: {
           tenantId: snapshot.tenantId,
           importId: snapshot.importId,
-          status: "RESERVED",
+          status: snapshot.mode === "INITIAL" ? "RESERVED" : "CONSUMED",
         },
         data: {
-          status: "CONSUMED",
+          ...(snapshot.mode === "INITIAL"
+            ? {
+                status: "CONSUMED" as const,
+                consumedAt: now,
+                retainedBytes: BigInt(publication.retainedBytes),
+              }
+            : {
+                processorSeconds: {
+                  increment: Math.max(1, Math.ceil((Date.now() - startedAt) / 1000)),
+                },
+                retainedBytes: {
+                  increment: BigInt(
+                    Math.max(0, publication.retainedBytes - snapshot.expectedByteSize),
+                  ),
+                },
+              }),
           rawBytes: BigInt(snapshot.expectedByteSize),
           expandedBytes: BigInt(publication.parsed.metrics.expandedBytes),
           sheetCount: publication.parsed.metrics.sheetCount,
@@ -2279,11 +2623,13 @@ async function persistPublication(
           pdfPageCount: publication.parsed.metrics.pdfPageCount,
           ocrPageCount: publication.parsed.metrics.ocrPageCount,
           ocrPixels: BigInt(publication.parsed.metrics.ocrPixels),
-          processorSeconds: Math.max(1, Math.ceil((Date.now() - startedAt) / 1000)),
+          ...(snapshot.mode === "INITIAL"
+            ? {
+                processorSeconds: Math.max(1, Math.ceil((Date.now() - startedAt) / 1000)),
+              }
+            : {}),
           extractedCharacters: publication.parsed.metrics.extractedCharacters,
           candidateCount: publication.candidates.length,
-          retainedBytes: BigInt(publication.retainedBytes),
-          consumedAt: now,
         },
       });
       if (quota.count !== 1) {
@@ -2316,7 +2662,7 @@ async function persistPublication(
           failureStage: null,
           retryable: false,
           parsedAt: now,
-          reviewReadyAt: now,
+          reviewReadyAt: publication.parsed.state === "READY_FOR_REVIEW" ? now : null,
           etag: { increment: 1 },
         },
       });
@@ -2326,24 +2672,27 @@ async function persistPublication(
           ...(publication.parsed.state === "READY_FOR_REVIEW"
             ? { lastSchemaHash: publication.parsed.schemaHash }
             : {}),
+          ...(snapshot.mapping ? { lastMappingRevision: snapshot.mapping.revision } : {}),
           updatedByUserId: snapshot.requestedByUserId,
           etag: { increment: 1 },
         },
       });
-      await tx.businessImportObjectLedger.updateMany({
-        where: {
-          id: snapshot.stagingObjectLedgerId,
-          tenantId: snapshot.tenantId,
-          objectKind: "STAGING",
-          deletionState: "RETAINED",
-          legalHold: false,
-        },
-        data: {
-          deletionState: "TOMBSTONED",
-          tombstoneReason: "PROMOTED_TO_RAW_ARTIFACT",
-          tombstonedAt: now,
-        },
-      });
+      if (snapshot.mode === "INITIAL" && snapshot.stagingObjectLedgerId) {
+        await tx.businessImportObjectLedger.updateMany({
+          where: {
+            id: snapshot.stagingObjectLedgerId,
+            tenantId: snapshot.tenantId,
+            objectKind: "STAGING",
+            deletionState: "RETAINED",
+            legalHold: false,
+          },
+          data: {
+            deletionState: "TOMBSTONED",
+            tombstoneReason: "PROMOTED_TO_RAW_ARTIFACT",
+            tombstonedAt: now,
+          },
+        });
+      }
       await tx.auditLog.create({
         data: {
           tenantId: snapshot.tenantId,
@@ -2357,6 +2706,8 @@ async function persistPublication(
             state: publication.parsed.state,
             candidateCount: publication.candidates.length,
             manifestHash: publication.manifestHash,
+            mappingId: snapshot.mapping?.id ?? null,
+            mappingRevision: snapshot.mapping?.revision ?? null,
           },
         },
       });
@@ -2372,7 +2723,8 @@ async function persistPublication(
       reason: "stale_generation",
     };
   }
-  await deleteTombstonedStaging(snapshot, dependencies);
+  const staging = stagingObjectReference(snapshot);
+  if (staging) await deleteTombstonedStaging(staging, dependencies);
   return {
     status: "succeeded",
     importId: snapshot.importId,
@@ -2516,7 +2868,7 @@ async function failImport(
         data: { status: "RELEASED", releasedAt: now },
       });
     }
-    if (terminal) {
+    if (terminal && snapshot.stagingObjectLedgerId) {
       const tombstoned = await tx.businessImportObjectLedger.updateMany({
         where: {
           id: snapshot.stagingObjectLedgerId,
@@ -2549,7 +2901,8 @@ async function failImport(
       },
     });
   });
-  if (tombstoneStaging) await deleteTombstonedStaging(snapshot, dependencies);
+  const staging = stagingObjectReference(snapshot);
+  if (tombstoneStaging && staging) await deleteTombstonedStaging(staging, dependencies);
 }
 
 async function failUnstartedImport(
@@ -2698,13 +3051,22 @@ export async function processBusinessImportJob(
       );
     }
     assertNotAborted(input.signal, "STORAGE");
-    const stagingBytes = await store.get(
-      snapshot.stagingObjectKey,
-      snapshot.stagingEncryptionKeyRef,
-    );
-    if (stagingBytes.byteLength !== snapshot.expectedByteSize) {
+    const sourceBytes =
+      snapshot.mode === "MAPPED"
+        ? await store.get(snapshot.artifact!.objectKey, snapshot.artifact!.encryptionKeyRef)
+        : await store.get(snapshot.stagingObjectKey!, snapshot.stagingEncryptionKeyRef!);
+    if (sourceBytes.byteLength !== snapshot.expectedByteSize) {
       throw new BusinessImportProcessorError(
-        "BUSINESS_IMPORT_STAGING_LENGTH_MISMATCH",
+        snapshot.mode === "MAPPED"
+          ? "BUSINESS_IMPORT_ARTIFACT_LENGTH_MISMATCH"
+          : "BUSINESS_IMPORT_STAGING_LENGTH_MISMATCH",
+        false,
+        "STORAGE",
+      );
+    }
+    if (snapshot.mode === "MAPPED" && hash(sourceBytes) !== snapshot.artifact!.sha256) {
+      throw new BusinessImportProcessorError(
+        "BUSINESS_IMPORT_ARTIFACT_HASH_MISMATCH",
         false,
         "STORAGE",
       );
@@ -2713,7 +3075,7 @@ export async function processBusinessImportJob(
       {
         filename: snapshot.originalFilename,
         declaredMimeType: snapshot.declaredMimeType,
-        stream: Readable.from([stagingBytes]),
+        stream: Readable.from([sourceBytes]),
       },
       {
         environment: process.env.NODE_ENV === "test" ? "TEST" : "PRODUCTION",
@@ -2724,7 +3086,21 @@ export async function processBusinessImportJob(
       },
     );
     assertNotAborted(input.signal, "PERSISTING");
-    const artifact = await promoteArtifact(snapshot, accepted, dependencies);
+    if (
+      snapshot.mode === "MAPPED" &&
+      (accepted.provenance.sha256 !== snapshot.artifact!.sha256 ||
+        accepted.provenance.byteSize !== snapshot.expectedByteSize)
+    ) {
+      throw new BusinessImportProcessorError(
+        "BUSINESS_IMPORT_ARTIFACT_IDENTITY_CONFLICT",
+        false,
+        "STORAGE",
+      );
+    }
+    const artifact =
+      snapshot.mode === "MAPPED"
+        ? snapshot.artifact
+        : await promoteArtifact(snapshot, accepted, dependencies);
     if (!artifact) {
       await cleanupCurrentPendingOutputs(snapshot, dependencies).catch(() => undefined);
       return {

@@ -5,6 +5,7 @@ import {
   businessImportEvidenceRecordHash,
   businessOfferingValueHash,
   compareBusinessImportDecimals,
+  isBusinessImportCurrencyCode,
   normalizeBusinessExternalId,
   sortedBusinessImportFieldProvenance,
   type BusinessImportFieldAuthority,
@@ -417,7 +418,7 @@ function assertPrice(price: BusinessImportOfferingValue["price"]) {
   if (
     price.currency !== null &&
     price.currency !== undefined &&
-    !/^[A-Z]{3}$/u.test(price.currency)
+    !isBusinessImportCurrencyCode(price.currency)
   ) {
     invalidCandidateValue();
   }

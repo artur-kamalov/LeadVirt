@@ -9,6 +9,7 @@ import {
   businessImportEtag,
   businessImportError,
 } from "./business-import-http.js";
+import { lockAndExtendRetainedBusinessImportObjects } from "./business-import-object-lifecycle.js";
 import { BusinessImportQueueService } from "./business-import-queue.service.js";
 import { BusinessImportRuntimeService } from "./business-import-runtime.service.js";
 import { BusinessImportViewService } from "./business-import-view.service.js";
@@ -156,14 +157,45 @@ export class BusinessImportWorkflowService {
             0
           ))) AS business_information_state_lock
         `);
+        await tx.$queryRaw(Prisma.sql`
+          SELECT "id" FROM "BusinessImport"
+          WHERE "tenantId" = ${context.tenantId} AND "id" = ${importId}
+          FOR UPDATE
+        `);
         const value = await tx.businessImport.findFirst({
           where: { id: importId, tenantId: context.tenantId },
+          include: {
+            artifact: { include: { objectLedger: true } },
+            mappings: {
+              where: {
+                confirmedAt: { not: null },
+                targetCategory: "OFFERINGS",
+                tableKey: "csv:services",
+              },
+              orderBy: [{ revision: "desc" }, { createdAt: "desc" }],
+              take: 1,
+            },
+          },
         });
         if (!value) this.notFound();
         assertBusinessImportIfMatch(ifMatch, businessImportEtag(value.id, value.etag));
-        if (value.state !== "FAILED_RETRYABLE" || !value.retryable || input.generation !== value.generation) {
+        if (
+          value.state !== "FAILED_RETRYABLE" ||
+          !value.retryable ||
+          input.generation !== value.generation
+        ) {
           this.stateConflict();
         }
+        await tx.$queryRaw(Prisma.sql`
+          SELECT "id" FROM "BusinessImportSource"
+          WHERE "tenantId" = ${context.tenantId} AND "id" = ${value.sourceId}
+          FOR UPDATE
+        `);
+        const source = await tx.businessImportSource.findFirst({
+          where: { tenantId: context.tenantId, id: value.sourceId },
+          select: { status: true },
+        });
+        if (!source || source.status !== "ACTIVE") this.stateConflict();
         const activeImports = await tx.businessImport.count({
           where: {
             tenantId: context.tenantId,
@@ -179,8 +211,55 @@ export class BusinessImportWorkflowService {
             { retryable: true },
           );
         }
-        const nextGeneration = value.generation + 1;
+        const mappedRetryCandidate =
+          !value.stagingObjectKey &&
+          !value.stagingEncryptionKeyRef &&
+          !value.stagingObjectLedgerId &&
+          Boolean(value.artifactId) &&
+          Boolean(value.artifactSha256) &&
+          value.mappings.length === 1;
+        const initialRetry =
+          Boolean(value.stagingObjectKey) &&
+          Boolean(value.stagingEncryptionKeyRef) &&
+          Boolean(value.stagingObjectLedgerId) &&
+          value.stagingObjectKind === "STAGING";
         const now = new Date();
+        if (!mappedRetryCandidate && !initialRetry) this.stateConflict();
+        if (mappedRetryCandidate) {
+          const artifact = value.artifact;
+          if (
+            !artifact ||
+            artifact.id !== value.artifactId ||
+            artifact.sourceId !== value.sourceId ||
+            artifact.sha256 !== value.artifactSha256 ||
+            artifact.byteSize !== value.expectedByteSize ||
+            artifact.malwareStatus !== "CLEAN" ||
+            artifact.mimeValidationStatus !== "VALID" ||
+            artifact.objectKind !== "RAW_ARTIFACT" ||
+            artifact.objectLedger.objectKind !== "RAW_ARTIFACT" ||
+            artifact.objectLedger.objectStorageKey !== artifact.objectStorageKey ||
+            artifact.objectLedger.encryptionKeyRef !== artifact.encryptionKeyRef ||
+            artifact.objectLedger.retentionClass !== "BUSINESS_IMPORT_RAW"
+          ) {
+            this.stateConflict();
+          }
+          const retained = await lockAndExtendRetainedBusinessImportObjects(tx, {
+            tenantId: context.tenantId,
+            objects: [
+              {
+                ledgerId: artifact.objectLedger.id,
+                objectKind: "RAW_ARTIFACT",
+                objectStorageKey: artifact.objectStorageKey,
+                encryptionKeyRef: artifact.encryptionKeyRef,
+                retentionClass: "BUSINESS_IMPORT_RAW",
+              },
+            ],
+            now,
+          });
+          if (!retained) this.stateConflict();
+        }
+        const mappedRetry = mappedRetryCandidate;
+        const nextGeneration = value.generation + 1;
         const updated = await tx.businessImport.updateMany({
           where: {
             id: value.id,
@@ -191,7 +270,7 @@ export class BusinessImportWorkflowService {
           },
           data: {
             generation: nextGeneration,
-            state: "SCANNING",
+            state: mappedRetry ? "PARSING" : "SCANNING",
             parsedRevisionId: null,
             parsedManifestObjectKey: null,
             parsedManifestEncryptionKeyRef: null,
@@ -227,7 +306,11 @@ export class BusinessImportWorkflowService {
             action: "business_import.retried",
             entityType: "business_import",
             entityId: value.id,
-            payload: { previousGeneration: value.generation, generation: nextGeneration, eventId: event.id },
+            payload: {
+              previousGeneration: value.generation,
+              generation: nextGeneration,
+              eventId: event.id,
+            },
           },
         });
         return {
@@ -327,7 +410,10 @@ export class BusinessImportWorkflowService {
             action: "business_import.cancelled",
             entityType: "business_import",
             entityId: value.id,
-            payload: { cancelledGeneration: value.generation, nextGeneration: value.generation + 1 },
+            payload: {
+              cancelledGeneration: value.generation,
+              nextGeneration: value.generation + 1,
+            },
           },
         });
         return {
@@ -344,10 +430,7 @@ export class BusinessImportWorkflowService {
     if (!["OWNER", "ADMIN", "MANAGER"].includes(context.role)) this.permissionDenied();
   }
 
-  private async assertCurrentEditor(
-    tx: Prisma.TransactionClient,
-    context: RequestContext,
-  ) {
+  private async assertCurrentEditor(tx: Prisma.TransactionClient, context: RequestContext) {
     const membership = await tx.membership.findUnique({
       where: { tenantId_userId: { tenantId: context.tenantId, userId: context.userId } },
     });

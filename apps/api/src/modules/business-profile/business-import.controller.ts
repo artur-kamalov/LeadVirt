@@ -41,11 +41,13 @@ import {
   BusinessImportBulkApprovalDto,
   BusinessImportCreateIntentDto,
   BusinessImportListQueryDto,
+  BusinessImportMappingConfirmDto,
   BusinessImportRetryDto,
 } from "./dto/business-import.dto.js";
 import { BusinessImportUploadService } from "./business-import-upload.service.js";
 import { BusinessImportApplicationService } from "./business-import-application.service.js";
 import { BusinessImportRebaseService } from "./business-import-rebase.service.js";
+import { BusinessImportMappingService } from "./business-import-mapping.service.js";
 import { BusinessImportReviewService } from "./business-import-review.service.js";
 import { BusinessImportRuntimeService } from "./business-import-runtime.service.js";
 import { BusinessImportViewService } from "./business-import-view.service.js";
@@ -132,6 +134,8 @@ export class BusinessImportController {
     private readonly applications: BusinessImportApplicationService,
     @Inject(BusinessImportRebaseService)
     private readonly rebases: BusinessImportRebaseService,
+    @Inject(BusinessImportMappingService)
+    private readonly mappings: BusinessImportMappingService,
   ) {}
 
   @Get("templates/services.csv")
@@ -181,6 +185,42 @@ export class BusinessImportController {
     @Res({ passthrough: true }) response: Response,
   ) {
     const value = await this.views.get(context, importId);
+    response.setHeader("ETag", value.etag);
+    response.setHeader("Cache-Control", "private, no-store");
+    return { data: value };
+  }
+
+  @Get(":importId/mapping")
+  @Roles("OWNER", "ADMIN", "MANAGER", "AGENT", "VIEWER")
+  async mapping(
+    @CurrentContext() context: RequestContext,
+    @Param("importId") importId: string,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const value = await this.mappings.get(context, importId);
+    response.setHeader("ETag", value.etag);
+    response.setHeader("Cache-Control", "private, no-store");
+    return { data: value };
+  }
+
+  @Post(":importId/mapping/confirm")
+  @Roles("OWNER", "ADMIN", "MANAGER")
+  @HttpCode(HttpStatus.ACCEPTED)
+  async confirmMapping(
+    @CurrentContext() context: RequestContext,
+    @Param("importId") importId: string,
+    @Body() dto: BusinessImportMappingConfirmDto,
+    @Headers("if-match") ifMatch: HeaderValue,
+    @Headers("idempotency-key") idempotencyKey: HeaderValue,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const value = await this.mappings.confirm(
+      context,
+      importId,
+      dto,
+      ifMatch,
+      requireIdempotencyKey(idempotencyKey),
+    );
     response.setHeader("ETag", value.etag);
     response.setHeader("Cache-Control", "private, no-store");
     return { data: value };

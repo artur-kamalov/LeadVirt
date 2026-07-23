@@ -20,6 +20,7 @@
     "qa:business-import:application": "tsx src/modules/business-profile/business-import-application.service.smoke.ts",
     "qa:business-import:e2e": "tsx ../../artifacts/scripts/business-import-csv-e2e-smoke.ts",
     "qa:business-import:lifecycle": "tsx src/modules/business-profile/business-import-object-lifecycle.smoke.ts",
+    "qa:business-import:mapping": "tsx src/modules/business-profile/business-import-mapping.service.smoke.ts",
     "qa:business-import:review": "tsx src/modules/business-profile/business-import-review.service.smoke.ts",
     "qa:business-import:rebase": "tsx ../../artifacts/scripts/business-import-rebase-smoke.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"

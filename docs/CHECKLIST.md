@@ -1,9 +1,10 @@
 # LeadVirt Checklist
 
-Last updated: 2026-07-22
+Last updated: 2026-07-23
 
 ## Next
 
+- [ ] Replace the template-first services import with arbitrary CSV price-list analysis, explicit column mapping, deterministic mapped reprocessing, exact evidence linkage, and a responsive localized mapping workspace; verify the full production lifecycle before marking complete.
 - [x] Closed the production artifact-key blocker exposed by deploys `29893119699`, `29894666828`, and the first attempt of `29895953546`: the env had no artifact key, so an operator atomically provisioned one canonical random 32-byte key and stable key ID before client use. Deployment still fails closed on missing/malformed effective keys, normalizes byte-equivalent legacy base64 and shadowed duplicates without exposing material, and behavioral smoke covers canonicalization, duplicate normalization, idempotency, and invalid input.
 - [x] Deployed CSV Business Import to LeadVirt.com in successful run `29895953546` attempt 2. Live API, worker, and web flags are enabled, the client bundle compiles the feature as true, writable encrypted storage and real ClamAV checks passed twice, and the optional parser is not running. XLSX, PDF, and JSON remain disabled.
 - [x] Hardened the optional PDF/OCR parser with one 240-second monotonic request deadline below the 300-second worker client timeout, remaining-budget subprocesses, process-group cancellation on disconnect/deadline, startup binary/language readiness, finite bounded coordinates, pre-raster page/cumulative pixel caps, global OCR text budgets, and metadata-only logs. The restricted-image HTTP gate covers native PDF, real image-only OCR, limits, timeout, busy/disconnect release, and log privacy; PDF flags remain false.

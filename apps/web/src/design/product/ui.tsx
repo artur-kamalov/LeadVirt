@@ -149,6 +149,7 @@ export function DropdownSeparator() {
 export interface SelectOption {
   value: string;
   label: React.ReactNode;
+  disabled?: boolean;
 }
 
 export function Select({
@@ -214,7 +215,8 @@ export function Select({
               <SelectPrimitive.Item
                 key={o.value}
                 value={o.value}
-                className="relative flex min-h-11 cursor-pointer select-none items-center rounded-xl px-3 py-2 pr-9 text-sm text-zinc-300 outline-none transition-colors data-[highlighted]:bg-white/5 data-[highlighted]:text-zinc-50 data-[state=checked]:text-emerald-400"
+                disabled={o.disabled}
+                className="relative flex min-h-11 cursor-pointer select-none items-center rounded-xl px-3 py-2 pr-9 text-sm text-zinc-300 outline-none transition-colors data-[disabled]:cursor-not-allowed data-[disabled]:opacity-40 data-[highlighted]:bg-white/5 data-[highlighted]:text-zinc-50 data-[state=checked]:text-emerald-400"
               >
                 <SelectPrimitive.ItemText>{o.label}</SelectPrimitive.ItemText>
                 <SelectPrimitive.ItemIndicator className="absolute right-2.5 flex items-center">

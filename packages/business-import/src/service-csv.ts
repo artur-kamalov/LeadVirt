@@ -3,6 +3,17 @@ import { parse } from "csv-parse";
 
 export const BUSINESS_SERVICES_CSV_SCHEMA_VERSION = "leadvirt.services.v1";
 
+// ISO 4217 List One published 2026-01-01; XTS and XXX are not customer price currencies.
+export const BUSINESS_IMPORT_CURRENCY_CODES =
+  "AED AFN ALL AMD AOA ARS AUD AWG AZN BAM BBD BDT BHD BIF BMD BND BOB BOV BRL BSD BTN BWP BYN BZD CAD CDF CHE CHF CHW CLF CLP CNY COP COU CRC CUP CVE CZK DJF DKK DOP DZD EGP ERN ETB EUR FJD FKP GBP GEL GHS GIP GMD GNF GTQ GYD HKD HNL HTG HUF IDR ILS INR IQD IRR ISK JMD JOD JPY KES KGS KHR KMF KPW KRW KWD KYD KZT LAK LBP LKR LRD LSL LYD MAD MDL MGA MKD MMK MNT MOP MRU MUR MVR MWK MXN MXV MYR MZN NAD NGN NIO NOK NPR NZD OMR PAB PEN PGK PHP PKR PLN PYG QAR RON RSD RUB RWF SAR SBD SCR SDG SEK SGD SHP SLE SOS SRD SSP STN SVC SYP SZL THB TJS TMT TND TOP TRY TTD TWD TZS UAH UGX USD USN UYI UYU UYW UZS VED VES VND VUV WST XAD XAF XAG XAU XBA XBB XBC XBD XCD XCG XDR XOF XPD XPF XPT XSU XUA YER ZAR ZMW ZWG".split(
+    " ",
+  );
+const BUSINESS_IMPORT_CURRENCY_CODE_SET = new Set(BUSINESS_IMPORT_CURRENCY_CODES);
+
+export function isBusinessImportCurrencyCode(value: string) {
+  return BUSINESS_IMPORT_CURRENCY_CODE_SET.has(value);
+}
+
 export const BUSINESS_SERVICES_CSV_HEADERS = [
   "external_id",
   "category",
@@ -88,14 +99,7 @@ export interface BusinessImportXlsxCellEvidence {
   column: number;
   header: BusinessServiceCsvHeader;
   sourceValue: string;
-  cellType:
-    | "BLANK"
-    | "SHARED_STRING"
-    | "INLINE_STRING"
-    | "STRING"
-    | "NUMBER"
-    | "BOOLEAN"
-    | "DATE";
+  cellType: "BLANK" | "SHARED_STRING" | "INLINE_STRING" | "STRING" | "NUMBER" | "BOOLEAN" | "DATE";
   cachedFormula: boolean;
 }
 
@@ -113,7 +117,7 @@ export type BusinessServiceEvidenceFactory = (input: {
   column: number;
   field: BusinessServiceCsvHeader;
   sourceValue: string;
-}) => BusinessImportCellEvidence;
+}) => BusinessImportCellEvidence | undefined;
 
 export interface ParsedBusinessServiceRow {
   sourceRow: number;
@@ -449,8 +453,8 @@ function isoDate(
 function activeValue(value: string | null, row: number, diagnostics: BusinessImportDiagnostic[]) {
   if (value === null) return true;
   const normalized = value.toLocaleLowerCase();
-  if (["true", "1", "yes", "да"].includes(normalized)) return true;
-  if (["false", "0", "no", "нет"].includes(normalized)) return false;
+  if (["true", "1", "yes", "да", "ja", "oui", "si", "sí", "sim"].includes(normalized)) return true;
+  if (["false", "0", "no", "нет", "nein", "non", "nao", "não"].includes(normalized)) return false;
   diagnostic(diagnostics, {
     code: "BUSINESS_IMPORT_ACTIVE_INVALID",
     message: "Active must be true or false.",
@@ -486,10 +490,10 @@ function validatePrice(
     });
     return null;
   }
-  if (currency && !/^[A-Z]{3}$/u.test(currency)) {
+  if (currency && !isBusinessImportCurrencyCode(currency)) {
     diagnostic(diagnostics, {
       code: "BUSINESS_IMPORT_CURRENCY_INVALID",
-      message: "Currency must be a three-letter ISO code.",
+      message: "Currency must be a current three-letter ISO 4217 code.",
       row,
       field: "currency",
     });
@@ -570,7 +574,8 @@ export function parseBusinessServiceRow(
   for (const { field, column } of columns) {
     const sourceValue = record[column - 1] ?? "";
     values[field] = sourceValue;
-    evidence[field] = evidenceFactory({ sourceRow, column, field, sourceValue });
+    const sourceEvidence = evidenceFactory({ sourceRow, column, field, sourceValue });
+    if (sourceEvidence) evidence[field] = sourceEvidence;
   }
   const name = nullable(values.name) ?? "";
   if (!name) {
@@ -733,9 +738,7 @@ export async function parseBusinessServicesCsv(
       `The file contains more than ${limits.maxServices} services.`,
     );
   }
-  const rows = records.map((record, index) =>
-    parseBusinessServiceRow(record, index + 2, columns),
-  );
+  const rows = records.map((record, index) => parseBusinessServiceRow(record, index + 2, columns));
   if (decoded.encoding === "windows-1251") {
     diagnostic(diagnostics, {
       severity: "WARNING",
