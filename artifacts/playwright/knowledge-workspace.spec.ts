@@ -912,7 +912,8 @@ test("Knowledge defaults to English and switches to Russian without raw keys", a
 
   await page.getByTestId("knowledge-tab-sources").click();
   await expect(page.getByRole("heading", { name: "Источники", exact: true })).toBeVisible();
-  await expect(page.getByText("Источников пока нет")).toBeVisible();
+  await expect(page.getByText("Каталоги услуг ещё не импортированы.")).toBeVisible();
+  await expect(page.getByText("Сайтов и файлов знаний пока нет")).toBeVisible();
 
   await page.getByTestId("knowledge-tab-history").click();
   await expect(page.getByRole("heading", { name: "Опубликованные версии" })).toBeVisible();
@@ -1094,7 +1095,8 @@ test("app Knowledge navigation preserves all views and shows honest availability
 
     if (view === "sources") {
       await expect(page.getByRole("heading", { name: "Sources", exact: true })).toBeVisible();
-      await expect(page.getByText("No sources yet")).toBeVisible();
+      await expect(page.getByText("No service catalogs have been imported.")).toBeVisible();
+      await expect(page.getByText("No websites or knowledge files yet")).toBeVisible();
     } else if (view === "review") {
       await expect(page.getByRole("heading", { name: "Review queue" })).toBeVisible();
       await expect(page.getByText("Nothing needs review")).toBeVisible();
