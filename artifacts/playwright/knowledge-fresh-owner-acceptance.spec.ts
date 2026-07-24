@@ -433,6 +433,14 @@ test("fresh owner imports, evaluates, publishes, and retrieves real website evid
     );
     expect(approvedGuidance.ok(), await approvedGuidance.text()).toBe(true);
 
+    const starterPresetResponse = await request.post(
+      `${apiBase}/knowledge/v2/capabilities/presets/starter`,
+      {
+        headers: { "Idempotency-Key": key("starter-preset") },
+      },
+    );
+    expect(starterPresetResponse.ok(), await starterPresetResponse.text()).toBe(true);
+
     const readiness = await data<KnowledgeV2ReadinessView>(
       await request.get(`${apiBase}/knowledge/v2/readiness`),
     );

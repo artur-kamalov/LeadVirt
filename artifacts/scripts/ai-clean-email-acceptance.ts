@@ -425,6 +425,13 @@ async function main() {
     assert(typeof migration.generation === "number", "Legacy migration has no generation.");
 
     await configureKnowledgeSettings(cookie, suffix);
+    await apiJson("/knowledge/v2/capabilities/presets/starter", {
+      method: "POST",
+      headers: {
+        cookie,
+        "Idempotency-Key": idempotencyKey(suffix, "starter-preset"),
+      },
+    });
 
     const channel = getData(
       (
