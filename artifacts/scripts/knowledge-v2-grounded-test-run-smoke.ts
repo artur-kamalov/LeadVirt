@@ -20,6 +20,7 @@ import {
   stableKnowledgeValue,
 } from "@leadvirt/knowledge";
 import type { RequestContext } from "../../apps/api/src/common/request-context.js";
+import { KnowledgeV2CapabilityService } from "../../apps/api/src/modules/knowledge/knowledge-v2-capability.service.js";
 import { KnowledgeV2IdempotencyService } from "../../apps/api/src/modules/knowledge/knowledge-v2-idempotency.service.js";
 import {
   assertKnowledgeV2PublicationEvaluationGate,
@@ -399,21 +400,6 @@ async function main() {
     const draftCandidateManifestHash = hashKnowledgeValue(
       stableKnowledgeValue(draftCandidateItems),
     );
-    const draftValidation = await prisma.knowledgeV2PublicationValidation.create({
-      data: {
-        tenantId,
-        targetKey: "workspace-v2",
-        corpusKind: "STRUCTURED_V2",
-        candidateId: draftCandidateId,
-        candidateVersion: 1,
-        candidateManifestHash: draftCandidateManifestHash,
-        candidateItems: draftCandidateItems,
-        status: "PASSED",
-        evaluatedAt: new Date(),
-        validUntil: new Date(Date.now() + 60_000),
-        validatedByUserId: userId,
-      },
-    });
     const evidenceKey = `v2:fact:${factVersion.id}:${factVersion.immutableHash}`;
     const queryHashes = createKnowledgeV2QueryHashKeyring({
       activeKeyId: "grounded-test-query-v1",
@@ -509,6 +495,7 @@ async function main() {
       knowledgeArtifactEncryptionKeyId: "grounded-test-key",
     };
     const idempotency = new KnowledgeV2IdempotencyService(prisma as never);
+    const capabilityService = new KnowledgeV2CapabilityService(prisma as never, idempotency);
     const testService = new KnowledgeV2TestService(
       prisma as never,
       idempotency,
@@ -535,6 +522,7 @@ async function main() {
           observedPointCount: 0,
         }),
       } as never,
+      capabilityService,
     );
     const publicationDispatcher = new KnowledgeV2PublicationDispatcherService(
       prisma as never,
@@ -562,6 +550,22 @@ async function main() {
         passwordChangeRequired: user.passwordChangeRequired,
       },
     };
+    await capabilityService.applyStarterPreset(context, `grounded-starter-preset-${randomUUID()}`);
+    const draftValidation = await prisma.knowledgeV2PublicationValidation.create({
+      data: {
+        tenantId,
+        targetKey: "workspace-v2",
+        corpusKind: "STRUCTURED_V2",
+        candidateId: draftCandidateId,
+        candidateVersion: 1,
+        candidateManifestHash: draftCandidateManifestHash,
+        candidateItems: draftCandidateItems,
+        status: "PASSED",
+        evaluatedAt: new Date(),
+        validUntil: new Date(Date.now() + 60_000),
+        validatedByUserId: userId,
+      },
+    });
     const internals = service as unknown as { drain(): Promise<void> };
     const realDrain = internals.drain.bind(service);
     let drainEnabled = false;
