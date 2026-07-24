@@ -4,6 +4,7 @@ import {
   KNOWLEDGE_CAPABILITY_DEFAULT_REQUIREMENT_TEMPLATES_V1,
   KNOWLEDGE_CAPABILITY_DEFAULT_TEMPLATES_V1,
   KNOWLEDGE_CAPABILITY_REQUIREMENT_PREDICATE_V1,
+  KNOWLEDGE_CAPABILITY_SNAPSHOT_V1_EVALUATOR_VERSION,
   buildDefaultKnowledgeCapabilityDefinitionsV1,
   computeCurrentKnowledgeCapabilityConfigHashV1,
   evaluateKnowledgeCapabilitySnapshotV1,
@@ -238,13 +239,49 @@ const allKindEvidence: KnowledgeCapabilityEvidenceV1[] = [
 ];
 
 const defaults = buildDefaultKnowledgeCapabilityDefinitionsV1();
+assert.equal(
+  KNOWLEDGE_CAPABILITY_SNAPSHOT_V1_EVALUATOR_VERSION,
+  "knowledge-capability-snapshot-v2",
+);
+assert.notEqual(
+  computeCurrentKnowledgeCapabilityConfigHashV1(),
+  "fe5dc01bff09f40141937149fc58d9f59be9878542b3e729291084a9ae59b1d0",
+);
 assert.equal(KNOWLEDGE_CAPABILITY_DEFAULT_TEMPLATES_V1.length, 8);
 assert.equal(KNOWLEDGE_CAPABILITY_DEFAULT_REQUIREMENT_TEMPLATES_V1.length, 36);
 assert.equal(defaults.length, 8);
 assert.equal(defaults.flatMap((item) => item.requirements).length, 36);
 assert.deepEqual(
   defaults.filter((item) => item.enabled).map((item) => item.capabilityType),
-  ["GENERAL_FAQ"],
+  ["GENERAL_FAQ", "PRICING", "APPOINTMENT_DISCOVERY", "COMMERCE_RECOMMENDATION"],
+);
+assert.ok(
+  defaults
+    .flatMap((item) => item.requirements)
+    .every((item) => item.definitionVersion === 2 && item.templateOrigin === "PLATFORM_V2"),
+);
+const defaultRequirementsByCapability = new Map(
+  defaults.map((item) => [item.capabilityType, item.requirements]),
+);
+for (const capabilityType of [
+  "GENERAL_FAQ",
+  "PRICING",
+  "APPOINTMENT_DISCOVERY",
+  "COMMERCE_RECOMMENDATION",
+] as const) {
+  assert.ok(
+    defaultRequirementsByCapability
+      .get(capabilityType)!
+      .every((requirement) => requirement.severity === "WARNING"),
+    `${capabilityType} must launch in grounded answer-only mode without setup blockers.`,
+  );
+}
+assert.deepEqual(
+  defaultRequirementsByCapability
+    .get("LEAD_QUALIFICATION")!
+    .filter((requirement) => requirement.severity === "BLOCKER")
+    .map((requirement) => requirement.requirementKey),
+  ["collection_consent"],
 );
 assert.deepEqual(
   [...new Set(defaults.flatMap((item) => item.requirements.map((entry) => entry.kind)))].sort(),
@@ -268,6 +305,7 @@ assert.match(computeCurrentKnowledgeCapabilityConfigHashV1(), /^[a-f0-9]{64}$/u)
 
 const allKinds = capability(allKindRequirements);
 const ready = snapshot([allKinds], allKindEvidence, ["fr", "en"]);
+assert.equal(ready.evaluatorVersion, KNOWLEDGE_CAPABILITY_SNAPSHOT_V1_EVALUATOR_VERSION);
 assert.equal(ready.capabilities[0]!.status, "READY");
 assert.equal(ready.executableReadiness.status, "READY");
 assert.equal(ready.capabilities[0]!.configurationHash, ready.capabilities[0]!.capabilityHash);
@@ -336,7 +374,14 @@ const evidenceDrift = allKindEvidence.map((item) =>
 );
 const driftedEvaluation = snapshot([allKinds], evidenceDrift, ["en", "fr"]);
 assert.equal(driftedEvaluation.capabilities[0]!.status, "BLOCKED");
+assert.equal(driftedEvaluation.capabilities[0]!.executable, false);
+assert.deepEqual(driftedEvaluation.executableReadiness.capabilityIds, []);
+assert.equal(driftedEvaluation.executableReadiness.status, "BLOCKED");
 assert.notEqual(driftedEvaluation.requirementEvaluationSetHash, ready.requirementEvaluationSetHash);
+assert.notEqual(
+  driftedEvaluation.capabilities[0]!.evaluationHash,
+  ready.capabilities[0]!.evaluationHash,
+);
 
 const factRequirement = requirement("fresh-fact", "FACT", {
   schemaVersion: 1,
@@ -494,6 +539,16 @@ const warningOnly = capability([
   ),
 ]);
 assert.equal(snapshot([warningOnly]).capabilities[0]!.status, "READY_WITH_WARNINGS");
+const mixedLaunch = snapshot([
+  warningOnly,
+  capability([factRequirement], {
+    capabilityId: "blocked-optional-capability",
+    capabilityType: "APPOINTMENT_BOOKING",
+  }),
+]);
+assert.deepEqual(mixedLaunch.executableReadiness.capabilityIds, [warningOnly.capabilityId]);
+assert.equal(mixedLaunch.executableReadiness.status, "READY_WITH_WARNINGS");
+assert.equal(mixedLaunch.executableReadiness.blockerCount, 1);
 
 const duplicateEvidenceA = { ...factEvidence, verificationStatus: "VERIFIED" as const };
 const duplicateEvidenceB = { ...factEvidence, verificationStatus: "UNVERIFIED" as const };
@@ -503,7 +558,14 @@ assert.equal(
 );
 
 const defaultSnapshot = snapshot(defaults, [], ["en"]);
-assert.deepEqual(defaultSnapshot.executableReadiness.capabilityIds, [defaults[0]!.capabilityId]);
+assert.deepEqual(
+  defaultSnapshot.executableReadiness.capabilityIds,
+  defaults
+    .filter((item) => item.enabled)
+    .map((item) => item.capabilityId)
+    .sort(),
+);
+assert.equal(defaultSnapshot.executableReadiness.status, "READY_WITH_WARNINGS");
 assert.ok(
   defaultSnapshot.capabilities
     .filter((item) => !item.enabled)

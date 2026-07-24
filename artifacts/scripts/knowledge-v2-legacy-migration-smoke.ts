@@ -657,10 +657,13 @@ async function main() {
           (fact) =>
             fact.latestVersionNumber === 1 &&
             fact.versions[0]?.lifecycleStatus === "DRAFT" &&
-            fact.versions[0].verificationStatus === "UNVERIFIED" &&
+            fact.versions[0].verificationStatus === "VERIFIED" &&
+            fact.versions[0].authority === "OWNER_VERIFIED" &&
+            fact.versions[0].verifiedByUserId === ownerUser.id &&
+            Boolean(fact.versions[0].verifiedAt) &&
             fact.versions[0].evidence.length === 1,
         ),
-      "Migration start did not backfill onboarding facts as reviewable drafts.",
+      "Migration start did not backfill owner-confirmed onboarding facts.",
     );
     assert(
       backfilledRules.length === 2 &&
@@ -1458,12 +1461,20 @@ async function main() {
     assert(
       projectedFacts.every((fact) => {
         const version = fact.versions[0];
+        const ownerConfirmed = version?.riskLevel === "LOW" || version?.riskLevel === "MEDIUM";
         return (
           fact.latestVersionNumber === 1 &&
           fact.fieldType === "TEXT" &&
           version?.lifecycleStatus === "DRAFT" &&
-          version.verificationStatus === "UNVERIFIED" &&
-          version.authority === "MANUAL" &&
+          (ownerConfirmed
+            ? version.verificationStatus === "VERIFIED" &&
+              version.authority === "OWNER_VERIFIED" &&
+              version.verifiedByUserId === ownerUser.id &&
+              Boolean(version.verifiedAt)
+            : version.verificationStatus === "UNVERIFIED" &&
+              version.authority === "MANUAL" &&
+              version.verifiedByUserId === null &&
+              version.verifiedAt === null) &&
           version.evidence.length === 1 &&
           (version.evidence[0]?.metadata as { origin?: string } | null)?.origin === "onboarding"
         );

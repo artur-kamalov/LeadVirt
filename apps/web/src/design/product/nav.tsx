@@ -75,6 +75,10 @@ function pathFor(route: Route, params: Record<string, unknown>, mode: "app" | "d
     return `${paths.knowledge}?welcome=1`;
   }
 
+  if (route === "settings" && params.tab === "channels") {
+    return `${paths.settings}?tab=channels`;
+  }
+
   return paths[route];
 }
 

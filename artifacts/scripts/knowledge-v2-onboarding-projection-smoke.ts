@@ -42,10 +42,15 @@ function context(
 }
 
 async function createFixture(prisma: PrismaService, userId: string, stamp: string, suffix: string) {
+  const businessName = `Projection business ${suffix} ${stamp}`;
+  const businessType = `Service business ${suffix}`;
+  const businessDescription = `Owner-confirmed description ${suffix} ${stamp}`;
+  const hours = `Monday-Friday 09:00-18:00 ${suffix} ${stamp}`;
   const tenant = await prisma.tenant.create({
     data: {
-      name: `Projection ${suffix}`,
+      name: businessName,
       slug: `projection-${suffix}-${stamp}`,
+      businessType,
       settings: { locale: "en" },
     },
   });
@@ -58,10 +63,29 @@ async function createFixture(prisma: PrismaService, userId: string, stamp: strin
   await prisma.onboardingState.create({
     data: {
       tenantId: tenant.id,
-      data: { companyInfo: { availability, servicesCatalog, policies: policy } },
+      data: {
+        businessType,
+        companyInfo: {
+          name: businessName,
+          description: businessDescription,
+          hours,
+          availability,
+          servicesCatalog,
+          policies: policy,
+        },
+      },
     },
   });
-  return { tenant, availability, servicesCatalog, policy };
+  return {
+    tenant,
+    businessName,
+    businessType,
+    businessDescription,
+    hours,
+    availability,
+    servicesCatalog,
+    policy,
+  };
 }
 
 async function main() {
@@ -119,11 +143,72 @@ async function main() {
     assert(
       catalogHead.displayValue === manualFixture.servicesCatalog &&
         catalogHead.riskLevel === "HIGH" &&
+        catalogHead.verificationStatus === "UNVERIFIED" &&
+        catalogHead.authority === "MANUAL" &&
+        catalogHead.verifiedByUserId === null &&
+        catalogHead.verifiedAt === null &&
         (catalogHead.scope as { audiences?: string[] } | null)?.audiences?.includes("PUBLIC") ===
           true &&
         catalogHead.evidence.length === 1 &&
         catalogHead.evidence[0]?.isPublic === true,
-      "Free-text onboarding catalog was not projected as HIGH/PUBLIC.",
+      "Free-text onboarding catalog was not projected as blocked HIGH/PUBLIC material.",
+    );
+    const ownerConfirmedFacts = await prisma.knowledgeV2Fact.findMany({
+      where: {
+        tenantId: manualFixture.tenant.id,
+        factKey: {
+          in: ["business/name", "business/type", "business/description", "business/hours-summary"],
+        },
+      },
+      include: {
+        versions: {
+          orderBy: { versionNumber: "desc" },
+          take: 1,
+          include: { evidence: true },
+        },
+      },
+    });
+    const expectedOwnerConfirmedValues = new Map([
+      ["business/name", manualFixture.businessName],
+      ["business/type", manualFixture.businessType],
+      ["business/description", manualFixture.businessDescription],
+      ["business/hours-summary", manualFixture.hours],
+    ]);
+    assert(ownerConfirmedFacts.length === 4, "Owner onboarding facts were not projected.");
+    assert(
+      ownerConfirmedFacts.every((fact) => {
+        const head = fact.versions[0];
+        return (
+          head?.displayValue === expectedOwnerConfirmedValues.get(fact.factKey) &&
+          (head.riskLevel === "LOW" || head.riskLevel === "MEDIUM") &&
+          head.lifecycleStatus === "DRAFT" &&
+          head.verificationStatus === "VERIFIED" &&
+          head.authority === "OWNER_VERIFIED" &&
+          head.verifiedByUserId === ownerUser.id &&
+          Boolean(head.verifiedAt) &&
+          head.evidence.length === 1 &&
+          (head.evidence[0]?.sourceReference as { origin?: string } | null)?.origin === "onboarding"
+        );
+      }),
+      "Direct owner onboarding facts were not publish-eligible.",
+    );
+    const availabilityFact = await prisma.knowledgeV2Fact.findUniqueOrThrow({
+      where: {
+        tenantId_factKey: {
+          tenantId: manualFixture.tenant.id,
+          factKey: "business/availability-summary",
+        },
+      },
+      include: { versions: { orderBy: { versionNumber: "desc" }, take: 1 } },
+    });
+    const availabilityHead = availabilityFact.versions[0]!;
+    assert(
+      availabilityHead.riskLevel === "HIGH" &&
+        availabilityHead.verificationStatus === "UNVERIFIED" &&
+        availabilityHead.authority === "MANUAL" &&
+        availabilityHead.verifiedByUserId === null &&
+        availabilityHead.verifiedAt === null,
+      "HIGH-risk onboarding availability bypassed explicit verification.",
     );
     let managerVerificationDenied = false;
     try {
@@ -141,6 +226,104 @@ async function main() {
       managerVerificationDenied &&
         (await prisma.knowledgeV2FactVersion.count({ where: { factId: catalogFact.id } })) === 1,
       "Manager verified a HIGH-risk free-text onboarding catalog.",
+    );
+    const onboardingBeforeRoleChange = await prisma.onboardingState.findUniqueOrThrow({
+      where: { tenantId: manualFixture.tenant.id },
+    });
+    const roleChangePreviousData = onboardingBeforeRoleChange.data as Record<string, unknown>;
+    const roleChangePreviousCompany = roleChangePreviousData.companyInfo as Record<string, unknown>;
+    const managerHours = `${manualFixture.hours} manager update`;
+    const managerData = {
+      ...roleChangePreviousData,
+      companyInfo: {
+        ...roleChangePreviousCompany,
+        hours: managerHours,
+      },
+    };
+    await prisma.$transaction((tx) =>
+      projection.projectInTransaction(tx, managerContext, roleChangePreviousData, managerData),
+    );
+    const managerHoursFact = await prisma.knowledgeV2Fact.findUniqueOrThrow({
+      where: {
+        tenantId_factKey: {
+          tenantId: manualFixture.tenant.id,
+          factKey: "business/hours-summary",
+        },
+      },
+      include: { versions: { orderBy: { versionNumber: "desc" }, take: 1 } },
+    });
+    const managerHoursHead = managerHoursFact.versions[0]!;
+    assert(
+      managerHoursHead.displayValue === managerHours &&
+        managerHoursHead.verificationStatus === "UNVERIFIED" &&
+        managerHoursHead.authority === "MANUAL" &&
+        managerHoursHead.verifiedByUserId === null &&
+        managerHoursHead.verifiedAt === null,
+      "Manager-authored onboarding hours were unexpectedly verified.",
+    );
+    const ownerNameBefore = ownerConfirmedFacts.find((fact) => fact.factKey === "business/name")!;
+    const ownerNameHeadBefore = ownerNameBefore.versions[0]!;
+    const ownerDescription = `${manualFixture.businessDescription} owner update`;
+    const ownerData = {
+      ...managerData,
+      companyInfo: {
+        ...(managerData.companyInfo as Record<string, unknown>),
+        description: ownerDescription,
+      },
+    };
+    await prisma.$transaction((tx) =>
+      projection.projectInTransaction(tx, manualContext, managerData, ownerData),
+    );
+    await prisma.onboardingState.update({
+      where: { tenantId: manualFixture.tenant.id },
+      data: { data: ownerData },
+    });
+    const [hoursAfterOwnerEdit, descriptionAfterOwnerEdit, nameAfterOwnerEdit] = await Promise.all([
+      prisma.knowledgeV2Fact.findUniqueOrThrow({
+        where: { id: managerHoursFact.id },
+        include: { versions: { orderBy: { versionNumber: "desc" }, take: 1 } },
+      }),
+      prisma.knowledgeV2Fact.findUniqueOrThrow({
+        where: {
+          tenantId_factKey: {
+            tenantId: manualFixture.tenant.id,
+            factKey: "business/description",
+          },
+        },
+        include: { versions: { orderBy: { versionNumber: "desc" }, take: 1 } },
+      }),
+      prisma.knowledgeV2Fact.findUniqueOrThrow({
+        where: { id: ownerNameBefore.id },
+        include: { versions: { orderBy: { versionNumber: "desc" }, take: 1 } },
+      }),
+    ]);
+    const hoursHeadAfterOwnerEdit = hoursAfterOwnerEdit.versions[0]!;
+    const descriptionHeadAfterOwnerEdit = descriptionAfterOwnerEdit.versions[0]!;
+    const nameHeadAfterOwnerEdit = nameAfterOwnerEdit.versions[0]!;
+    assert(
+      hoursAfterOwnerEdit.latestVersionNumber === managerHoursFact.latestVersionNumber &&
+        hoursHeadAfterOwnerEdit.verificationStatus === "UNVERIFIED" &&
+        hoursHeadAfterOwnerEdit.authority === "MANUAL" &&
+        hoursHeadAfterOwnerEdit.verifiedByUserId === null &&
+        hoursHeadAfterOwnerEdit.verifiedAt === null,
+      "An owner edit verified unchanged manager-authored onboarding hours.",
+    );
+    assert(
+      descriptionHeadAfterOwnerEdit.displayValue === ownerDescription &&
+        descriptionHeadAfterOwnerEdit.verificationStatus === "VERIFIED" &&
+        descriptionHeadAfterOwnerEdit.authority === "OWNER_VERIFIED" &&
+        descriptionHeadAfterOwnerEdit.verifiedByUserId === ownerUser.id &&
+        Boolean(descriptionHeadAfterOwnerEdit.verifiedAt),
+      "The directly changed owner onboarding description was not verified.",
+    );
+    assert(
+      nameAfterOwnerEdit.latestVersionNumber === ownerNameBefore.latestVersionNumber &&
+        nameHeadAfterOwnerEdit.verificationStatus === "VERIFIED" &&
+        nameHeadAfterOwnerEdit.authority === "OWNER_VERIFIED" &&
+        nameHeadAfterOwnerEdit.verifiedByUserId === ownerNameHeadBefore.verifiedByUserId &&
+        nameHeadAfterOwnerEdit.verifiedAt?.toISOString() ===
+          ownerNameHeadBefore.verifiedAt?.toISOString(),
+      "An unrelated owner edit replaced an unchanged verified onboarding fact.",
     );
     const initialFact = await prisma.knowledgeV2Fact.findUniqueOrThrow({
       where: {
@@ -438,11 +621,100 @@ async function main() {
       "Already-current onboarding heads were not idempotent.",
     );
 
+    const verifiedHighFixture = await createFixture(prisma, ownerUser.id, stamp, "verified-high");
+    tenantIds.push(verifiedHighFixture.tenant.id);
+    const verifiedHighContext = context(verifiedHighFixture.tenant, ownerUser);
+    const verifiedHighMigration = new KnowledgeV2MigrationService(
+      prisma,
+      idempotency,
+      undefined,
+      projection,
+    );
+    await verifiedHighMigration.start(verifiedHighContext, {}, `verified-high-start-${stamp}`);
+    const verifiedHighKnowledge = new KnowledgeV2Service(prisma, idempotency);
+    const highFact = await prisma.knowledgeV2Fact.findUniqueOrThrow({
+      where: {
+        tenantId_factKey: {
+          tenantId: verifiedHighFixture.tenant.id,
+          factKey: "business/availability-summary",
+        },
+      },
+      include: { versions: { orderBy: { versionNumber: "desc" }, take: 1 } },
+    });
+    const expiredAt = new Date(Date.now() - 60_000);
+    const highUpdate = await verifiedHighKnowledge.updateFact(
+      verifiedHighContext,
+      highFact.id,
+      {
+        normalizedValue: verifiedHighFixture.availability,
+        displayValue: verifiedHighFixture.availability,
+        scope: {
+          brandIds: [],
+          locationIds: [],
+          channelTypes: [],
+          assistantIds: [],
+          audiences: ["INTERNAL"],
+          segments: [],
+          locales: ["en"],
+        },
+        effectiveUntil: expiredAt.toISOString(),
+        riskLevel: "HIGH",
+        changeReason: "Owner sets an explicit availability window.",
+      },
+      `verified-high-window-${stamp}`,
+      [strongKnowledgeV2Etag("fact", highFact.id, highFact.etag)],
+    );
+    const highVerification = await verifiedHighKnowledge.verifyFact(
+      verifiedHighContext,
+      highFact.id,
+      { note: "Owner confirms availability." },
+      `verified-high-confirm-${stamp}`,
+      [highUpdate.resource.etag],
+    );
+    const onboarding = await prisma.onboardingState.findUniqueOrThrow({
+      where: { tenantId: verifiedHighFixture.tenant.id },
+    });
+    const previousData = onboarding.data as Record<string, unknown>;
+    const previousCompany = previousData.companyInfo as Record<string, unknown>;
+    await prisma.$transaction((tx) =>
+      projection.projectInTransaction(tx, verifiedHighContext, previousData, {
+        ...previousData,
+        companyInfo: {
+          ...previousCompany,
+          description: `${verifiedHighFixture.businessDescription} updated`,
+        },
+      }),
+    );
+    const preservedHighFact = await prisma.knowledgeV2Fact.findUniqueOrThrow({
+      where: { id: highFact.id },
+      include: { versions: { orderBy: { versionNumber: "desc" }, take: 1 } },
+    });
+    const preservedHighHead = preservedHighFact.versions[0]!;
+    assert(
+      preservedHighFact.latestVersionNumber === highVerification.resource.version &&
+        preservedHighHead.verificationStatus === "VERIFIED" &&
+        preservedHighHead.authority === "OWNER_VERIFIED" &&
+        preservedHighHead.verifiedByUserId === ownerUser.id &&
+        preservedHighHead.effectiveUntil?.toISOString() === expiredAt.toISOString() &&
+        preservedHighHead.effectiveUntil < new Date() &&
+        (await prisma.knowledgeV2ReviewItem.count({
+          where: {
+            tenantId: verifiedHighFixture.tenant.id,
+            factId: highFact.id,
+            status: "OPEN",
+          },
+        })) === 0,
+      "An unrelated onboarding sync replaced or renewed an unchanged HIGH-risk verification.",
+    );
+
     console.log(
       JSON.stringify({
         ok: true,
         manualOwnershipReviews: 2,
         repairedOnboardingHeads: 2,
+        unchangedManagerFactRemainedUnverified: true,
+        unchangedOwnerVerificationPreserved: true,
+        preservedExpiredHighRiskVerification: true,
         manualDraftGeneration: manualSettingsAfterReplay.draftGeneration,
         repairedDraftGeneration: staleSettingsAfterReplay.draftGeneration,
       }),

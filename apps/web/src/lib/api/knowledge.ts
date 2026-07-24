@@ -198,6 +198,16 @@ export function getKnowledgeV2Capabilities() {
   return apiData<KnowledgeV2CapabilityListView>(`${basePath}/capabilities`);
 }
 
+export function applyKnowledgeV2CapabilityStarterPreset(idempotencyKey: string) {
+  return apiDataResponse<KnowledgeV2MutationResult<KnowledgeV2CapabilityListView>>(
+    `${basePath}/capabilities/presets/starter`,
+    {
+      method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
+    },
+  );
+}
+
 export function updateKnowledgeV2Capability(
   capabilityType: KnowledgeV2CapabilityType,
   body: KnowledgeV2UpdateCapabilityRequest,

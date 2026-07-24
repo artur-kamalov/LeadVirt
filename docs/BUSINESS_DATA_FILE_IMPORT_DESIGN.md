@@ -572,7 +572,7 @@ Sources entry:
 
 Do not silently treat both intents as the same operation.
 
-Onboarding step 4 remains name-only. Bulk import belongs after onboarding.
+Onboarding step 4 remains limited to the company name and short description. Bulk import belongs after onboarding.
 
 ### 7.2 Route shape
 

@@ -50,6 +50,7 @@ import {
 } from "@/lib/api/knowledge";
 import { Button } from "../../components/ui/Button";
 import { cn } from "../../lib/utils";
+import { useNav } from "../nav";
 import { ConfirmDialog, EmptyState, Modal, StatusBadge } from "../ui";
 import type { KnowledgeNavigationTarget, KnowledgeViewId } from "./knowledge-views";
 import {
@@ -135,6 +136,7 @@ interface PublicationHistoryProps {
   canPublish: boolean;
   canRollback: boolean;
   readiness: KnowledgeV2ReadinessView;
+  task: string | null;
   onNavigate: (target: KnowledgeViewId | KnowledgeNavigationTarget) => void;
   onChanged?: () => void;
 }
@@ -274,10 +276,12 @@ export function PublicationHistory({
   canPublish,
   canRollback,
   readiness,
+  task,
   onNavigate,
   onChanged,
 }: PublicationHistoryProps) {
   const { formatDate, formatNumber, t } = useI18n();
+  const { go } = useNav();
   const [active, setActive] = React.useState<KnowledgeV2PublicationDetail | null>(null);
   const [historyItems, setHistoryItems] = React.useState<KnowledgeV2PublicationSummary[]>([]);
   const [nextCursor, setNextCursor] = React.useState<string | null>(null);
@@ -315,6 +319,8 @@ export function PublicationHistory({
   const evaluationPollCount = React.useRef(0);
   const evaluationRecoverySequence = React.useRef(0);
   const evaluationStartInFlight = React.useRef(false);
+  const firstLaunchValidationAttemptKey = React.useRef<string | null>(null);
+  const startValidationRef = React.useRef<() => Promise<void>>(() => Promise.resolve());
   const dismissedJobId = React.useRef<string | null>(null);
   const onChangedRef = React.useRef(onChanged);
 
@@ -338,6 +344,11 @@ export function PublicationHistory({
       readiness.targetKey,
     ],
   );
+  const validationAttemptKey = [
+    evaluationTarget.candidateId,
+    evaluationTarget.candidateVersion,
+    evaluationTarget.candidateManifestHash,
+  ].join(":");
 
   const refreshSnapshot = React.useCallback(
     async (showLoading = false) => {
@@ -774,6 +785,36 @@ export function PublicationHistory({
       if (mounted.current) setValidating(false);
     }
   }
+  startValidationRef.current = startValidation;
+
+  React.useEffect(() => {
+    if (task !== "first-launch") {
+      firstLaunchValidationAttemptKey.current = null;
+      return;
+    }
+    if (
+      firstLaunchValidationAttemptKey.current === validationAttemptKey ||
+      !canPublish ||
+      validating ||
+      submitting !== null ||
+      operationBusy ||
+      evaluationBusy ||
+      evaluationLoading
+    ) {
+      return;
+    }
+    firstLaunchValidationAttemptKey.current = validationAttemptKey;
+    void startValidationRef.current();
+  }, [
+    canPublish,
+    evaluationBusy,
+    evaluationLoading,
+    operationBusy,
+    submitting,
+    task,
+    validating,
+    validationAttemptKey,
+  ]);
 
   async function publishValidatedCandidate() {
     if (!currentValidationId || !canSubmitPublication) return;
@@ -987,6 +1028,8 @@ export function PublicationHistory({
             setOperation(null);
             if (source) openRollback(source);
           }}
+          showActivationAction={task === "first-launch"}
+          onActivate={() => go("settings", { tab: "channels" })}
         />
       ) : null}
 
@@ -1949,6 +1992,8 @@ function OperationNotice({
   onDismiss,
   onRetryPublish,
   onRetryRollback,
+  showActivationAction,
+  onActivate,
 }: {
   operation: TrackedOperation;
   pollError: ApiClientError | null;
@@ -1958,6 +2003,8 @@ function OperationNotice({
   onDismiss: () => void;
   onRetryPublish: () => void;
   onRetryRollback: () => void;
+  showActivationAction: boolean;
+  onActivate: () => void;
 }) {
   const { t } = useI18n();
   const status = operation.job?.status ?? operation.acceptedStatus;
@@ -2037,7 +2084,17 @@ function OperationNotice({
           </p>
         </div>
         {terminal ? (
-          <div className="flex shrink-0 gap-2">
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
+            {showActivationAction && operation.kind === "PUBLISH" && status === "SUCCEEDED" ? (
+              <Button
+                size="sm"
+                onClick={onActivate}
+                data-testid="knowledge-activate-customer-replies"
+              >
+                {t("knowledge.quickStart.action.activateReplies")}
+                <ArrowRight className="ml-2 h-3.5 w-3.5" />
+              </Button>
+            ) : null}
             {failed && canRetry ? (
               <Button
                 size="sm"

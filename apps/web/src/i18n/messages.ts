@@ -6,10 +6,7 @@ import {
 import { es } from "./translations/es";
 import { fr } from "./translations/fr";
 import { knowledgeMessages, type KnowledgeTranslationKey } from "./knowledge-messages";
-import {
-  knowledgeUxMessages,
-  type KnowledgeUxTranslationKey,
-} from "./knowledge-ux-messages";
+import { knowledgeUxMessages, type KnowledgeUxTranslationKey } from "./knowledge-ux-messages";
 import {
   reviewKnowledgeMessages,
   type ReviewKnowledgeTranslationKey,
@@ -404,9 +401,9 @@ const ru = {
   "onboarding.scenario.support": "Поддержка клиентов",
   "onboarding.scenario.supportDescription":
     "Цель: отвечать на типовые вопросы по базе знаний и при необходимости передавать диалог команде",
-  "onboarding.company.title": "Как называется ваш бизнес?",
+  "onboarding.company.title": "Коротко о вашем бизнесе",
   "onboarding.company.description":
-    "Сейчас укажите только название. Услуги, цены, график, FAQ и правила можно добавить позже в разделе «Информация о бизнесе».",
+    "Укажите название и коротко опишите бизнес. Оба поля нужны, чтобы AI сразу давал полезные ответы с учётом контекста.",
   "onboarding.company.name": "Название компании",
   "onboarding.company.namePlaceholder": "Например: Студия красоты «Аура»",
   "onboarding.company.about": "О компании",
@@ -829,9 +826,9 @@ const en: Record<BaseTranslationKey, string> = {
   "onboarding.scenario.support": "Customer support",
   "onboarding.scenario.supportDescription":
     "Goal: answer common questions from approved knowledge and hand off when needed",
-  "onboarding.company.title": "What is your business called?",
+  "onboarding.company.title": "Tell us about your business",
   "onboarding.company.description":
-    "Enter the name now. Add services, prices, hours, FAQ, and rules later in Business information.",
+    "Add the name and a short description. Both are required so AI can give useful business-specific replies from the start.",
   "onboarding.company.name": "Company name",
   "onboarding.company.namePlaceholder": "For example: Aura Beauty Studio",
   "onboarding.company.about": "About the company",

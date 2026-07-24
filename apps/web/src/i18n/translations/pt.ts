@@ -365,9 +365,9 @@ export const pt: Record<BaseTranslationKey, string> = {
   "onboarding.scenario.support": "Suporte ao cliente",
   "onboarding.scenario.supportDescription":
     "Objetivo: responder perguntas comuns com conhecimento aprovado e encaminhar quando necessário",
-  "onboarding.company.title": "Qual é o nome da sua empresa?",
+  "onboarding.company.title": "Conte-nos sobre a sua empresa",
   "onboarding.company.description":
-    "Por enquanto, informe apenas o nome. Você poderá adicionar serviços, preços, horários, perguntas frequentes e regras depois em Informações da empresa.",
+    "Adicione o nome e uma breve descrição. Ambos são obrigatórios para que a IA dê respostas úteis e específicas da empresa desde o início.",
   "onboarding.company.name": "Nome da empresa",
   "onboarding.company.namePlaceholder": "Por exemplo: Aura Beauty Studio",
   "onboarding.company.about": "Sobre a empresa",

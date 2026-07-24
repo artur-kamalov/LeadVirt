@@ -41,6 +41,21 @@ interface KnowledgeMockState {
   forbidden: boolean;
   canManageSettings: boolean;
   published: boolean;
+  firstLaunch: boolean;
+  businessName: string;
+  businessDescription: string;
+  sourceCount: number;
+  approvedKnowledgeSatisfied: boolean;
+  capabilitiesEmpty: boolean;
+  starterBlockerCount: number;
+  starterPresetApplied: boolean;
+  starterTogglesMatchPreset: boolean;
+  starterPresetReplayWithoutPersistence: boolean;
+  starterPresetPostFailure: boolean;
+  presetAdvancesCandidate: boolean;
+  overviewDelayAfterPreset: boolean;
+  capabilityGetFailuresRemaining: number;
+  starterPresetKeys: Array<string | undefined>;
   overviewGets: number;
   historyGets: number;
   activeGets: number;
@@ -70,6 +85,40 @@ interface KnowledgeMockState {
   capability: KnowledgeV2CapabilityView;
   capabilityBodies: unknown[];
   validationBlockers: KnowledgeV2PublicationGateView[];
+}
+
+const mockCapabilityTypes = [
+  "LEAD_QUALIFICATION",
+  "PRICING",
+  "APPOINTMENT_DISCOVERY",
+  "APPOINTMENT_BOOKING",
+  "ORDER_ACCOUNT_SUPPORT",
+  "COMMERCE_RECOMMENDATION",
+  "REGULATED_TOPIC",
+] as const;
+
+function mockCapabilityItems(state: KnowledgeMockState): KnowledgeV2CapabilityView[] {
+  if (state.capabilitiesEmpty) return [];
+  const starterEnabled = new Set(["PRICING", "APPOINTMENT_DISCOVERY", "COMMERCE_RECOMMENDATION"]);
+  const useStarterToggles = state.starterPresetApplied || state.starterTogglesMatchPreset;
+  return [
+    state.capability,
+    ...mockCapabilityTypes.map((capabilityType) => ({
+      id: capabilityType.toLowerCase().replaceAll("_", "-"),
+      capabilityType,
+      targetKey: "workspace-v2",
+      name: capabilityType,
+      enabled: useStarterToggles ? starterEnabled.has(capabilityType) : true,
+      allowedAutonomy: "ANSWER_ONLY" as const,
+      scope: null,
+      templateKey: `platform.capability.${capabilityType.toLowerCase().replaceAll("_", "-")}`,
+      templateVersion: 1,
+      serverOwned: true,
+      version: useStarterToggles ? 2 : 1,
+      etag: `"kv2-capability-${capabilityType.toLowerCase()}-${useStarterToggles ? 2 : 1}"`,
+      updatedAt: evaluatedAt,
+    })),
+  ];
 }
 
 function publicationSummary(
@@ -173,10 +222,15 @@ function readiness(
   validationId: string | null = null,
   testCaseSetHash = evaluationTestCaseSetHash,
   blockers: KnowledgeV2PublicationGateView[] = [],
+  firstLaunch = false,
+  starterPresetApplied = false,
+  starterBlockerCount = 1,
+  capabilitiesEmpty = false,
+  approvedKnowledgeSatisfied = false,
 ): KnowledgeV2ReadinessView {
-  const servingSequence = published ? 8 : 7;
+  const servingSequence = firstLaunch ? null : published ? 8 : 7;
   const servingCounts = published ? draftCounts : activeCounts;
-  const capabilities: KnowledgeV2ReadinessView["draft"]["capabilities"] = [
+  const configuredCapabilities: KnowledgeV2ReadinessView["draft"]["capabilities"] = [
     {
       capabilityId: "general-faq",
       capabilityType: "GENERAL_FAQ",
@@ -185,10 +239,10 @@ function readiness(
       allowedAutonomy: "ANSWER_ONLY",
       generation: 1,
       etag: '"kv2-capability-general-faq-1"',
-      status: "BLOCKED",
+      status: starterBlockerCount > 0 ? "BLOCKED" : "READY_WITH_WARNINGS",
       weight: 100,
-      blockerCount: 1,
-      warningCount: 0,
+      blockerCount: starterBlockerCount,
+      warningCount: starterBlockerCount > 0 ? 0 : 1,
       requirements: [
         {
           id: "business_identity",
@@ -223,15 +277,68 @@ function readiness(
           },
           evaluatedAt,
         },
+        ...(approvedKnowledgeSatisfied
+          ? [
+              {
+                id: "approved_knowledge",
+                kind: "DOCUMENT_COVERAGE" as const,
+                label: "Approved business knowledge",
+                status: "SATISFIED" as const,
+                reasonCode: "SATISFIED" as const,
+                severity: "WARNING" as const,
+                riskLevel: "LOW" as const,
+                explanation: "Approved business knowledge is available.",
+                evidence: [
+                  { type: "DOCUMENT" as const, id: "document-context", label: "Business context" },
+                ],
+                remediation: null,
+                evaluatedAt,
+              },
+            ]
+          : []),
       ],
     },
+    ...(firstLaunch
+      ? (
+          [
+            "LEAD_QUALIFICATION",
+            "PRICING",
+            "APPOINTMENT_DISCOVERY",
+            "APPOINTMENT_BOOKING",
+            "ORDER_ACCOUNT_SUPPORT",
+            "COMMERCE_RECOMMENDATION",
+            "REGULATED_TOPIC",
+          ] as const
+        ).map((capabilityType) => {
+          const starterEnabled = [
+            "PRICING",
+            "APPOINTMENT_DISCOVERY",
+            "COMMERCE_RECOMMENDATION",
+          ].includes(capabilityType);
+          return {
+            capabilityId: capabilityType.toLowerCase().replaceAll("_", "-"),
+            capabilityType,
+            name: capabilityType,
+            enabled: starterPresetApplied ? starterEnabled : true,
+            allowedAutonomy: "ANSWER_ONLY" as const,
+            generation: 1,
+            etag: `"kv2-capability-${capabilityType.toLowerCase()}-1"`,
+            status: "READY_WITH_WARNINGS" as const,
+            weight: 50,
+            blockerCount: 0,
+            warningCount: starterEnabled ? 1 : 0,
+            requirements: [],
+          };
+        })
+      : []),
   ];
+  const capabilities = capabilitiesEmpty ? [] : configuredCapabilities;
   return {
     targetKey: "workspace-v2",
     candidateId: "workspace-v2",
     candidateVersion,
     candidateManifestHash,
-    activePublicationId: `publication-${servingSequence}`,
+    activePublicationId: servingSequence ? `publication-${servingSequence}` : null,
     activePublicationSequence: servingSequence,
     status:
       jobStatus && ["QUEUED", "RUNNING"].includes(jobStatus)
@@ -240,15 +347,22 @@ function readiness(
           ? "READY_WITH_WARNINGS"
           : "NEEDS_REVIEW",
     serving: {
-      status: "READY",
-      activePublicationId: `publication-${servingSequence}`,
+      status: firstLaunch ? "NOT_READY" : "READY",
+      activePublicationId: servingSequence ? `publication-${servingSequence}` : null,
       activePublicationSequence: servingSequence,
-      activeEtag: `"kv2-active-${servingSequence}"`,
-      itemCounts: servingCounts,
+      activeEtag: servingSequence ? `"kv2-active-${servingSequence}"` : null,
+      itemCounts: firstLaunch
+        ? {
+            documentRevisions: 0,
+            factVersions: 0,
+            guidanceRuleVersions: 0,
+            sourcePermissionSnapshots: 0,
+          }
+        : servingCounts,
       blockers: [],
       capabilitySetHash: "d".repeat(64),
       requirementEvaluationSetHash: "e".repeat(64),
-      capabilities,
+      capabilities: firstLaunch ? [] : capabilities,
     },
     draft: {
       status:
@@ -328,16 +442,23 @@ function overview(state: KnowledgeMockState): KnowledgeV2OverviewView {
     state.validationId,
     state.evaluationTestCaseSetHash,
     state.validationBlockers,
+    state.firstLaunch,
+    state.starterPresetApplied || state.starterTogglesMatchPreset,
+    state.starterBlockerCount,
+    state.capabilitiesEmpty,
+    state.approvedKnowledgeSatisfied,
   );
   return {
     readiness: currentReadiness,
-    activePublication: publicationSummary(published ? 8 : 7, "ACTIVE", true),
+    activePublication: state.firstLaunch
+      ? null
+      : publicationSummary(published ? 8 : 7, "ACTIVE", true),
     latestDraftPublication:
       jobStatus && jobStatus !== "SUCCEEDED"
         ? publicationSummary(8, jobStatus === "FAILED" ? "FAILED" : "PUBLISHING", false)
         : null,
     counts: {
-      sources: 0,
+      sources: state.sourceCount,
       facts: 4,
       guidanceRules: 2,
       reviewItems: published ? 0 : 1,
@@ -382,12 +503,15 @@ function initialSettings(): KnowledgeV2SettingsView {
   };
 }
 
-function businessProfile(): BusinessProfileView {
+function businessProfile(
+  name = "Knowledge workspace fixture",
+  description = "A deterministic profile for Knowledge workspace navigation tests.",
+): BusinessProfileView {
   return {
     profile: {
       businessType: "services",
-      name: "Knowledge workspace fixture",
-      description: "A deterministic profile for Knowledge workspace navigation tests.",
+      name,
+      description,
       avgCheck: "EUR 80",
       servicesCatalog: "Consultations and ongoing service packages.",
       services: [],
@@ -538,6 +662,21 @@ async function installKnowledgeMocks(page: Page, forbidden = false, canManageSet
     forbidden,
     canManageSettings,
     published: false,
+    firstLaunch: false,
+    businessName: "Knowledge workspace fixture",
+    businessDescription: "A deterministic profile for Knowledge workspace navigation tests.",
+    sourceCount: 0,
+    approvedKnowledgeSatisfied: false,
+    capabilitiesEmpty: false,
+    starterBlockerCount: 1,
+    starterPresetApplied: false,
+    starterTogglesMatchPreset: false,
+    starterPresetReplayWithoutPersistence: false,
+    starterPresetPostFailure: false,
+    presetAdvancesCandidate: false,
+    overviewDelayAfterPreset: false,
+    capabilityGetFailuresRemaining: 0,
+    starterPresetKeys: [],
     overviewGets: 0,
     historyGets: 0,
     activeGets: 0,
@@ -584,7 +723,7 @@ async function installKnowledgeMocks(page: Page, forbidden = false, canManageSet
   };
 
   await page.route("**/api/business-profile", async (route) => {
-    const profile = businessProfile();
+    const profile = businessProfile(state.businessName, state.businessDescription);
     await fulfillJson(route, { data: profile }, 200, { etag: profile.etag });
   });
 
@@ -610,6 +749,10 @@ async function installKnowledgeMocks(page: Page, forbidden = false, canManageSet
         );
         return;
       }
+      if (state.overviewDelayAfterPreset) {
+        state.overviewDelayAfterPreset = false;
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
       await fulfillJson(route, { data: overview(state) });
       return;
     }
@@ -624,17 +767,95 @@ async function installKnowledgeMocks(page: Page, forbidden = false, canManageSet
           state.validationId,
           state.evaluationTestCaseSetHash,
           state.validationBlockers,
+          state.firstLaunch,
+          state.starterPresetApplied || state.starterTogglesMatchPreset,
+          state.starterBlockerCount,
+          state.capabilitiesEmpty,
+          state.approvedKnowledgeSatisfied,
         ),
       });
       return;
     }
 
     if (pathname === "/api/knowledge/v2/capabilities" && method === "GET") {
+      if (state.capabilityGetFailuresRemaining > 0) {
+        state.capabilityGetFailuresRemaining -= 1;
+        await fulfillJson(
+          route,
+          {
+            error: {
+              code: "HTTP_ERROR",
+              message: "Capability state is temporarily unavailable.",
+              requestId: "request-capability-load-failed",
+              retryable: true,
+            },
+          },
+          503,
+        );
+        return;
+      }
       await fulfillJson(route, {
         data: {
           targetKey: "workspace-v2",
           capabilitySetHash: "d".repeat(64),
-          items: [state.capability],
+          starterPreset: {
+            id: "SAFE_ANSWER_STARTER_V1",
+            policyVersion: 2,
+            applied: state.starterPresetApplied,
+          },
+          items: mockCapabilityItems(state),
+        },
+      });
+      return;
+    }
+
+    if (pathname === "/api/knowledge/v2/capabilities/presets/starter" && method === "POST") {
+      state.starterPresetKeys.push(request.headers()["idempotency-key"]);
+      if (state.starterPresetPostFailure) {
+        await fulfillJson(
+          route,
+          {
+            error: {
+              code: "HTTP_ERROR",
+              message: "Starter preset response was not confirmed.",
+              requestId: "request-starter-preset-failed",
+              retryable: true,
+            },
+          },
+          503,
+        );
+        return;
+      }
+      const previousApplied = state.starterPresetApplied;
+      const previousMatch = state.starterTogglesMatchPreset;
+      const previousEmpty = state.capabilitiesEmpty;
+      state.starterPresetApplied = true;
+      state.starterTogglesMatchPreset = true;
+      state.capabilitiesEmpty = false;
+      const resource = {
+        targetKey: "workspace-v2",
+        capabilitySetHash: "g".repeat(64),
+        starterPreset: {
+          id: "SAFE_ANSWER_STARTER_V1" as const,
+          policyVersion: 2,
+          applied: true,
+        },
+        items: mockCapabilityItems(state),
+      };
+      if (state.starterPresetReplayWithoutPersistence) {
+        state.starterPresetApplied = previousApplied;
+        state.starterTogglesMatchPreset = previousMatch;
+        state.capabilitiesEmpty = previousEmpty;
+      }
+      if (state.presetAdvancesCandidate) {
+        state.candidateVersion = 9;
+        state.candidateManifestHash = candidateManifestHash9;
+        state.overviewDelayAfterPreset = true;
+      }
+      await fulfillJson(route, {
+        data: {
+          resource,
+          idempotencyReplayed: false,
         },
       });
       return;
@@ -812,8 +1033,24 @@ async function installKnowledgeMocks(page: Page, forbidden = false, canManageSet
     }
 
     if (pathname === "/api/knowledge/v2/publications/validate" && method === "POST") {
-      state.validationBodies.push(request.postDataJSON());
+      const body = request.postDataJSON() as { candidateVersion?: number };
+      state.validationBodies.push(body);
       state.validationKeys.push(request.headers()["idempotency-key"]);
+      if (state.presetAdvancesCandidate && body.candidateVersion !== state.candidateVersion) {
+        await fulfillJson(
+          route,
+          {
+            error: {
+              code: "KNOWLEDGE_CANDIDATE_STALE",
+              message: "The candidate changed before validation.",
+              requestId: "request-stale-first-launch-validation",
+              retryable: true,
+            },
+          },
+          409,
+        );
+        return;
+      }
       state.validationId = `validation-${state.candidateVersion}`;
       await fulfillJson(
         route,
@@ -1016,6 +1253,362 @@ test("capability controls keep published state separate and update the draft wit
     fullPage: true,
     animations: "disabled",
   });
+});
+
+test("first launch uses an explicit safe preset and keeps advanced workflows collapsed", async ({
+  page,
+}) => {
+  await authenticate(page);
+  const state = await installKnowledgeMocks(page);
+  state.firstLaunch = true;
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(`${webBase}/app/knowledge?view=overview`, {
+    waitUntil: "domcontentloaded",
+  });
+
+  const quickStart = page.getByTestId("knowledge-quick-start");
+  await expect(quickStart).toBeVisible();
+  await expect(quickStart).toContainText("is not enough for useful customer replies");
+  await expect(quickStart).toContainText("does not invent missing prices or availability");
+  await expect(quickStart.getByText("Useful context added", { exact: true })).toBeVisible();
+  await expect(quickStart.getByRole("button", { name: "Add website" })).toBeVisible();
+  await expect(quickStart.getByRole("button", { name: "Add price list" })).toBeVisible();
+  await expect(page.getByTestId("knowledge-overview-metrics")).toHaveCount(0);
+  await expect(page.getByTestId("knowledge-draft-capabilities")).not.toBeVisible();
+  await expect(page.getByText("No published version", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Unpublished version 8", { exact: true })).toHaveCount(0);
+
+  const capabilityEditor = page.getByTestId("knowledge-capability-editor-disclosure");
+  await expect(capabilityEditor).not.toHaveAttribute("open", "");
+  await expect(page.getByTestId("knowledge-starter-capabilities")).not.toBeVisible();
+  const advanced = page.getByTestId("knowledge-advanced-capabilities");
+  await expect(advanced).not.toHaveAttribute("open", "");
+  await expect(advanced.locator('[data-capability-type="LEAD_QUALIFICATION"]')).not.toBeVisible();
+  await expect(page.getByTestId("knowledge-capability-requirements-GENERAL_FAQ")).not.toBeVisible();
+  const improvements = page.getByTestId("knowledge-optional-improvements");
+  await expect(improvements).not.toHaveAttribute("open", "");
+  await expect(
+    page.getByTestId("knowledge-gate-KNOWLEDGE_PUBLICATION_OPTIONAL_GUIDANCE_COVERAGE"),
+  ).not.toBeVisible();
+
+  const primary = page.getByTestId("knowledge-quick-start-primary");
+  await expect(primary).toHaveText(/Apply recommended settings/u);
+  await primary.click();
+  await expect(
+    page.locator("h3").filter({ hasText: "Apply recommended reply settings?" }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("dialog")
+      .getByText(/General questions, Pricing, Appointment discovery/u)
+      .last(),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  expect(state.starterPresetKeys).toHaveLength(0);
+
+  await primary.click();
+  await page.getByTestId("confirm-dialog-submit").click();
+  await expect.poll(() => state.starterPresetKeys).toHaveLength(1);
+  expect(state.starterPresetKeys[0]).toMatch(/^kv2:/u);
+  await expect(page).toHaveURL(/view=history&task=first-launch/u);
+  await expect.poll(() => state.validationBodies).toHaveLength(1);
+  await page.goto(`${webBase}/app/knowledge?view=overview`, {
+    waitUntil: "domcontentloaded",
+  });
+  await expect(quickStart.getByText("Recommended settings applied", { exact: true })).toBeVisible();
+  await expect(primary).toHaveText(/Review before launch: 1/u);
+  await expect(advanced.getByText(/\d+ enabled/u)).toHaveCount(0);
+  await page.screenshot({
+    path: "artifacts/playwright/knowledge-quick-start-desktop.png",
+    fullPage: true,
+    animations: "disabled",
+  });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expectNoHorizontalPageOverflow(page);
+  await page.screenshot({
+    path: "artifacts/playwright/knowledge-quick-start-mobile.png",
+    fullPage: true,
+    animations: "disabled",
+  });
+
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(`${webBase}/app/knowledge?view=overview&capabilityId=lead-qualification`, {
+    waitUntil: "domcontentloaded",
+  });
+  await expect(capabilityEditor).toHaveAttribute("open", "");
+  await expect(advanced).toHaveAttribute("open", "");
+  await expect(advanced.locator('[data-capability-type="LEAD_QUALIFICATION"]')).toBeVisible();
+});
+
+test("fresh first launch recognizes recommended defaults without resetting settings", async ({
+  page,
+}) => {
+  await authenticate(page);
+  const state = await installKnowledgeMocks(page);
+  state.firstLaunch = true;
+  state.starterPresetApplied = true;
+  await page.goto(`${webBase}/app/knowledge?view=overview`, {
+    waitUntil: "domcontentloaded",
+  });
+
+  const quickStart = page.getByTestId("knowledge-quick-start");
+  await expect(quickStart.getByText("Recommended settings applied", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("knowledge-quick-start-primary")).toHaveText(
+    /Review before launch: 1/u,
+  );
+  await expect(page.getByRole("button", { name: /Reset to recommended settings/u })).toHaveCount(0);
+  expect(state.starterPresetKeys).toHaveLength(0);
+});
+
+test("first launch requires a description or approved knowledge before applying reply settings", async ({
+  page,
+}) => {
+  await authenticate(page);
+  const state = await installKnowledgeMocks(page);
+  state.firstLaunch = true;
+  state.businessDescription = "";
+  await page.goto(`${webBase}/app/knowledge?view=overview`, {
+    waitUntil: "domcontentloaded",
+  });
+
+  const quickStart = page.getByTestId("knowledge-quick-start");
+  const primary = page.getByTestId("knowledge-quick-start-primary");
+  await expect(quickStart.getByText("Required", { exact: true })).toBeVisible();
+  await expect(primary).toHaveText(/Add short description/u);
+  await expect(primary).toBeEnabled();
+  expect(state.starterPresetKeys).toHaveLength(0);
+
+  state.sourceCount = 1;
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(quickStart.getByText("Required", { exact: true })).toBeVisible();
+  await expect(primary).toHaveText(/Add short description/u);
+
+  state.approvedKnowledgeSatisfied = true;
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(quickStart.getByText("Useful context added", { exact: true })).toBeVisible();
+  await expect(primary).toHaveText(/Apply recommended settings/u);
+});
+
+test("first launch explains owner access while keeping context actions available", async ({
+  page,
+}) => {
+  await authenticate(page);
+  const state = await installKnowledgeMocks(page, false, false);
+  state.firstLaunch = true;
+  state.starterPresetApplied = true;
+  await page.goto(`${webBase}/app/knowledge?view=overview`, {
+    waitUntil: "domcontentloaded",
+  });
+
+  const quickStart = page.getByTestId("knowledge-quick-start");
+  const primary = page.getByTestId("knowledge-quick-start-primary");
+  await expect(quickStart).toContainText(
+    "An owner or admin must complete the reply settings and publication",
+  );
+  await expect(quickStart.getByText("Recommended settings applied", { exact: true })).toBeVisible();
+  await expect(primary).toHaveText(/Owner or admin required/u);
+  await expect(primary).toBeDisabled();
+  await expect(quickStart.getByRole("button", { name: "Apply recommended settings" })).toHaveCount(
+    0,
+  );
+
+  state.businessDescription = "";
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(primary).toHaveText(/Add short description/u);
+  await expect(primary).toBeEnabled();
+  await primary.click();
+  await expect(page).toHaveURL(/view=business/u);
+});
+
+test("matching starter toggles without applied policy remain an explicit apply", async ({
+  page,
+}) => {
+  await authenticate(page);
+  const state = await installKnowledgeMocks(page);
+  state.firstLaunch = true;
+  state.starterTogglesMatchPreset = true;
+  await page.goto(`${webBase}/app/knowledge?view=overview`, {
+    waitUntil: "domcontentloaded",
+  });
+
+  const quickStart = page.getByTestId("knowledge-quick-start");
+  await expect(quickStart.getByText("Recommended settings applied", { exact: true })).toHaveCount(
+    0,
+  );
+  await expect(page.getByTestId("knowledge-quick-start-primary")).toHaveText(
+    /Apply recommended settings/u,
+  );
+  expect(state.starterPresetKeys).toHaveLength(0);
+});
+
+test("zero-capability first launch applies the starter preset without reopening business setup", async ({
+  page,
+}) => {
+  await authenticate(page);
+  const state = await installKnowledgeMocks(page);
+  state.firstLaunch = true;
+  state.businessName = "Zero-row business";
+  state.capabilitiesEmpty = true;
+  state.starterBlockerCount = 0;
+  await page.goto(`${webBase}/app/knowledge?view=overview`, {
+    waitUntil: "domcontentloaded",
+  });
+
+  const primary = page.getByTestId("knowledge-quick-start-primary");
+  await expect(primary).toHaveText(/Apply recommended settings/u);
+  await expect(primary).not.toHaveText(/business basics/u);
+  await primary.click();
+  await page.getByTestId("confirm-dialog-submit").click();
+
+  await expect.poll(() => state.starterPresetKeys).toHaveLength(1);
+  await expect(page).toHaveURL(/view=history&task=first-launch/u);
+  await page.goto(`${webBase}/app/knowledge?view=overview`, {
+    waitUntil: "domcontentloaded",
+  });
+  await expect(
+    page
+      .getByTestId("knowledge-quick-start")
+      .getByText("Recommended settings applied", { exact: true }),
+  ).toBeVisible();
+  expect(state.capabilitiesEmpty).toBe(false);
+});
+
+test("starter preset retry gets a new key after authoritative unchanged state", async ({
+  page,
+}) => {
+  await authenticate(page);
+  const state = await installKnowledgeMocks(page);
+  state.firstLaunch = true;
+  await page.goto(`${webBase}/app/knowledge?view=overview`, {
+    waitUntil: "domcontentloaded",
+  });
+
+  await expect(page.getByTestId("knowledge-quick-start-primary")).toBeEnabled();
+  state.starterPresetPostFailure = true;
+  await page.getByTestId("knowledge-quick-start-primary").click();
+  await page.getByTestId("confirm-dialog-submit").click();
+  await expect.poll(() => state.starterPresetKeys).toHaveLength(1);
+  await expect(page.getByTestId("knowledge-quick-start").locator('[role="alert"]')).toContainText(
+    "Starter mode was not applied",
+  );
+  await expect(page.getByTestId("confirm-dialog-submit")).toBeEnabled();
+
+  state.starterPresetPostFailure = false;
+  await page.getByTestId("confirm-dialog-submit").click();
+  await expect.poll(() => state.starterPresetKeys).toHaveLength(2);
+  expect(state.starterPresetKeys[1]).not.toBe(state.starterPresetKeys[0]);
+});
+
+test("starter preset retry preserves its key while reconciliation is ambiguous", async ({
+  page,
+}) => {
+  await authenticate(page);
+  const state = await installKnowledgeMocks(page);
+  state.firstLaunch = true;
+  await page.goto(`${webBase}/app/knowledge?view=overview`, {
+    waitUntil: "domcontentloaded",
+  });
+
+  await expect(page.getByTestId("knowledge-quick-start-primary")).toBeEnabled();
+  state.starterPresetPostFailure = true;
+  state.capabilityGetFailuresRemaining = 1;
+  await page.getByTestId("knowledge-quick-start-primary").click();
+  await page.getByTestId("confirm-dialog-submit").click();
+  await expect.poll(() => state.starterPresetKeys).toHaveLength(1);
+  await expect(page.getByTestId("knowledge-quick-start").locator('[role="alert"]')).toContainText(
+    "Starter mode was not applied",
+  );
+  await expect(page.getByTestId("confirm-dialog-submit")).toBeEnabled();
+
+  state.starterPresetPostFailure = false;
+  await page.getByTestId("confirm-dialog-submit").click();
+  await expect.poll(() => state.starterPresetKeys).toHaveLength(2);
+  expect(state.starterPresetKeys[1]).toBe(state.starterPresetKeys[0]);
+});
+
+test("starter preset response is reconciled against server metadata before showing applied", async ({
+  page,
+}) => {
+  await authenticate(page);
+  const state = await installKnowledgeMocks(page);
+  state.firstLaunch = true;
+  state.starterPresetReplayWithoutPersistence = true;
+  await page.goto(`${webBase}/app/knowledge?view=overview`, {
+    waitUntil: "domcontentloaded",
+  });
+
+  await page.getByTestId("knowledge-quick-start-primary").click();
+  await page.getByTestId("confirm-dialog-submit").click();
+  await expect.poll(() => state.starterPresetKeys).toHaveLength(1);
+  await expect(
+    page
+      .getByTestId("knowledge-quick-start")
+      .getByText("Recommended settings applied", { exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByTestId("knowledge-quick-start-primary")).toHaveText(
+    /Apply recommended settings/u,
+  );
+});
+
+test("first-launch validation retries once when preset application advances the candidate", async ({
+  page,
+}) => {
+  await authenticate(page);
+  const state = await installKnowledgeMocks(page);
+  state.firstLaunch = true;
+  state.starterBlockerCount = 0;
+  state.presetAdvancesCandidate = true;
+  await page.goto(`${webBase}/app/knowledge?view=overview`, {
+    waitUntil: "domcontentloaded",
+  });
+
+  await page.getByTestId("knowledge-quick-start-primary").click();
+  await page.getByTestId("confirm-dialog-submit").click();
+  await expect(page).toHaveURL(/view=history&task=first-launch/u);
+  await expect.poll(() => state.validationBodies).toHaveLength(2);
+  expect(state.validationBodies).toEqual([
+    { targetKey: "workspace-v2", candidateId: "workspace-v2", candidateVersion: 8 },
+    { targetKey: "workspace-v2", candidateId: "workspace-v2", candidateVersion: 9 },
+  ]);
+  await page.waitForTimeout(400);
+  expect(state.validationBodies).toHaveLength(2);
+});
+
+test("first-launch handoff starts validation and offers explicit channel activation", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  await authenticate(page);
+  const state = await installKnowledgeMocks(page);
+  state.firstLaunch = true;
+  state.starterPresetApplied = true;
+  state.starterBlockerCount = 0;
+  await page.goto(`${webBase}/app/knowledge?view=overview`, {
+    waitUntil: "domcontentloaded",
+  });
+
+  await expect(page.getByTestId("knowledge-quick-start-primary")).toHaveText(/Review and publish/u);
+  await page.getByTestId("knowledge-quick-start-primary").click();
+  await expect(page).toHaveURL(/view=history&task=first-launch/u);
+  await expect.poll(() => state.validationBodies).toHaveLength(1);
+  await expect(page.getByTestId("knowledge-publish-review-button")).toBeEnabled({
+    timeout: 15_000,
+  });
+  await page.getByTestId("knowledge-publish-review-button").click();
+  await page.getByRole("button", { name: "Start publishing" }).click();
+
+  const activate = page.getByTestId("knowledge-activate-customer-replies");
+  await expect(activate).toBeVisible({ timeout: 15_000 });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expectNoHorizontalPageOverflow(page);
+  await page.screenshot({
+    path: "artifacts/playwright/knowledge-first-launch-activation-mobile.png",
+    fullPage: true,
+    animations: "disabled",
+  });
+  await activate.click();
+  await expect(page).toHaveURL(/\/app\/settings\?tab=channels$/u, { timeout: 30_000 });
 });
 
 test("capability blockers expose localized fixes and preserve exact remediation targets", async ({

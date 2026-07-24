@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import type {
   AiProvider,
+  GroundedAnswerProviderInput,
   GroundedAnswerProcessorAuthorizer,
   GroundedAnswerProvider,
 } from "@leadvirt/ai";
@@ -191,6 +192,7 @@ class RejectingLegacyProvider implements AiProvider {
 
 class CountingGroundedProvider implements GroundedAnswerProvider {
   calls = 0;
+  readonly inputs: GroundedAnswerProviderInput[] = [];
   readonly identity = {
     provider: "capability-smoke",
     model: "capability-smoke-v1",
@@ -201,10 +203,12 @@ class CountingGroundedProvider implements GroundedAnswerProvider {
   constructor(
     private readonly answer: string,
     private readonly evidenceKey: string,
+    private readonly exactValueText: string | null = null,
   ) {}
 
-  generate() {
+  generate(input: GroundedAnswerProviderInput) {
     this.calls += 1;
+    this.inputs.push(input);
     return Promise.resolve({
       schemaVersion: 1 as const,
       claims: [
@@ -212,7 +216,7 @@ class CountingGroundedProvider implements GroundedAnswerProvider {
           claimId: "claim-1",
           text: this.answer,
           evidenceKeys: [this.evidenceKey],
-          exactValueText: null,
+          exactValueText: this.exactValueText,
         },
       ],
       citations: [{ claimId: "claim-1", evidenceKey: this.evidenceKey }],
@@ -240,6 +244,9 @@ function evidenceBundle(input: {
   question: string;
   evidenceKey: string;
   answer: string;
+  safeLabel?: string;
+  riskLevel?: "LOW" | "MEDIUM" | "HIGH";
+  live?: boolean;
 }): KnowledgeEvidenceBundle {
   const queryHash = knowledgeLiveToolQueryHash({
     tenantId: input.tenantId,
@@ -252,6 +259,10 @@ function evidenceBundle(input: {
     queryHashKeyring,
   );
   assert(admission.admitted, "Static FAQ query was not admitted for grounded processing.");
+  const now = Date.now();
+  const contentHash = sha256(input.answer);
+  const executionId = "starter-availability";
+  const liveEvidenceKey = `v2:tool:${executionId}:${contentHash}`;
   return {
     schemaVersion: 1,
     corpusKind: "STRUCTURED_V2",
@@ -270,36 +281,75 @@ function evidenceBundle(input: {
     outcome: "ANSWERED",
     gateOutcome: "AUTO_SEND",
     gateReasons: ["EVIDENCE_READY"],
-    facts: [
-      {
-        kind: "FACT",
-        evidenceKey: input.evidenceKey,
-        factId: "capability-smoke-fact",
-        versionId: "capability-smoke-version",
-        versionHash: sha256(input.answer),
-        safeLabel: "Support information",
-        value: input.answer,
-        valueHash: sha256(input.answer),
-        riskLevel: "LOW",
-        authority: "OWNER_VERIFIED",
-        verificationStatus: "VERIFIED",
-        score: 1,
-      },
-    ],
+    facts: input.live
+      ? []
+      : [
+          {
+            kind: "FACT",
+            evidenceKey: input.evidenceKey,
+            factId: `capability-smoke-fact-${input.evidenceKey}`,
+            versionId: `capability-smoke-version-${input.evidenceKey}`,
+            versionHash: contentHash,
+            safeLabel: input.safeLabel ?? "Support information",
+            value: input.answer,
+            valueHash: contentHash,
+            riskLevel: input.riskLevel ?? "LOW",
+            authority: "OWNER_VERIFIED",
+            verificationStatus: "VERIFIED",
+            score: 1,
+          },
+        ],
     guidance: [],
     documents: [],
     conflicts: [],
     missingSupport: [],
     suppressedEvidence: [],
     citations: [],
-    liveToolResults: [],
+    liveToolResults: input.live
+      ? [
+          {
+            executionId,
+            toolCallId: "starter-availability-call",
+            toolKey: "calendar.availability",
+            toolVersion: "v1",
+            safeName: input.safeLabel ?? "Appointment availability",
+            sourceSystem: "capability-runtime-smoke",
+            operationalCategory: "AVAILABILITY",
+            tenantId: input.tenantId,
+            executionContextId: "capability-runtime-smoke",
+            queryHash,
+            requestHash: sha256(`request:${input.question}`),
+            authorizationScopeHash: sha256(`scope:${input.tenantId}`),
+            authorizationDecisionId: "starter-availability-decision",
+            permissionGeneration: 1,
+            connectionId: null,
+            connectionPermissionVersion: null,
+            customerIdentityId: "starter-public-customer",
+            customerIdentityVersion: 1,
+            subjectHash: sha256(`subject:${input.tenantId}`),
+            resultType: "appointment-availability",
+            value: { answer: input.answer },
+            valueHash: sha256(JSON.stringify({ answer: input.answer })),
+            exactValue: input.answer,
+            exactValueHash: contentHash,
+            content: input.answer,
+            contentHash,
+            observedAt: new Date(now - 30_000).toISOString(),
+            expiresAt: new Date(now + 120_000).toISOString(),
+            authorizedAt: new Date(now - 60_000).toISOString(),
+            authorizationExpiresAt: new Date(now + 180_000).toISOString(),
+            toolPolicyVersion: "knowledge-live-tool-v3",
+            status: "SUCCEEDED",
+          },
+        ]
+      : [],
     answerPolicy: {
       requirementHash: knowledgeOperationalRequirementHash({ queryHash, classification }),
       operationalCategory: classification.category,
       queryHash,
       processorQueryAdmission: projectKnowledgeV2ProcessorQueryAdmissionBinding(admission),
-      requiresLiveEvidence: false,
-      staticEvidenceMayAnswer: true,
+      requiresLiveEvidence: input.live === true,
+      staticEvidenceMayAnswer: input.live !== true,
       allowAutoSend: true,
     },
   };
@@ -331,6 +381,45 @@ function countingRetriever(bundle: KnowledgeEvidenceBundle) {
         valid: true,
         reason: "VALID" as const,
         evidenceManifestHash: "8".repeat(64),
+      });
+    },
+  } as unknown as KnowledgeRuntimeRetriever;
+  return { retriever, state };
+}
+
+function insufficientRetriever(bundle: KnowledgeEvidenceBundle) {
+  const state = { calls: 0, revalidations: 0 };
+  const retriever = {
+    retrieve: () => {
+      state.calls += 1;
+      return Promise.resolve({
+        status: "insufficient_grounding" as const,
+        reason: "NO_MATCH" as const,
+        bundle: {
+          ...bundle,
+          outcome: "ABSTAINED" as const,
+          gateOutcome: "HANDOFF" as const,
+          gateReasons: ["NO_MATCH"],
+          facts: [],
+        },
+        diagnostics: {
+          backend: "database" as const,
+          corpusKind: "STRUCTURED_V2" as const,
+          candidateCount: 0,
+          hydratedCount: 0,
+          selectedCount: 0,
+          durationMs: 1,
+          retrievalPolicyVersion: "capability-smoke-v1",
+          rerankerVersion: null,
+        },
+      });
+    },
+    revalidateEvidence: () => {
+      state.revalidations += 1;
+      return Promise.resolve({
+        valid: false,
+        reason: "MISSING" as const,
+        evidenceManifestHash: null,
       });
     },
   } as unknown as KnowledgeRuntimeRetriever;
@@ -376,16 +465,21 @@ async function main() {
       operationalBindingHash: operationalProjection.bindingHash,
       operationalPermissionGeneration: operationalProjection.permissionGeneration,
     };
-    const capability = await prisma.knowledgeV2Capability.create({
-      data: {
-        tenantId: tenant.id,
-        capabilityType: "GENERAL_FAQ",
-        targetKey: "workspace-v2",
-        enabled: true,
-        allowedAutonomy: "ANSWER_ONLY",
-        templateKey: "general-faq-v1",
-      },
-    });
+    const capabilities = await Promise.all(
+      (["GENERAL_FAQ", "PRICING", "APPOINTMENT_DISCOVERY", "COMMERCE_RECOMMENDATION"] as const).map(
+        (capabilityType) =>
+          prisma.knowledgeV2Capability.create({
+            data: {
+              tenantId: tenant.id,
+              capabilityType,
+              targetKey: "workspace-v2",
+              enabled: true,
+              allowedAutonomy: "ANSWER_ONLY",
+              templateKey: `safe-starter-${capabilityType.toLowerCase()}`,
+            },
+          }),
+      ),
+    );
     const publication = await prisma.knowledgePublication.create({
       data: {
         tenantId: tenant.id,
@@ -422,8 +516,8 @@ async function main() {
         evaluatedAt: new Date(),
       },
     });
-    await prisma.knowledgePublicationCapability.create({
-      data: {
+    await prisma.knowledgePublicationCapability.createMany({
+      data: capabilities.map((capability) => ({
         tenantId: tenant.id,
         publicationId: publication.id,
         validationId: validation.id,
@@ -431,11 +525,13 @@ async function main() {
         capabilityType: capability.capabilityType,
         allowedAutonomy: capability.allowedAutonomy,
         capabilityEtag: capability.etag,
-        capabilitySnapshotHash: "f".repeat(64),
-        requirementEvaluationSetHash,
+        capabilitySnapshotHash: sha256(capability.capabilityType),
+        requirementEvaluationSetHash: sha256(
+          `${requirementEvaluationSetHash}:${capability.capabilityType}`,
+        ),
         operationalBindingHash: operationalProjection.bindingHash,
         operationalPermissionGeneration: operationalProjection.permissionGeneration,
-      },
+      })),
     });
     const pointer = await prisma.activeKnowledgePublication.create({
       data: {
@@ -474,8 +570,7 @@ async function main() {
       automaticRepliesPublicationEtag: pointer.etag,
       automaticRepliesCapabilitySetHash: capabilitySetHash,
       automaticRepliesOperationalBindingHash: operationalProjection.bindingHash,
-      automaticRepliesOperationalPermissionGeneration:
-        operationalProjection.permissionGeneration,
+      automaticRepliesOperationalPermissionGeneration: operationalProjection.permissionGeneration,
       automaticRepliesChannelFingerprint: channelFingerprint,
       automaticRepliesActivatedAt: activatedAt,
       automaticRepliesActivatedByUserId: `actor-${suffix}`,
@@ -536,8 +631,7 @@ async function main() {
         automaticRepliesPublicationEtag: pointer.etag,
         automaticRepliesCapabilitySetHash: capabilitySetHash,
         automaticRepliesOperationalBindingHash: operationalProjection.bindingHash,
-        automaticRepliesOperationalPermissionGeneration:
-          operationalProjection.permissionGeneration,
+        automaticRepliesOperationalPermissionGeneration: operationalProjection.permissionGeneration,
         automaticRepliesChannelFingerprint: channelFingerprint,
         automaticRepliesActivatedAt: activatedAt,
         automaticRepliesActivatedByUserId: `actor-${suffix}`,
@@ -599,20 +693,45 @@ async function main() {
       data: { status: "SUPERSEDED", completedAt: new Date(), errorCode: "SMOKE_COMPLETED" },
     });
 
-    const runScenario = async (label: string, question: string) => {
+    type ScenarioEvidence = {
+      answer: string;
+      evidenceKey: string;
+      safeLabel: string;
+      riskLevel: "LOW" | "MEDIUM" | "HIGH";
+      live?: boolean;
+    };
+    const runScenario = async (
+      label: string,
+      question: string,
+      grounding: "AVAILABLE" | "MISSING" = "AVAILABLE",
+      evidence?: ScenarioEvidence,
+    ) => {
       const fixture = await createInbound(label, question);
-      const answer = "Support information is available in this workspace.";
-      const evidenceKey = `capability:${label}`;
-      const retrieval = countingRetriever(
-        evidenceBundle({
-          tenantId: tenant.id,
-          publicationId: publication.id,
-          question,
-          evidenceKey,
-          answer,
-        }),
+      const scenarioEvidence = evidence ?? {
+        answer: "Support information is available in this workspace.",
+        evidenceKey: `capability:${label}`,
+        safeLabel: "Support information",
+        riskLevel: "LOW",
+      };
+      const bundle = evidenceBundle({
+        tenantId: tenant.id,
+        publicationId: publication.id,
+        question,
+        evidenceKey: scenarioEvidence.evidenceKey,
+        answer: scenarioEvidence.answer,
+        safeLabel: scenarioEvidence.safeLabel,
+        riskLevel: scenarioEvidence.riskLevel,
+        live: scenarioEvidence.live,
+      });
+      const retrieval =
+        grounding === "AVAILABLE" ? countingRetriever(bundle) : insufficientRetriever(bundle);
+      const provider = new CountingGroundedProvider(
+        scenarioEvidence.answer,
+        scenarioEvidence.evidenceKey,
+        scenarioEvidence.riskLevel === "HIGH" || scenarioEvidence.live
+          ? scenarioEvidence.answer
+          : null,
       );
-      const provider = new CountingGroundedProvider(answer, evidenceKey);
       const legacy = new RejectingLegacyProvider();
       const grounded = new KnowledgeV2GroundedAnswerService(
         provider,
@@ -631,14 +750,46 @@ async function main() {
         knowledgeRetriever: retrieval.retriever,
         groundedAnswer: grounded,
       });
-      return { result, retrieval: retrieval.state, provider, legacy };
+      const persistedReply = await prisma.message.findUniqueOrThrow({
+        where: { id: result.messageId },
+        select: { text: true },
+      });
+      return {
+        result,
+        retrieval: retrieval.state,
+        provider,
+        legacy,
+        persistedReply,
+        evidence: scenarioEvidence,
+      };
     };
 
     let disabledScenarioCount = 0;
+    let missingGroundingScenarioCount = 0;
+    let groundedStarterScenarioCount = 0;
     let handoffScenarioCount = 0;
     let faqScenarioCount = 0;
     for (const localeCase of runtimeLocaleCases) {
       for (const [route, question] of Object.entries(localeCase.disabled)) {
+        if (["pricing", "discovery", "commerce"].includes(route)) {
+          const scenario = await runScenario(
+            `${localeCase.locale}-${route}-missing-grounding`,
+            question,
+            "MISSING",
+          );
+          assert(
+            scenario.result.handoffRequired && !scenario.result.qualityPassed,
+            `${localeCase.locale}:${route} sent an answer without business evidence.`,
+          );
+          assert(
+            scenario.retrieval.calls === 1 &&
+              scenario.provider.calls === 0 &&
+              scenario.legacy.calls === 0,
+            `${localeCase.locale}:${route} did not fail closed before generation.`,
+          );
+          missingGroundingScenarioCount += 1;
+          continue;
+        }
         const scenario = await runScenario(`${localeCase.locale}-${route}`, question);
         assert(
           scenario.result.handoffRequired && !scenario.result.qualityPassed,
@@ -675,6 +826,78 @@ async function main() {
       );
       faqScenarioCount += 1;
     }
+    const groundedStarterScenarios = [
+      {
+        route: "pricing",
+        question: runtimeLocaleCases[0]!.disabled.pricing!,
+        evidence: {
+          answer: "Air-conditioner installation costs EUR 120.",
+          evidenceKey: "fact:service-price:air-conditioner-installation",
+          safeLabel: "Air-conditioner installation price",
+          riskLevel: "HIGH",
+        },
+      },
+      {
+        route: "discovery",
+        question: runtimeLocaleCases[0]!.disabled.discovery!,
+        evidence: {
+          answer: "Consultation appointments are available Monday at 10:00 and 14:00.",
+          evidenceKey: `v2:tool:starter-availability:${sha256(
+            "Consultation appointments are available Monday at 10:00 and 14:00.",
+          )}`,
+          safeLabel: "Current consultation availability",
+          riskLevel: "HIGH",
+          live: true,
+        },
+      },
+      {
+        route: "commerce",
+        question: "Which model is recommended for a small room?",
+        evidence: {
+          answer: "For rooms up to 20 square meters, choose the T-20 model.",
+          evidenceKey: "fact:product-recommendation:t-20",
+          safeLabel: "T-20 product recommendation",
+          riskLevel: "MEDIUM",
+        },
+      },
+    ] as const satisfies ReadonlyArray<{
+      route: string;
+      question: string;
+      evidence: ScenarioEvidence;
+    }>;
+    for (const expected of groundedStarterScenarios) {
+      const scenario = await runScenario(
+        `en-${expected.route}-grounded`,
+        expected.question,
+        "AVAILABLE",
+        expected.evidence,
+      );
+      assert(
+        scenario.result.qualityPassed && !scenario.result.handoffRequired,
+        `en:${expected.route} rejected an available grounded answer.`,
+      );
+      assert(
+        scenario.retrieval.calls === 1 &&
+          scenario.provider.calls === 1 &&
+          scenario.legacy.calls === 0,
+        `en:${expected.route} did not use the structured retrieval/provider path exactly once.`,
+      );
+      const providerInput = scenario.provider.inputs[0];
+      assert(
+        providerInput?.question === expected.question &&
+          providerInput.evidence.some(
+            (item) =>
+              item.evidence.evidenceKey === expected.evidence.evidenceKey &&
+              item.evidence.content === expected.evidence.answer,
+          ),
+        `en:${expected.route} did not pass the exact route evidence to the grounded provider.`,
+      );
+      assert(
+        scenario.persistedReply.text === expected.evidence.answer,
+        `en:${expected.route} did not persist the exact grounded answer.`,
+      );
+      groundedStarterScenarioCount += 1;
+    }
 
     console.log(
       JSON.stringify({
@@ -685,6 +908,8 @@ async function main() {
         existingRunBindingImmutable: true,
         locales: runtimeLocaleCases.map((item) => item.locale),
         disabledScenarios: disabledScenarioCount,
+        missingGroundingScenarios: missingGroundingScenarioCount,
+        groundedStarterScenarios: groundedStarterScenarioCount,
         handoffScenarios: handoffScenarioCount,
         enabledFaqScenarios: faqScenarioCount,
       }),

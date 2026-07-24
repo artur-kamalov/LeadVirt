@@ -1,5 +1,26 @@
 # Decision Log
 
+## 2026-07-24: Use An Explicit Safe First-Launch Preset
+
+Decision: First launch uses the explicit, idempotent `SAFE_ANSWER_STARTER_V1` policy-v2 action after the owner or admin provides the minimum business name and short description. The preset enables General FAQ, Pricing, Appointment Discovery, and Commerce Recommendation in `ANSWER_ONLY`, disables the four advanced capabilities, and installs server-owned requirement definitions. Reads and ordinary capability edits never apply defaults silently.
+
+Context: Treating every capability requirement as mandatory setup made the first useful reply depend on dozens of specialist decisions. The safe simplification is a fixed, disclosed capability configuration with fail-closed evidence handling, not automatic publication or an unreviewed AI-generated policy.
+
+Consequences:
+
+- Applying the preset is an explicit capability-setting mutation. It replaces the enabled/autonomy choices for all eight capabilities, advances unpublished changes, and revokes current automatic replies when the configuration changes.
+- The action preserves business information and channel connections, but it has no computed change preview, dedicated reset, rollback, or promise to preserve prior capability customization. The confirmation states the fixed enabled and disabled set before apply.
+- Fresh onboarding requires a nonblank business name and short description in both the browser and API. Already-completed legacy workspaces may replay without a stored description; new company completion and first launch may not.
+- Exit and recovery may persist either company field independently, but completion still requires both. A blank optional draft field is omitted instead of being submitted as an invalid required value.
+- Owner/admin onboarding projection verifies only newly created or directly changed LOW/MEDIUM facts. Unchanged manager-authored facts remain unverified, while unchanged prior owner verification and its explicit expiry are preserved.
+- Missing starter evidence is shown as warnings and optional improvements. Publication still fails closed when no enabled capability is executable, operational authorization is unavailable, or independent publication, consent, external-action, customer-data, or regulated-topic gates fail.
+- The preset is reported as applied only when the effective requirement definitions exactly match the immutable platform-v2 set. Reads never repair legacy definitions; an explicit preset upgrades valid legacy policy and rejects conflicting overrides atomically.
+- Applying settings does not publish Knowledge or activate a channel. The owner/admin must validate and publish the exact candidate, then explicitly activate automatic replies for each channel.
+- Dashboard evaluates Knowledge from draft processing, failure, review, and blocker state. A healthy unpublished draft advances to Publish instead of treating the absent serving publication as a Knowledge defect.
+- Executable capability membership is part of evaluator-v2 hashes, and publication validation uses policy v2. Authorization-semantic changes therefore invalidate old validations instead of reusing an earlier snapshot.
+- Missing or stale price, availability, policy, account, credential, or regulated evidence never authorizes an invented answer. The structured runtime hands off before generation; live availability requires fresh authorized live-tool evidence.
+- Assistant persona remains deferred. A later design may expose bounded tone, formality, verbosity, greeting, and custom-style fields, but never an arbitrary system prompt or a style override for grounding, safety, consent, or handoff.
+
 ## 2026-07-24: Make Capability Readiness A Remediation Checklist
 
 Decision: Enabled AI capabilities expose every unmet requirement as a localized, expandable setup task with a stable reason code and one direct remediation target. Backend labels and explanations remain diagnostic data and are not rendered as customer copy. Capability setting-save state is visually separate from publication readiness.
@@ -4302,17 +4323,17 @@ Consequences:
 - Notification controls remain hidden until a durable delivery runtime exists. Their API contract is retained for a future opt-in migration.
 - Regression coverage exercises all six supported demo locales and separately protects the live tenant boundary.
 
-## 2026-07-19: Keep Business Detail Out Of Initial Onboarding
+## 2026-07-19: Keep Initial Business Detail Minimal (Superseded 2026-07-24)
 
-Decision: The onboarding company step requires only the company name. The browser captures timezone silently, while Business Information remains the canonical editor for description, services, prices, hours, availability, FAQ, policies, and escalation rules.
+Decision: The former name-only company step is superseded by the 2026-07-24 safe first-launch decision. Fresh onboarding now requires `companyInfo.name` and a short `companyInfo.description`; the browser still captures timezone silently. Business Information remains the canonical editor for services, prices, hours, availability, FAQ, policies, and escalation rules.
 
-Context: Asking for the complete knowledge profile before a new owner enters the product delayed the first useful channel connection and duplicated an existing structured editor.
+Context: Name-only onboarding reduced initial friction but did not give the assistant enough business context for a useful grounded reply. Requiring the full knowledge profile would still duplicate the structured editor and delay first value.
 
 Consequences:
 
 - Existing detailed onboarding values continue to hydrate and are never cleared by the shortened step.
-- Company-step writes contain only `companyInfo.name` and timezone; backend and demo readiness require only a nonblank name.
-- Knowledge readiness, testing, publication, and automatic-reply activation continue to require the detailed post-entry workflow.
+- Company-step writes project the name and description into Knowledge; other business detail stays optional during onboarding.
+- Knowledge validation, explicit publication, and per-channel automatic-reply activation remain separate post-onboarding actions.
 
 ## 2026-07-19: Separate Telegram Setup Scenarios From AI Replies
 

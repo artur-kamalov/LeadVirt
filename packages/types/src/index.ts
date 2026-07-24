@@ -3482,6 +3482,11 @@ export interface KnowledgeV2CapabilityView extends KnowledgeV2VersionedView {
 export interface KnowledgeV2CapabilityListView {
   targetKey: string;
   capabilitySetHash: string;
+  starterPreset: {
+    id: "SAFE_ANSWER_STARTER_V1";
+    policyVersion: 2;
+    applied: boolean;
+  };
   items: KnowledgeV2CapabilityView[];
 }
 

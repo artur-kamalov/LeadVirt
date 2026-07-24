@@ -41,7 +41,9 @@ export class OnboardingCompanyInfoDto {
 
   @ValidateIf((_object, value: unknown) => value !== undefined)
   @IsString()
+  @MinLength(1)
   @MaxLength(4_000)
+  @Matches(/\S/)
   description?: string;
 
   @ValidateIf((_object, value: unknown) => value !== undefined)

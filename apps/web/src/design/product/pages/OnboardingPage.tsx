@@ -594,7 +594,7 @@ function StepCompanyInfo({
     value: value[k],
     "aria-invalid": Boolean(errors[k]),
     "aria-describedby": errors[k] ? `${fieldId(k)}-error` : undefined,
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
+    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       onChange({ ...value, [k]: e.target.value }),
   });
   const fieldError = (key: CompanyField) =>
@@ -637,6 +637,23 @@ function StepCompanyInfo({
           className={inputCls}
         />
         {fieldError("name")}
+      </div>
+      <div className="space-y-1.5">
+        <label
+          htmlFor={fieldId("description")}
+          className="text-xs font-medium text-zinc-500 uppercase tracking-wider"
+        >
+          {t("onboarding.company.about")} <span aria-hidden="true">*</span>
+        </label>
+        <textarea
+          {...field("description")}
+          required
+          rows={4}
+          maxLength={4000}
+          placeholder={t("onboarding.company.aboutPlaceholder")}
+          className="min-h-28 w-full resize-y rounded-xl border border-white/5 bg-white/5 px-4 py-3 text-sm leading-6 text-zinc-100 placeholder:text-zinc-600 transition-colors focus:border-emerald-500/50 focus:bg-white/[0.07] focus:outline-none"
+        />
+        {fieldError("description")}
       </div>
     </div>
   );
@@ -992,7 +1009,13 @@ export function OnboardingPage({
       case "scenario":
         return { scenario };
       case "company":
-        return { companyInfo: { name: companyInfo.name }, timezone };
+        return {
+          companyInfo: {
+            name: companyInfo.name,
+            description: companyInfo.description,
+          },
+          timezone,
+        };
       case "crm":
         return { crm };
       case "launch":
@@ -1030,6 +1053,7 @@ export function OnboardingPage({
           for (const fieldError of error.fieldErrors) {
             const field = fieldError.field.split(".").at(-1);
             if (field === "name") fields.name = fieldError.message;
+            if (field === "description") fields.description = fieldError.message;
           }
           setCompanyFieldErrors(fields);
         }
@@ -1059,21 +1083,33 @@ export function OnboardingPage({
     if (step === 0) return hasBusinessType;
     if (step === 1) return selectedChannels.length > 0;
     if (step === 2) return hasScenario;
-    if (step === 3) return companyInfo.name.trim().length > 0;
+    if (step === 3) {
+      return companyInfo.name.trim().length > 0 && companyInfo.description.trim().length > 0;
+    }
     if (step === 4) return hasCrm;
     return Boolean(
       hasBusinessType &&
       selectedChannels.length > 0 &&
       hasScenario &&
       companyInfo.name.trim() &&
+      companyInfo.description.trim() &&
       hasCrm,
     );
   };
 
   const draftDataForStep = (stepId: OnboardingStepId) => {
     if (stepId !== "company") return onboardingDataForStep(stepId);
+    const name = companyInfo.name.trim();
+    const description = companyInfo.description.trim();
     return {
-      ...(companyInfo.name.trim() ? { companyInfo: { name: companyInfo.name } } : {}),
+      ...(name || description
+        ? {
+            companyInfo: {
+              ...(name ? { name: companyInfo.name } : {}),
+              ...(description ? { description: companyInfo.description } : {}),
+            },
+          }
+        : {}),
       timezone,
     };
   };

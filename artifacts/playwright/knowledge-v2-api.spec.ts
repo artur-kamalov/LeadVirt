@@ -262,6 +262,14 @@ test("Knowledge v2 supports conditional drafts, explicit publication, and exact 
 }) => {
   await signup(request, "primary");
 
+  const starterPresetResponse = await request.post(
+    `${apiBase}/knowledge/v2/capabilities/presets/starter`,
+    {
+      headers: { "Idempotency-Key": key("starter-preset") },
+    },
+  );
+  expect(starterPresetResponse.ok(), await starterPresetResponse.text()).toBeTruthy();
+
   const initialSettingsResponse = await request.get(`${apiBase}/knowledge/v2/settings`);
   expect(initialSettingsResponse.ok(), await initialSettingsResponse.text()).toBeTruthy();
   const initialSettings =

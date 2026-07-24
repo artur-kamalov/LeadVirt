@@ -78,6 +78,7 @@ const prisma = {
 };
 
 const transaction = {
+  $queryRaw: async () => [{ locked: true }],
   auditLog: {
     create: async ({ data }: { data: { action: string } }) => {
       auditEvents.push(data.action);
@@ -85,6 +86,7 @@ const transaction = {
     },
   },
   onboardingState: {
+    upsert: async () => state,
     update: async ({ data }: { data: Record<string, unknown> }) => {
       state = {
         ...state,
@@ -127,10 +129,22 @@ const businessProfile = {
       assert(!unexpectedProfileField, "HTTP channel patch retained an omitted profile field.");
     }
     captured.push(input);
+    const nextData = {
+      ...state.data,
+      ...data,
+      ...(own(data, "companyInfo")
+        ? {
+            companyInfo: {
+              ...state.data.companyInfo,
+              ...companyInfo,
+            },
+          }
+        : {}),
+    };
     state = {
       ...state,
       ...(input.currentStep ? { currentStep: input.currentStep } : {}),
-      data: { ...state.data, ...data },
+      data: nextData,
       updatedAt: new Date(),
     };
     return {
@@ -222,7 +236,20 @@ async function main() {
       "Company HTTP patch retained omitted structured fields.",
     );
 
-    state = { ...state, currentStep: "channels", completedSteps: ["business"] };
+    state = {
+      ...state,
+      currentStep: "channels",
+      completedSteps: ["business"],
+      completedAt: null,
+      data: {
+        ...state.data,
+        companyInfo: {
+          ...state.data.companyInfo,
+          name: "",
+          description: "",
+        },
+      },
+    };
 
     const advance = async (
       step: string,
@@ -247,10 +274,53 @@ async function main() {
 
     await advance("channels", { selectedChannels: ["telegram", "website"] }, "scenario");
     await advance("scenario", { scenario: "support" }, "company");
+    state = {
+      ...state,
+      data: {
+        ...state.data,
+        companyInfo: {
+          ...state.data.companyInfo,
+          name: "HTTP Contract Workspace",
+          description: "",
+        },
+      },
+    };
+    const incompleteCompanyCompletion = await request(
+      origin,
+      "/api/onboarding/complete-step",
+      { step: "company" },
+      {},
+      "POST",
+    );
+    assert(
+      incompleteCompanyCompletion.response.status === 400 &&
+        incompleteCompanyCompletion.payload.code === "ONBOARDING_STEP_INCOMPLETE" &&
+        incompleteCompanyCompletion.payload.field === "data.companyInfo.description" &&
+        incompleteCompanyCompletion.payload.fieldErrors?.[0]?.code ===
+          "ONBOARDING_COMPANY_DESCRIPTION_REQUIRED",
+      `Direct company completion did not identify the missing description field: ${incompleteCompanyCompletion.response.status} ${JSON.stringify(incompleteCompanyCompletion.payload)}`,
+    );
+    state = {
+      ...state,
+      data: {
+        ...state.data,
+        companyInfo: {
+          ...state.data.companyInfo,
+          name: "",
+          description: "",
+        },
+      },
+    };
     const missingCompanyName = await request(
       origin,
       "/api/onboarding/advance",
-      { step: "company", data: { companyInfo: {}, timezone: "Europe/Paris" } },
+      {
+        step: "company",
+        data: {
+          companyInfo: { description: "Valid context without a business name." },
+          timezone: "Europe/Paris",
+        },
+      },
       { "If-Match": '"onboarding-http-4"' },
       "POST",
     );
@@ -258,11 +328,79 @@ async function main() {
       missingCompanyName.response.status === 400,
       "Company advance accepted a missing business name.",
     );
+    state = {
+      ...state,
+      data: {
+        ...state.data,
+        companyInfo: {
+          ...state.data.companyInfo,
+          name: "",
+          description: "",
+        },
+      },
+    };
+    const missingCompanyDescription = await request(
+      origin,
+      "/api/onboarding/advance",
+      {
+        step: "company",
+        data: {
+          companyInfo: { name: "HTTP Contract Workspace" },
+          timezone: "Europe/Paris",
+        },
+      },
+      { "If-Match": '"onboarding-http-4"' },
+      "POST",
+    );
+    assert(
+      missingCompanyDescription.response.status === 400 &&
+        missingCompanyDescription.payload.code === "ONBOARDING_STEP_INCOMPLETE" &&
+        missingCompanyDescription.payload.field === "data.companyInfo.description" &&
+        missingCompanyDescription.payload.fieldErrors?.[0]?.field ===
+          "data.companyInfo.description",
+      "Company advance did not reject a missing short description.",
+    );
+    state = {
+      ...state,
+      data: {
+        ...state.data,
+        companyInfo: {
+          ...state.data.companyInfo,
+          name: "",
+          description: "",
+        },
+      },
+    };
+    const blankCompanyDescription = await request(
+      origin,
+      "/api/onboarding/advance",
+      {
+        step: "company",
+        data: {
+          companyInfo: {
+            name: "HTTP Contract Workspace",
+            description: "   ",
+          },
+          timezone: "Europe/Paris",
+        },
+      },
+      { "If-Match": '"onboarding-http-4"' },
+      "POST",
+    );
+    assert(
+      blankCompanyDescription.response.status === 400 &&
+        blankCompanyDescription.payload.code === "ONBOARDING_STEP_INCOMPLETE" &&
+        blankCompanyDescription.payload.field === "data.companyInfo.description" &&
+        blankCompanyDescription.payload.fieldErrors?.[0]?.code ===
+          "ONBOARDING_COMPANY_DESCRIPTION_REQUIRED",
+      `Company advance did not reject an explicitly blank description: ${blankCompanyDescription.response.status} ${JSON.stringify(blankCompanyDescription.payload)}`,
+    );
     await advance(
       "company",
       {
         companyInfo: {
           name: "HTTP Contract Workspace",
+          description: "A concise description for useful first replies.",
         },
         timezone: "Europe/Paris",
       },
@@ -270,6 +408,40 @@ async function main() {
       { "If-Match": '"onboarding-http-4"' },
     );
     await advance("crm", { crm: "none" }, "launch");
+    const readyCompanyInfo = state.data.companyInfo;
+    state = {
+      ...state,
+      data: {
+        ...state.data,
+        companyInfo: {
+          ...readyCompanyInfo,
+          description: "",
+        },
+      },
+    };
+    const incompleteLaunch = await request(
+      origin,
+      "/api/onboarding/advance",
+      { step: "launch", data: {} },
+      {},
+      "POST",
+    );
+    assert(
+      incompleteLaunch.response.status === 400 &&
+        incompleteLaunch.payload.code === "ONBOARDING_STEP_INCOMPLETE" &&
+        incompleteLaunch.payload.field === "data.companyInfo.description",
+      "First launch accepted a missing short business description.",
+    );
+    state = {
+      ...state,
+      data: {
+        ...state.data,
+        companyInfo: {
+          ...readyCompanyInfo,
+          description: "A concise description for useful first replies.",
+        },
+      },
+    };
     const launched = await advance("launch", {}, "launch");
     assert(
       JSON.stringify(launched.completedSteps) ===
@@ -279,14 +451,32 @@ async function main() {
     assert(typeof launched.completedAt === "string", "Launch did not set completedAt.");
 
     const completedAt = launched.completedAt;
+    state = {
+      ...state,
+      data: {
+        ...state.data,
+        companyInfo: {
+          ...state.data.companyInfo,
+          description: "",
+        },
+      },
+    };
+    const legacyLaunchReplay = await advance("launch", {}, "launch");
+    assert(
+      legacyLaunchReplay.completedAt === completedAt,
+      "Legacy completed launch replay changed completion time.",
+    );
     const replayed = await advance("scenario", { scenario: "consult" }, "launch");
     assert(
       replayed.completedAt === completedAt,
       "Older-step replay changed launch completion time.",
     );
-    assert(dispatches === 8, "Every state write did not dispatch after its transaction.");
     assert(
-      auditEvents.filter((event) => event === "onboarding.step_completed").length === 6,
+      dispatches === 9,
+      "Every successful state write did not dispatch after its transaction.",
+    );
+    assert(
+      auditEvents.filter((event) => event === "onboarding.step_completed").length === 7,
       "Atomic advance did not emit one completion audit event per call.",
     );
 

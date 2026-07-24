@@ -21,6 +21,8 @@ const en = {
   "dashboard.readiness.step.inbound": "Receive a real customer message",
   "dashboard.readiness.detail.profileComplete":
     "Customers can receive your business details, services, hours, and rules.",
+  "dashboard.readiness.detail.profileMinimumReady":
+    "The business name and short description are ready. Add services, hours, and policies later to improve coverage.",
   "dashboard.readiness.detail.profileMissing":
     "{count} business information sections still need attention.",
   "dashboard.readiness.detail.knowledgeComplete":
@@ -30,6 +32,8 @@ const en = {
     "{count} issues must be resolved before reliable answers can go live.",
   "dashboard.readiness.detail.knowledgeUpdating": "LeadVirt is checking your latest changes.",
   "dashboard.readiness.detail.testComplete": "Answer checks passed for the current knowledge.",
+  "dashboard.readiness.detail.testNotRequired":
+    "The safe starter does not require a separate manual test before publication.",
   "dashboard.readiness.detail.testIncomplete":
     "Run the answer checks and resolve any failed result.",
   "dashboard.readiness.detail.publishComplete": "Your latest knowledge is live.",
@@ -93,6 +97,8 @@ export const dashboardReadinessMessages = {
     "dashboard.readiness.step.inbound": "Получите реальное сообщение клиента",
     "dashboard.readiness.detail.profileComplete":
       "AI знает описание бизнеса, услуги, график и правила работы.",
+    "dashboard.readiness.detail.profileMinimumReady":
+      "Название и короткое описание бизнеса готовы. Услуги, график и правила можно добавить позже для более полных ответов.",
     "dashboard.readiness.detail.profileMissing":
       "Нужно заполнить ещё {count} разделов с информацией о бизнесе.",
     "dashboard.readiness.detail.knowledgeComplete": "Нет проблем, мешающих ответам клиентам.",
@@ -101,6 +107,8 @@ export const dashboardReadinessMessages = {
       "Нужно устранить {count} проблем, прежде чем включать ответы клиентам.",
     "dashboard.readiness.detail.knowledgeUpdating": "LeadVirt проверяет последние изменения.",
     "dashboard.readiness.detail.testComplete": "Проверки ответов для текущих знаний пройдены.",
+    "dashboard.readiness.detail.testNotRequired":
+      "Для безопасного стартового режима отдельный ручной тест перед публикацией не требуется.",
     "dashboard.readiness.detail.testIncomplete":
       "Запустите проверку ответов и исправьте неудачные результаты.",
     "dashboard.readiness.detail.publishComplete": "Последняя версия знаний опубликована.",

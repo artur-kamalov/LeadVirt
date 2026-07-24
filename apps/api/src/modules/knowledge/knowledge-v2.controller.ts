@@ -421,6 +421,21 @@ export class KnowledgeV2Controller {
   }
 
   @Roles(...publisherRoles)
+  @Post("capabilities/presets/starter")
+  @HttpCode(HttpStatus.OK)
+  async applyCapabilityStarterPreset(
+    @CurrentContext() context: RequestContext,
+    @Headers("idempotency-key") idempotencyKey: HeaderValue,
+  ) {
+    return {
+      data: await this.capabilities.applyStarterPreset(
+        context,
+        requireIdempotencyKey(idempotencyKey),
+      ),
+    };
+  }
+
+  @Roles(...publisherRoles)
   @Patch("capabilities/:capabilityType")
   async updateCapability(
     @CurrentContext() context: RequestContext,

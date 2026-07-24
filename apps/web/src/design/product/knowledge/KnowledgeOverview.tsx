@@ -11,8 +11,10 @@ import {
   FileWarning,
   ListChecks,
   Loader2,
+  MessageSquareText,
   RefreshCw,
   ShieldCheck,
+  Sparkles,
 } from "lucide-react";
 import type {
   KnowledgeV2CapabilityAutonomy,
@@ -29,7 +31,9 @@ import type {
 import { useI18n } from "@/i18n/I18nProvider";
 import type { TranslationKey } from "@/i18n/messages";
 import { ApiClientError } from "@/lib/api/client";
+import { getBusinessProfile } from "@/lib/api/business-profile";
 import {
+  applyKnowledgeV2CapabilityStarterPreset,
   createKnowledgeV2IdempotencyKey,
   getKnowledgeV2Capabilities,
   updateKnowledgeV2Capability,
@@ -37,7 +41,7 @@ import {
 import { Button } from "../../components/ui/Button";
 import { cn } from "../../lib/utils";
 import { Card } from "../shared";
-import { Select, StatusBadge } from "../ui";
+import { ConfirmDialog, Select, StatusBadge } from "../ui";
 import type { KnowledgeNavigationTarget, KnowledgeViewId } from "./knowledge-views";
 import { findKnowledgeDataElement } from "./knowledge-dom";
 import {
@@ -162,6 +166,20 @@ const configurableAutonomyValues = [
   "PROPOSE_ACTION",
 ] as const satisfies readonly KnowledgeV2CapabilityAutonomy[];
 
+const quickStartCapabilityTypes = [
+  "GENERAL_FAQ",
+  "PRICING",
+  "APPOINTMENT_DISCOVERY",
+  "COMMERCE_RECOMMENDATION",
+] as const satisfies readonly KnowledgeV2CapabilityType[];
+
+const advancedCapabilityTypes = [
+  "LEAD_QUALIFICATION",
+  "APPOINTMENT_BOOKING",
+  "ORDER_ACCOUNT_SUPPORT",
+  "REGULATED_TOPIC",
+] as const satisfies readonly KnowledgeV2CapabilityType[];
+
 const autonomyOptions = configurableAutonomyValues.map(
   (value) => [value, autonomyLabelKeys[value]] as const,
 );
@@ -203,38 +221,52 @@ export function KnowledgeOverview({
   const [expandedGateKey, setExpandedGateKey] = React.useState<string | null>(null);
   const expandedGateDetailsRef = React.useRef<HTMLDivElement>(null);
   const { readiness } = overview;
+  const firstLaunch = !readiness.serving.activePublicationSequence;
   const gates = [...readiness.draft.blockers, ...readiness.draft.warnings];
   const gateGroups = groupKnowledgePublicationGates(gates);
   const blockerGroups = gateGroups.filter((group) => group.status === "BLOCKED");
+  const warningGroups = gateGroups.filter((group) => group.status !== "BLOCKED");
   const firstBlockerGroup = blockerGroups[0] ?? null;
   const canManageCapabilities = overview.permissions.canManageSettings;
   const [capabilitySettings, setCapabilitySettings] = React.useState<KnowledgeV2CapabilityView[]>(
     [],
   );
+  const [starterPresetApplied, setStarterPresetApplied] = React.useState<boolean | null>(null);
+  const [businessName, setBusinessName] = React.useState<string | null>(null);
+  const [businessDescription, setBusinessDescription] = React.useState<string | null>(null);
+  const [businessProfileLoading, setBusinessProfileLoading] = React.useState(firstLaunch);
   const [capabilityStates, setCapabilityStates] = React.useState<
     Partial<Record<KnowledgeV2CapabilityType, CapabilitySaveState>>
   >({});
-  const [capabilityLoading, setCapabilityLoading] = React.useState(canManageCapabilities);
+  const [capabilityLoading, setCapabilityLoading] = React.useState(true);
   const [capabilityLoadError, setCapabilityLoadError] = React.useState<string | null>(null);
+  const [quickStartConfirmOpen, setQuickStartConfirmOpen] = React.useState(false);
+  const [quickStartApplying, setQuickStartApplying] = React.useState(false);
+  const [quickStartError, setQuickStartError] = React.useState<string | null>(null);
+  const [advancedCapabilitiesOpen, setAdvancedCapabilitiesOpen] = React.useState(false);
+  const [capabilityEditorOpen, setCapabilityEditorOpen] = React.useState(false);
   const capabilityLoadSequence = React.useRef(0);
+  const quickStartAttemptKey = React.useRef<string | null>(null);
 
   const loadCapabilities = React.useCallback(async () => {
-    if (!canManageCapabilities) return;
     const sequence = ++capabilityLoadSequence.current;
     setCapabilityLoading(true);
     setCapabilityLoadError(null);
     try {
       const response = await getKnowledgeV2Capabilities();
-      if (sequence !== capabilityLoadSequence.current) return;
+      if (sequence !== capabilityLoadSequence.current) return null;
       setCapabilitySettings(response.items);
+      setStarterPresetApplied(response.starterPreset.applied);
       setCapabilityStates({});
+      return { applied: response.starterPreset.applied };
     } catch {
-      if (sequence !== capabilityLoadSequence.current) return;
+      if (sequence !== capabilityLoadSequence.current) return null;
       setCapabilityLoadError(t("knowledge.capability.loadError"));
+      return null;
     } finally {
       if (sequence === capabilityLoadSequence.current) setCapabilityLoading(false);
     }
-  }, [canManageCapabilities, t]);
+  }, [t]);
 
   React.useEffect(() => {
     void loadCapabilities();
@@ -244,7 +276,47 @@ export function KnowledgeOverview({
   }, [loadCapabilities]);
 
   React.useEffect(() => {
+    if (!firstLaunch) {
+      setBusinessProfileLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setBusinessProfileLoading(true);
+    void getBusinessProfile()
+      .then((profile) => {
+        if (!cancelled) {
+          setBusinessName(profile.profile.name);
+          setBusinessDescription(profile.profile.description);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setBusinessName("");
+          setBusinessDescription("");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setBusinessProfileLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [firstLaunch]);
+
+  React.useEffect(() => {
     if (!focusedCapabilityId || capabilityLoading) return;
+    if (firstLaunch) setCapabilityEditorOpen(true);
+    const focusedCapability = readiness.draft.capabilities.find(
+      (capability) => capability.capabilityId === focusedCapabilityId,
+    );
+    if (
+      focusedCapability &&
+      advancedCapabilityTypes.includes(
+        focusedCapability.capabilityType as (typeof advancedCapabilityTypes)[number],
+      )
+    ) {
+      setAdvancedCapabilitiesOpen(true);
+    }
     setExpandedCapabilityId(focusedCapabilityId);
     const target = findKnowledgeDataElement("data-capability-id", focusedCapabilityId);
     if (!target) return;
@@ -252,11 +324,47 @@ export function KnowledgeOverview({
       target.scrollIntoView({ block: "center" });
       target.focus();
     });
-  }, [capabilityLoading, focusedCapabilityId]);
+  }, [capabilityLoading, firstLaunch, focusedCapabilityId, readiness.draft.capabilities]);
 
   const capabilitySaving = Object.values(capabilityStates).some(
     (state) => state?.status === "saving",
   );
+  const quickStartApplied = starterPresetApplied === true;
+  const starterCapabilities = readiness.draft.capabilities.filter((capability) =>
+    quickStartCapabilityTypes.includes(
+      capability.capabilityType as (typeof quickStartCapabilityTypes)[number],
+    ),
+  );
+  const advancedCapabilities = readiness.draft.capabilities.filter((capability) =>
+    advancedCapabilityTypes.includes(
+      capability.capabilityType as (typeof advancedCapabilityTypes)[number],
+    ),
+  );
+  const starterBlockerCount = starterCapabilities.reduce(
+    (total, capability) =>
+      total + Math.max(capability.blockerCount, capability.status === "BLOCKED" ? 1 : 0),
+    0,
+  );
+  const enabledAdvancedCount = advancedCapabilities.filter((capability) => {
+    const setting = capabilitySettings.find(
+      (item) => item.capabilityType === capability.capabilityType,
+    );
+    return setting?.enabled ?? capability.enabled;
+  }).length;
+  const businessIdentityRequirement = starterCapabilities
+    .find((capability) => capability.capabilityType === "GENERAL_FAQ")
+    ?.requirements.find((requirement) => requirement.id === "business_identity");
+  const approvedKnowledgeRequirement = starterCapabilities
+    .find((capability) => capability.capabilityType === "GENERAL_FAQ")
+    ?.requirements.find((requirement) => requirement.id === "approved_knowledge");
+  const hasBusinessName = businessIdentityRequirement
+    ? businessIdentityRequirement.status === "SATISFIED"
+    : Boolean(businessName?.trim());
+  const hasUsefulContext =
+    Boolean(businessDescription?.trim()) ||
+    approvedKnowledgeRequirement?.status === "SATISFIED" ||
+    readiness.draft.itemCounts.documentRevisions > 0;
+  const needsOwnerCompletion = !canManageCapabilities || !overview.permissions.canPublish;
 
   React.useEffect(() => {
     if (!expandedGateKey) return;
@@ -301,6 +409,7 @@ export function KnowledgeOverview({
         [capabilityType]: { status: "saved", error: null },
       }));
       onRefresh();
+      void loadCapabilities();
     } catch (caught) {
       const error =
         caught instanceof ApiClientError && caught.status === 412
@@ -313,210 +422,465 @@ export function KnowledgeOverview({
     }
   }
 
+  async function applyQuickStart() {
+    if (!canManageCapabilities || capabilityLoading || quickStartApplying) return false;
+    if (quickStartApplied) {
+      setQuickStartError(null);
+      return true;
+    }
+
+    setQuickStartApplying(true);
+    setQuickStartError(null);
+    try {
+      quickStartAttemptKey.current ??= createKnowledgeV2IdempotencyKey();
+      await applyKnowledgeV2CapabilityStarterPreset(quickStartAttemptKey.current);
+      quickStartAttemptKey.current = null;
+      const reconciled = await loadCapabilities();
+      onRefresh();
+      if (reconciled?.applied) {
+        onNavigate({ view: "history", task: "first-launch" });
+        return true;
+      }
+      setQuickStartError(t("knowledge.quickStart.applyError"));
+      return false;
+    } catch {
+      const reconciled = await loadCapabilities();
+      if (reconciled) quickStartAttemptKey.current = null;
+      onRefresh();
+      if (reconciled?.applied) {
+        onNavigate({ view: "history", task: "first-launch" });
+        return true;
+      }
+      setQuickStartError(t("knowledge.quickStart.applyError"));
+      return false;
+    } finally {
+      setQuickStartApplying(false);
+    }
+  }
+
+  function openStarterBlockers() {
+    if (firstLaunch) setCapabilityEditorOpen(true);
+    const blockedCapability = starterCapabilities.find(
+      (capability) => capability.blockerCount > 0 || capability.status === "BLOCKED",
+    );
+    if (blockedCapability) {
+      setExpandedCapabilityId(blockedCapability.capabilityId);
+      window.requestAnimationFrame(() => {
+        findKnowledgeDataElement(
+          "data-capability-id",
+          blockedCapability.capabilityId,
+        )?.scrollIntoView({ block: "center" });
+      });
+      return;
+    }
+    if (firstBlockerGroup) openGateGroup(firstBlockerGroup);
+  }
+
+  function renderCapabilityRow(capability: KnowledgeV2CapabilityReadinessView) {
+    const setting = capabilitySettings.find(
+      (item) => item.capabilityType === capability.capabilityType,
+    );
+    return (
+      <CapabilityDraftRow
+        key={capability.capabilityId}
+        capability={capability}
+        setting={setting}
+        canManage={canManageCapabilities}
+        controlsLoading={capabilityLoading || quickStartApplying || Boolean(capabilityLoadError)}
+        saveState={capabilityStates[capability.capabilityType]}
+        focused={focusedCapabilityId === capability.capabilityId}
+        expanded={expandedCapabilityId === capability.capabilityId}
+        onExpandedChange={(expanded) =>
+          setExpandedCapabilityId(expanded ? capability.capabilityId : null)
+        }
+        onNavigate={onNavigate}
+        onEnabledChange={(enabled) => void saveCapability(capability.capabilityType, { enabled })}
+        onAutonomyChange={(allowedAutonomy) =>
+          void saveCapability(capability.capabilityType, { allowedAutonomy })
+        }
+        onReload={() => void loadCapabilities()}
+      />
+    );
+  }
+
+  function renderCapabilityRows() {
+    return (
+      <>
+        {capabilityLoadError ? (
+          <div className="flex items-center gap-3 border-b border-white/5 px-5 py-3" role="alert">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
+            <p className="min-w-0 flex-1 text-xs text-amber-300">{capabilityLoadError}</p>
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label={t("knowledge.capability.reload")}
+              onClick={() => void loadCapabilities()}
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        ) : null}
+        {readiness.draft.capabilities.length === 0 ? (
+          <div className="px-5 py-10 text-center text-sm text-zinc-500">
+            {t("knowledge.overview.noCapabilities")}
+          </div>
+        ) : (
+          <>
+            <div data-testid="knowledge-starter-capabilities">
+              {starterCapabilities.map(renderCapabilityRow)}
+            </div>
+            {advancedCapabilities.length > 0 ? (
+              <details
+                open={advancedCapabilitiesOpen}
+                onToggle={(event) => setAdvancedCapabilitiesOpen(event.currentTarget.open)}
+                className="group border-t border-white/10"
+                data-testid="knowledge-advanced-capabilities"
+              >
+                <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 px-5 py-3 marker:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-400/50">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-medium text-zinc-200">
+                        {t("knowledge.quickStart.advanced.title")}
+                      </span>
+                      {enabledAdvancedCount > 0 ? (
+                        <StatusBadge status="warning">
+                          {t("knowledge.quickStart.advanced.enabled", {
+                            count: formatNumber(enabledAdvancedCount),
+                          })}
+                        </StatusBadge>
+                      ) : null}
+                    </div>
+                    <p className="mt-1 text-xs leading-5 text-zinc-500">
+                      {t("knowledge.quickStart.advanced.description")}
+                    </p>
+                  </div>
+                  <ChevronDown className="h-4 w-4 shrink-0 text-zinc-500 transition-transform group-open:rotate-180" />
+                </summary>
+                <div className="border-t border-white/10">
+                  {advancedCapabilities.map(renderCapabilityRow)}
+                </div>
+              </details>
+            ) : null}
+          </>
+        )}
+      </>
+    );
+  }
+
+  function renderGateGroup(group: KnowledgeGateGroup) {
+    const copy = knowledgeGateGroupCopy(group, t, formatNumber);
+    const expanded = !group.target && expandedGateKey === group.key;
+    return (
+      <div key={group.key}>
+        <button
+          type="button"
+          className="flex w-full min-w-0 flex-col gap-3 rounded-lg border border-white/10 bg-white/[0.025] px-4 py-3 text-left transition-colors hover:border-white/20 hover:bg-white/[0.045] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 sm:flex-row sm:items-center"
+          onClick={() => openGateGroup(group)}
+          aria-expanded={group.target ? undefined : expanded}
+          data-testid={`knowledge-gate-${group.gates[0]?.code ?? "unknown"}`}
+        >
+          {group.status === "BLOCKED" ? (
+            <FileWarning className="h-4 w-4 shrink-0 text-rose-400" />
+          ) : (
+            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-zinc-200">{copy.title}</p>
+            <p className="mt-0.5 text-xs text-zinc-500">{copy.description}</p>
+          </div>
+          <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-emerald-400">
+            {t(group.target ? "knowledge.ux.attention.open" : "knowledge.ux.attention.details")}
+            <ArrowRight
+              className={cn("h-3.5 w-3.5 transition-transform", expanded && "rotate-90")}
+            />
+          </span>
+        </button>
+        {expanded ? (
+          <div
+            ref={expandedGateDetailsRef}
+            tabIndex={-1}
+            className="mx-3 border-x border-b border-amber-500/20 bg-amber-500/[0.05] px-4 py-3"
+            data-testid="knowledge-gate-in-place-details"
+          >
+            <p className="text-sm font-medium text-amber-200">
+              {t("knowledge.ux.gate.unknownDetailsTitle")}
+            </p>
+            <p className="mt-1 text-xs leading-5 text-amber-100/70">
+              {t("knowledge.ux.gate.unknownDetailsDescription")}
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <Button type="button" size="sm" variant="outline" onClick={onRefresh}>
+                <RefreshCw className="h-3.5 w-3.5" />
+                {t("knowledge.page.refresh")}
+              </Button>
+              <span className="break-all text-xs text-zinc-600">
+                {t("knowledge.ux.gate.reference", {
+                  code: group.gates[0]?.code ?? "UNKNOWN",
+                })}
+              </span>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6" data-testid="knowledge-overview">
-      <section
-        className={cn(
-          "flex min-w-0 flex-col gap-4 border-y px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5",
-          firstBlockerGroup
-            ? "border-amber-500/25 bg-amber-500/[0.06]"
-            : "border-emerald-500/25 bg-emerald-500/[0.06]",
-        )}
-        data-testid="knowledge-next-action"
-      >
-        <div className="flex min-w-0 items-start gap-3">
-          <div
-            className={cn(
-              "flex h-10 w-10 shrink-0 items-center justify-center rounded-md border",
-              firstBlockerGroup
-                ? "border-amber-500/25 bg-amber-500/10 text-amber-400"
-                : "border-emerald-500/25 bg-emerald-500/10 text-emerald-400",
-            )}
-          >
-            {firstBlockerGroup ? (
-              <ListChecks className="h-5 w-5" />
-            ) : (
-              <CheckCircle2 className="h-5 w-5" />
-            )}
-          </div>
-          <div className="min-w-0">
-            <h2 className="text-base font-semibold text-zinc-100">
-              {firstBlockerGroup
-                ? t("knowledge.ux.next.blockedTitle", {
-                    count: formatNumber(blockerGroups.length),
-                  })
-                : t("knowledge.ux.next.readyTitle")}
-            </h2>
-            <p className="mt-1 max-w-3xl text-sm leading-6 text-zinc-400">
-              {t(
-                firstBlockerGroup
-                  ? "knowledge.ux.next.blockedDescription"
-                  : "knowledge.ux.next.readyDescription",
-              )}
-            </p>
-          </div>
-        </div>
-        <Button
-          className="shrink-0"
-          onClick={() =>
-            firstBlockerGroup ? openGateGroup(firstBlockerGroup) : onNavigate("history")
-          }
+      {firstLaunch ? (
+        <section
+          className="min-w-0 border-y border-emerald-500/25 bg-emerald-500/[0.055]"
+          data-testid="knowledge-quick-start"
         >
-          {t(firstBlockerGroup ? "knowledge.ux.next.fixAction" : "knowledge.ux.next.publishAction")}
-          <ArrowRight className="h-4 w-4" />
-        </Button>
-      </section>
+          <div className="flex min-w-0 flex-col gap-4 px-4 py-5 sm:px-5 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-emerald-500/25 bg-emerald-500/10 text-emerald-300">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-base font-semibold text-zinc-100">
+                    {t("knowledge.quickStart.title")}
+                  </h2>
+                  <StatusBadge status="success">{t("knowledge.quickStart.badge")}</StatusBadge>
+                </div>
+                <p className="mt-1 max-w-3xl text-sm leading-6 text-zinc-400">
+                  {t("knowledge.quickStart.description")}
+                </p>
+                <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500">
+                  {t("knowledge.quickStart.safety")}
+                </p>
+              </div>
+            </div>
+          </div>
 
-      <section
-        className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-white/10 bg-white/10 xl:grid-cols-4"
-        data-testid="knowledge-overview-metrics"
-      >
-        <Metric
-          label={t("knowledge.overview.metric.facts")}
-          value={formatNumber(overview.counts.facts)}
-        />
-        <Metric
-          label={t("knowledge.overview.metric.rules")}
-          value={formatNumber(overview.counts.guidanceRules)}
-        />
-        <Metric
-          label={t("knowledge.overview.metric.review")}
-          value={formatNumber(overview.counts.reviewItems)}
-          attention={overview.counts.reviewItems > 0}
-        />
-        <Metric
-          label={t("knowledge.overview.metric.failed")}
-          value={formatNumber(overview.counts.failedJobs)}
-          attention={overview.counts.failedJobs > 0}
-        />
-      </section>
-
-      <section className="grid gap-4 xl:grid-cols-2">
-        <Card className="min-w-0 p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-medium uppercase text-zinc-500">
-                {t("knowledge.overview.servingEyebrow")}
-              </p>
-              <h2 className="mt-1 text-base font-semibold text-zinc-100">
-                {t(
-                  readiness.serving.status === "READY"
-                    ? "knowledge.overview.servingActive"
-                    : "knowledge.overview.servingEmpty",
+          <div className="grid border-t border-white/10 lg:grid-cols-3 lg:divide-x lg:divide-white/10">
+            <div className="flex min-w-0 gap-3 border-b border-white/10 px-4 py-4 lg:border-b-0 sm:px-5">
+              <span
+                className={cn(
+                  "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
+                  hasBusinessName
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                    : "border-white/15 bg-white/5 text-zinc-300",
                 )}
-              </h2>
-            </div>
-            <StatusBadge status={readiness.serving.status === "READY" ? "success" : "warning"}>
-              {t(
-                readiness.serving.status === "READY"
-                  ? "knowledge.status.serving.ready"
-                  : "knowledge.status.serving.notReady",
-              )}
-            </StatusBadge>
-          </div>
-          <p className="mt-4 text-sm text-zinc-400">
-            {readiness.serving.activePublicationSequence
-              ? t("knowledge.overview.servingActiveDescription", {
-                  sequence: formatNumber(readiness.serving.activePublicationSequence),
-                })
-              : t("knowledge.overview.servingEmptyDescription")}
-          </p>
-          <div className="mt-4 flex flex-wrap gap-4 text-xs text-zinc-500">
-            <span>
-              {t("knowledge.common.facts", {
-                count: formatNumber(readiness.serving.itemCounts.factVersions),
-              })}
-            </span>
-            <span>
-              {t("knowledge.common.rules", {
-                count: formatNumber(readiness.serving.itemCounts.guidanceRuleVersions),
-              })}
-            </span>
-            <span>
-              {t("knowledge.common.documents", {
-                count: formatNumber(readiness.serving.itemCounts.documentRevisions),
-              })}
-            </span>
-          </div>
-          <div className="mt-4 border-t border-white/10 pt-4">
-            <p className="text-xs font-medium text-zinc-400">
-              {t("knowledge.capability.servingTitle")}
-            </p>
-            <p className="mt-1 text-xs text-zinc-600">
-              {t("knowledge.capability.servingDescription")}
-            </p>
-            {readiness.serving.capabilities.filter((capability) => capability.enabled).length >
-            0 ? (
-              <ul
-                className="mt-3 divide-y divide-white/5"
-                data-testid="knowledge-serving-capabilities"
               >
-                {readiness.serving.capabilities
-                  .filter((capability) => capability.enabled)
-                  .map((capability) => (
-                    <li
-                      key={capability.capabilityId}
-                      className="flex min-w-0 items-center justify-between gap-3 py-2 first:pt-0 last:pb-0"
-                    >
-                      <span className="truncate text-xs font-medium text-zinc-300">
-                        {t(capabilityNameKeys[capability.capabilityType])}
-                      </span>
-                      <span className="shrink-0 text-xs text-zinc-600">
-                        {t(autonomyLabelKeys[capability.allowedAutonomy])}
-                      </span>
-                    </li>
-                  ))}
-              </ul>
-            ) : (
-              <p className="mt-3 text-xs text-zinc-600">{t("knowledge.capability.servingEmpty")}</p>
-            )}
-          </div>
-        </Card>
-
-        <Card className="min-w-0 p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-medium uppercase text-zinc-500">
-                {t("knowledge.ux.draft.title")}
-              </p>
-              <h2 className="mt-1 text-base font-semibold text-zinc-100">
-                {t("knowledge.overview.draftVersion", {
-                  version: formatNumber(readiness.draft.candidateVersion),
-                })}
-              </h2>
+                {hasBusinessName ? <CheckCircle2 className="h-4 w-4" /> : "1"}
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-zinc-100">
+                  {t("knowledge.quickStart.step.business")}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-zinc-500">
+                  {t("knowledge.quickStart.step.businessDescription")}
+                </p>
+                {!hasBusinessName ? (
+                  <Button
+                    className="mt-3 min-h-11"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onNavigate("business")}
+                  >
+                    {t("knowledge.quickStart.action.business")}
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Button>
+                ) : (
+                  <p className="mt-2 text-xs font-medium text-emerald-300">
+                    {t("knowledge.quickStart.complete")}
+                  </p>
+                )}
+              </div>
             </div>
-            <StatusBadge
-              status={
-                readiness.draft.status === "UP_TO_DATE"
-                  ? "success"
-                  : readiness.draft.status === "FAILED"
-                    ? "error"
-                    : "info"
-              }
-            >
-              {t(draftStatusKeys[readiness.draft.status])}
-            </StatusBadge>
+
+            <div className="flex min-w-0 gap-3 border-b border-white/10 px-4 py-4 lg:border-b-0 sm:px-5">
+              <span
+                className={cn(
+                  "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
+                  hasUsefulContext
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                    : "border-white/15 bg-white/5 text-zinc-300",
+                )}
+              >
+                {hasUsefulContext ? <CheckCircle2 className="h-4 w-4" /> : "2"}
+              </span>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-medium text-zinc-100">
+                    {t("knowledge.quickStart.step.context")}
+                  </p>
+                  <span className="text-xs text-zinc-600">
+                    {t(
+                      hasUsefulContext
+                        ? "knowledge.quickStart.contextComplete"
+                        : "knowledge.quickStart.required",
+                    )}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs leading-5 text-zinc-500">
+                  {t("knowledge.quickStart.step.contextDescription")}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    className="min-h-11"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onNavigate("sources")}
+                  >
+                    {t("knowledge.quickStart.action.website")}
+                  </Button>
+                  <Button
+                    className="min-h-11"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => onNavigate("business")}
+                  >
+                    {t("knowledge.quickStart.action.priceList")}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex min-w-0 gap-3 px-4 py-4 sm:px-5">
+              <span
+                className={cn(
+                  "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
+                  quickStartApplied
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                    : "border-white/15 bg-white/5 text-zinc-300",
+                )}
+              >
+                {quickStartApplied ? <CheckCircle2 className="h-4 w-4" /> : "3"}
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-zinc-100">
+                  {t("knowledge.quickStart.step.activate")}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-zinc-500">
+                  {t("knowledge.quickStart.step.activateDescription")}
+                </p>
+                {quickStartApplied ? (
+                  <p className="mt-2 text-xs font-medium text-emerald-300">
+                    {t("knowledge.quickStart.applied")}
+                  </p>
+                ) : null}
+              </div>
+            </div>
           </div>
-          <p className="mt-4 text-sm leading-6 text-zinc-400">
-            {readiness.serving.activePublicationSequence
-              ? t("knowledge.ux.draft.descriptionActive", {
-                  sequence: formatNumber(readiness.serving.activePublicationSequence),
-                })
-              : t("knowledge.ux.draft.descriptionEmpty")}
-          </p>
-          <p className="mt-2 text-sm text-zinc-500">
-            {blockerGroups.length > 0
-              ? t("knowledge.overview.draftBlocked", {
-                  count: formatNumber(blockerGroups.length),
-                })
-              : readiness.draft.warnings.length > 0
-                ? t("knowledge.overview.draftWarnings")
-                : t("knowledge.overview.draftClear")}
-          </p>
+
+          <div className="flex min-w-0 flex-col gap-3 border-t border-white/10 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+            <div className="min-w-0">
+              {needsOwnerCompletion ? (
+                <p
+                  className="text-sm text-amber-300"
+                  data-testid="knowledge-quick-start-permission"
+                >
+                  {t("knowledge.quickStart.permission")}
+                </p>
+              ) : quickStartError ? (
+                <p className="text-sm text-rose-300" role="alert">
+                  {quickStartError}
+                </p>
+              ) : (
+                <p className="text-xs leading-5 text-zinc-500">
+                  {t("knowledge.quickStart.reversible")}
+                </p>
+              )}
+            </div>
+            <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+              {quickStartApplied ? (
+                <Button size="sm" variant="outline" onClick={() => onNavigate("test")}>
+                  <MessageSquareText className="h-4 w-4" />
+                  {t("knowledge.quickStart.action.test")}
+                </Button>
+              ) : null}
+              <Button
+                size="sm"
+                disabled={
+                  capabilityLoading ||
+                  businessProfileLoading ||
+                  quickStartApplying ||
+                  (hasBusinessName && hasUsefulContext && needsOwnerCompletion)
+                }
+                onClick={() => {
+                  if (!hasBusinessName) {
+                    onNavigate("business");
+                  } else if (!hasUsefulContext) {
+                    onNavigate("business");
+                  } else if (!quickStartApplied) {
+                    setQuickStartConfirmOpen(true);
+                  } else if (starterBlockerCount > 0) {
+                    openStarterBlockers();
+                  } else {
+                    onNavigate({ view: "history", task: "first-launch" });
+                  }
+                }}
+                data-testid="knowledge-quick-start-primary"
+              >
+                {quickStartApplying ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {t(
+                  !hasBusinessName
+                    ? "knowledge.quickStart.action.business"
+                    : !hasUsefulContext
+                      ? "knowledge.quickStart.action.context"
+                      : needsOwnerCompletion
+                        ? "knowledge.quickStart.action.ownerRequired"
+                        : !quickStartApplied
+                          ? "knowledge.quickStart.action.apply"
+                          : starterBlockerCount > 0
+                            ? "knowledge.quickStart.action.review"
+                            : "knowledge.quickStart.action.publish",
+                  starterBlockerCount > 0
+                    ? { count: formatNumber(starterBlockerCount) }
+                    : undefined,
+                )}
+                {!quickStartApplying ? <ArrowRight className="h-4 w-4" /> : null}
+              </Button>
+            </div>
+          </div>
+        </section>
+      ) : (
+        <section
+          className={cn(
+            "flex min-w-0 flex-col gap-4 border-y px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5",
+            firstBlockerGroup
+              ? "border-amber-500/25 bg-amber-500/[0.06]"
+              : "border-emerald-500/25 bg-emerald-500/[0.06]",
+          )}
+          data-testid="knowledge-next-action"
+        >
+          <div className="flex min-w-0 items-start gap-3">
+            <div
+              className={cn(
+                "flex h-10 w-10 shrink-0 items-center justify-center rounded-md border",
+                firstBlockerGroup
+                  ? "border-amber-500/25 bg-amber-500/10 text-amber-400"
+                  : "border-emerald-500/25 bg-emerald-500/10 text-emerald-400",
+              )}
+            >
+              {firstBlockerGroup ? (
+                <ListChecks className="h-5 w-5" />
+              ) : (
+                <CheckCircle2 className="h-5 w-5" />
+              )}
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold text-zinc-100">
+                {firstBlockerGroup
+                  ? t("knowledge.ux.next.blockedTitle", {
+                      count: formatNumber(blockerGroups.length),
+                    })
+                  : t("knowledge.ux.next.readyTitle")}
+              </h2>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-zinc-400">
+                {t(
+                  firstBlockerGroup
+                    ? "knowledge.ux.next.blockedDescription"
+                    : "knowledge.ux.next.readyDescription",
+                )}
+              </p>
+            </div>
+          </div>
           <Button
-            className="mt-4"
-            size="sm"
-            variant="outline"
+            className="shrink-0"
             onClick={() =>
               firstBlockerGroup ? openGateGroup(firstBlockerGroup) : onNavigate("history")
             }
@@ -524,204 +888,330 @@ export function KnowledgeOverview({
             {t(
               firstBlockerGroup ? "knowledge.ux.next.fixAction" : "knowledge.ux.next.publishAction",
             )}
-            <ArrowRight className="ml-2 h-3.5 w-3.5" />
+            <ArrowRight className="h-4 w-4" />
           </Button>
-        </Card>
-      </section>
+        </section>
+      )}
 
-      <section>
-        <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="text-base font-semibold text-zinc-100">
-              {t("knowledge.capability.draftTitle")}
-            </h2>
-            <p className="mt-1 text-sm text-zinc-500">
-              {t("knowledge.capability.draftDescription")}
-            </p>
-            {!canManageCapabilities ? (
-              <p className="mt-1 text-xs text-zinc-600">{t("knowledge.capability.readOnly")}</p>
-            ) : null}
-          </div>
-          <div className="flex items-center gap-2">
-            <StatusBadge status={statusTone(readiness.status)}>
-              {t(readinessLabelKeys[readiness.status])}
-            </StatusBadge>
-            <Button
-              size="icon"
-              variant="ghost"
-              aria-label={t("knowledge.page.refresh")}
-              disabled={capabilityLoading || capabilitySaving}
-              onClick={() => {
-                onRefresh();
-                void loadCapabilities();
-              }}
-            >
-              <RefreshCw className={cn("h-4 w-4", capabilityLoading && "animate-spin")} />
-            </Button>
-          </div>
-        </div>
-        <div
-          className="overflow-hidden rounded-lg border border-white/10 bg-zinc-950/30"
-          data-testid="knowledge-draft-capabilities"
+      {!firstLaunch ? (
+        <section
+          className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-white/10 bg-white/10 xl:grid-cols-4"
+          data-testid="knowledge-overview-metrics"
         >
-          {capabilityLoadError ? (
-            <div className="flex items-center gap-3 border-b border-white/5 px-5 py-3" role="alert">
-              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
-              <p className="min-w-0 flex-1 text-xs text-amber-300">{capabilityLoadError}</p>
+          <Metric
+            label={t("knowledge.overview.metric.facts")}
+            value={formatNumber(overview.counts.facts)}
+          />
+          <Metric
+            label={t("knowledge.overview.metric.rules")}
+            value={formatNumber(overview.counts.guidanceRules)}
+          />
+          <Metric
+            label={t("knowledge.overview.metric.review")}
+            value={formatNumber(overview.counts.reviewItems)}
+            attention={overview.counts.reviewItems > 0}
+          />
+          <Metric
+            label={t("knowledge.overview.metric.failed")}
+            value={formatNumber(overview.counts.failedJobs)}
+            attention={overview.counts.failedJobs > 0}
+          />
+        </section>
+      ) : null}
+
+      {!firstLaunch ? (
+        <section className="grid gap-4 xl:grid-cols-2">
+          <Card className="min-w-0 p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-medium uppercase text-zinc-500">
+                  {t("knowledge.overview.servingEyebrow")}
+                </p>
+                <h2 className="mt-1 text-base font-semibold text-zinc-100">
+                  {t(
+                    readiness.serving.status === "READY"
+                      ? "knowledge.overview.servingActive"
+                      : "knowledge.overview.servingEmpty",
+                  )}
+                </h2>
+              </div>
+              <StatusBadge status={readiness.serving.status === "READY" ? "success" : "warning"}>
+                {t(
+                  readiness.serving.status === "READY"
+                    ? "knowledge.status.serving.ready"
+                    : "knowledge.status.serving.notReady",
+                )}
+              </StatusBadge>
+            </div>
+            <p className="mt-4 text-sm text-zinc-400">
+              {readiness.serving.activePublicationSequence
+                ? t("knowledge.overview.servingActiveDescription", {
+                    sequence: formatNumber(readiness.serving.activePublicationSequence),
+                  })
+                : t("knowledge.overview.servingEmptyDescription")}
+            </p>
+            <div className="mt-4 flex flex-wrap gap-4 text-xs text-zinc-500">
+              <span>
+                {t("knowledge.common.facts", {
+                  count: formatNumber(readiness.serving.itemCounts.factVersions),
+                })}
+              </span>
+              <span>
+                {t("knowledge.common.rules", {
+                  count: formatNumber(readiness.serving.itemCounts.guidanceRuleVersions),
+                })}
+              </span>
+              <span>
+                {t("knowledge.common.documents", {
+                  count: formatNumber(readiness.serving.itemCounts.documentRevisions),
+                })}
+              </span>
+            </div>
+            <div className="mt-4 border-t border-white/10 pt-4">
+              <p className="text-xs font-medium text-zinc-400">
+                {t("knowledge.capability.servingTitle")}
+              </p>
+              <p className="mt-1 text-xs text-zinc-600">
+                {t("knowledge.capability.servingDescription")}
+              </p>
+              {readiness.serving.capabilities.filter((capability) => capability.enabled).length >
+              0 ? (
+                <ul
+                  className="mt-3 divide-y divide-white/5"
+                  data-testid="knowledge-serving-capabilities"
+                >
+                  {readiness.serving.capabilities
+                    .filter((capability) => capability.enabled)
+                    .map((capability) => (
+                      <li
+                        key={capability.capabilityId}
+                        className="flex min-w-0 items-center justify-between gap-3 py-2 first:pt-0 last:pb-0"
+                      >
+                        <span className="truncate text-xs font-medium text-zinc-300">
+                          {t(capabilityNameKeys[capability.capabilityType])}
+                        </span>
+                        <span className="shrink-0 text-xs text-zinc-600">
+                          {t(autonomyLabelKeys[capability.allowedAutonomy])}
+                        </span>
+                      </li>
+                    ))}
+                </ul>
+              ) : (
+                <p className="mt-3 text-xs text-zinc-600">
+                  {t("knowledge.capability.servingEmpty")}
+                </p>
+              )}
+            </div>
+          </Card>
+
+          <Card className="min-w-0 p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-medium uppercase text-zinc-500">
+                  {t("knowledge.ux.draft.title")}
+                </p>
+                <h2 className="mt-1 text-base font-semibold text-zinc-100">
+                  {t("knowledge.overview.draftVersion", {
+                    version: formatNumber(readiness.draft.candidateVersion),
+                  })}
+                </h2>
+              </div>
+              <StatusBadge
+                status={
+                  readiness.draft.status === "UP_TO_DATE"
+                    ? "success"
+                    : readiness.draft.status === "FAILED"
+                      ? "error"
+                      : "info"
+                }
+              >
+                {t(draftStatusKeys[readiness.draft.status])}
+              </StatusBadge>
+            </div>
+            <p className="mt-4 text-sm leading-6 text-zinc-400">
+              {readiness.serving.activePublicationSequence
+                ? t("knowledge.ux.draft.descriptionActive", {
+                    sequence: formatNumber(readiness.serving.activePublicationSequence),
+                  })
+                : t("knowledge.ux.draft.descriptionEmpty")}
+            </p>
+            <p className="mt-2 text-sm text-zinc-500">
+              {blockerGroups.length > 0
+                ? t("knowledge.overview.draftBlocked", {
+                    count: formatNumber(blockerGroups.length),
+                  })
+                : readiness.draft.warnings.length > 0
+                  ? t("knowledge.overview.draftWarnings")
+                  : t("knowledge.overview.draftClear")}
+            </p>
+            <Button
+              className="mt-4"
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                firstBlockerGroup ? openGateGroup(firstBlockerGroup) : onNavigate("history")
+              }
+            >
+              {t(
+                firstBlockerGroup
+                  ? "knowledge.ux.next.fixAction"
+                  : "knowledge.ux.next.publishAction",
+              )}
+              <ArrowRight className="ml-2 h-3.5 w-3.5" />
+            </Button>
+          </Card>
+        </section>
+      ) : null}
+
+      {!firstLaunch ? (
+        <section>
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold text-zinc-100">
+                {t("knowledge.capability.draftTitle")}
+              </h2>
+              <p className="mt-1 text-sm text-zinc-500">
+                {t("knowledge.capability.draftDescription")}
+              </p>
+              {!canManageCapabilities ? (
+                <p className="mt-1 text-xs text-zinc-600">{t("knowledge.capability.readOnly")}</p>
+              ) : null}
+            </div>
+            <div className="flex items-center gap-2">
+              <StatusBadge status={statusTone(readiness.status)}>
+                {t(readinessLabelKeys[readiness.status])}
+              </StatusBadge>
               <Button
                 size="icon"
                 variant="ghost"
-                aria-label={t("knowledge.capability.reload")}
-                onClick={() => void loadCapabilities()}
+                aria-label={t("knowledge.page.refresh")}
+                disabled={capabilityLoading || capabilitySaving}
+                onClick={() => {
+                  onRefresh();
+                  void loadCapabilities();
+                }}
               >
-                <RefreshCw className="h-3.5 w-3.5" />
+                <RefreshCw className={cn("h-4 w-4", capabilityLoading && "animate-spin")} />
               </Button>
             </div>
-          ) : null}
-          {readiness.draft.capabilities.length === 0 ? (
-            <div className="px-5 py-10 text-center text-sm text-zinc-500">
-              {t("knowledge.overview.noCapabilities")}
-            </div>
-          ) : (
-            readiness.draft.capabilities.map((capability) => {
-              const setting = capabilitySettings.find(
-                (item) => item.capabilityType === capability.capabilityType,
-              );
-              return (
-                <CapabilityDraftRow
-                  key={capability.capabilityId}
-                  capability={capability}
-                  setting={setting}
-                  canManage={canManageCapabilities}
-                  controlsLoading={capabilityLoading || Boolean(capabilityLoadError)}
-                  saveState={capabilityStates[capability.capabilityType]}
-                  focused={focusedCapabilityId === capability.capabilityId}
-                  expanded={expandedCapabilityId === capability.capabilityId}
-                  onExpandedChange={(expanded) =>
-                    setExpandedCapabilityId(expanded ? capability.capabilityId : null)
-                  }
-                  onNavigate={onNavigate}
-                  onEnabledChange={(enabled) =>
-                    void saveCapability(capability.capabilityType, { enabled })
-                  }
-                  onAutonomyChange={(allowedAutonomy) =>
-                    void saveCapability(capability.capabilityType, { allowedAutonomy })
-                  }
-                  onReload={() => void loadCapabilities()}
-                />
-              );
-            })
-          )}
-        </div>
-      </section>
+          </div>
+          <div
+            className="overflow-hidden rounded-lg border border-white/10 bg-zinc-950/30"
+            data-testid="knowledge-draft-capabilities"
+          >
+            {renderCapabilityRows()}
+          </div>
+        </section>
+      ) : null}
 
-      {gates.length > 0 ? (
+      <ConfirmDialog
+        open={quickStartConfirmOpen}
+        onOpenChange={setQuickStartConfirmOpen}
+        title={t("knowledge.quickStart.confirm.title")}
+        description={t("knowledge.quickStart.confirm.description")}
+        confirmLabel={t("knowledge.quickStart.confirm.apply")}
+        cancelLabel={t("knowledge.common.cancel")}
+        onConfirm={applyQuickStart}
+      />
+
+      {(firstLaunch ? blockerGroups : gateGroups).length > 0 ? (
         <section>
           <h2 className="text-base font-semibold text-zinc-100">
             {t("knowledge.overview.draftAttention")}
           </h2>
           <p className="mt-1 text-sm text-zinc-500">{t("knowledge.ux.attention.description")}</p>
           <div className="mt-3 space-y-2">
-            {gateGroups.map((group) => {
-              const copy = knowledgeGateGroupCopy(group, t, formatNumber);
-              const expanded = !group.target && expandedGateKey === group.key;
-              return (
-                <div key={group.key}>
-                  <button
-                    type="button"
-                    className="flex w-full min-w-0 flex-col gap-3 rounded-lg border border-white/10 bg-white/[0.025] px-4 py-3 text-left transition-colors hover:border-white/20 hover:bg-white/[0.045] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 sm:flex-row sm:items-center"
-                    onClick={() => openGateGroup(group)}
-                    aria-expanded={group.target ? undefined : expanded}
-                    data-testid={`knowledge-gate-${group.gates[0]?.code ?? "unknown"}`}
-                  >
-                    {group.status === "BLOCKED" ? (
-                      <FileWarning className="h-4 w-4 shrink-0 text-rose-400" />
-                    ) : (
-                      <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-zinc-200">{copy.title}</p>
-                      <p className="mt-0.5 text-xs text-zinc-500">{copy.description}</p>
-                    </div>
-                    <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-emerald-400">
-                      {t(
-                        group.target
-                          ? "knowledge.ux.attention.open"
-                          : "knowledge.ux.attention.details",
-                      )}
-                      <ArrowRight
-                        className={cn("h-3.5 w-3.5 transition-transform", expanded && "rotate-90")}
-                      />
-                    </span>
-                  </button>
-                  {expanded ? (
-                    <div
-                      ref={expandedGateDetailsRef}
-                      tabIndex={-1}
-                      className="mx-3 border-x border-b border-amber-500/20 bg-amber-500/[0.05] px-4 py-3"
-                      data-testid="knowledge-gate-in-place-details"
-                    >
-                      <p className="text-sm font-medium text-amber-200">
-                        {t("knowledge.ux.gate.unknownDetailsTitle")}
-                      </p>
-                      <p className="mt-1 text-xs leading-5 text-amber-100/70">
-                        {t("knowledge.ux.gate.unknownDetailsDescription")}
-                      </p>
-                      <div className="mt-3 flex flex-wrap items-center gap-3">
-                        <Button type="button" size="sm" variant="outline" onClick={onRefresh}>
-                          <RefreshCw className="h-3.5 w-3.5" />
-                          {t("knowledge.page.refresh")}
-                        </Button>
-                        <span className="break-all text-xs text-zinc-600">
-                          {t("knowledge.ux.gate.reference", {
-                            code: group.gates[0]?.code ?? "UNKNOWN",
-                          })}
-                        </span>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })}
+            {(firstLaunch ? blockerGroups : gateGroups).map(renderGateGroup)}
           </div>
         </section>
       ) : null}
 
-      <section>
-        <h2 className="text-base font-semibold text-zinc-100">
-          {t("knowledge.overview.recentWork")}
-        </h2>
-        <div className="mt-3 overflow-hidden rounded-lg border border-white/10 bg-zinc-950/30">
-          {overview.recentJobs.length === 0 ? (
-            <div className="flex items-center gap-3 px-5 py-7 text-sm text-zinc-500">
-              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-              {t("knowledge.overview.noWork")}
+      {firstLaunch && warningGroups.length > 0 ? (
+        <details
+          className="group min-w-0 overflow-hidden rounded-lg border border-white/10 bg-zinc-950/20"
+          data-testid="knowledge-optional-improvements"
+        >
+          <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 px-4 py-4 marker:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-400/50 sm:px-5">
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold text-zinc-200">
+                {t("knowledge.quickStart.improvements.title")}
+              </h2>
+              <p className="mt-1 text-xs leading-5 text-zinc-500">
+                {t("knowledge.quickStart.improvements.description")}
+              </p>
             </div>
-          ) : (
-            overview.recentJobs.map((job) => (
-              <div
-                key={job.id}
-                className="flex flex-wrap items-center gap-3 border-b border-white/5 px-5 py-3 last:border-b-0"
-              >
-                {job.status === "SUCCEEDED" ? (
-                  <ShieldCheck className="h-4 w-4 text-emerald-400" />
-                ) : (
-                  <Clock3 className="h-4 w-4 text-sky-400" />
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm text-zinc-200">{job.progress.label}</p>
-                  <p className="mt-0.5 text-xs text-zinc-600">
-                    {formatDate(job.createdAt, { dateStyle: "medium", timeStyle: "short" })}
-                  </p>
-                </div>
-                <StatusBadge status={jobTone(job.status)}>
-                  {t(jobStatusKeys[job.status])}
-                </StatusBadge>
+            <ChevronDown className="h-4 w-4 shrink-0 text-zinc-500 transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="space-y-2 border-t border-white/10 p-3 sm:p-4">
+            {warningGroups.map(renderGateGroup)}
+          </div>
+        </details>
+      ) : null}
+
+      {firstLaunch ? (
+        <details
+          open={capabilityEditorOpen}
+          onToggle={(event) => setCapabilityEditorOpen(event.currentTarget.open)}
+          className="group min-w-0 overflow-hidden border-y border-white/10"
+          data-testid="knowledge-capability-editor-disclosure"
+        >
+          <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 px-4 py-4 marker:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-400/50 sm:px-5">
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold text-zinc-200">
+                {t("knowledge.quickStart.settings.title")}
+              </h2>
+              <p className="mt-1 text-xs leading-5 text-zinc-500">
+                {t("knowledge.quickStart.settings.description")}
+              </p>
+            </div>
+            <ChevronDown className="h-4 w-4 shrink-0 text-zinc-500 transition-transform group-open:rotate-180" />
+          </summary>
+          <div
+            className="min-w-0 border-t border-white/10 bg-zinc-950/20"
+            data-testid="knowledge-draft-capabilities"
+          >
+            {renderCapabilityRows()}
+          </div>
+        </details>
+      ) : null}
+
+      {!firstLaunch ? (
+        <section>
+          <h2 className="text-base font-semibold text-zinc-100">
+            {t("knowledge.overview.recentWork")}
+          </h2>
+          <div className="mt-3 overflow-hidden rounded-lg border border-white/10 bg-zinc-950/30">
+            {overview.recentJobs.length === 0 ? (
+              <div className="flex items-center gap-3 px-5 py-7 text-sm text-zinc-500">
+                <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                {t("knowledge.overview.noWork")}
               </div>
-            ))
-          )}
-        </div>
-      </section>
+            ) : (
+              overview.recentJobs.map((job) => (
+                <div
+                  key={job.id}
+                  className="flex flex-wrap items-center gap-3 border-b border-white/5 px-5 py-3 last:border-b-0"
+                >
+                  {job.status === "SUCCEEDED" ? (
+                    <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                  ) : (
+                    <Clock3 className="h-4 w-4 text-sky-400" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm text-zinc-200">{job.progress.label}</p>
+                    <p className="mt-0.5 text-xs text-zinc-600">
+                      {formatDate(job.createdAt, { dateStyle: "medium", timeStyle: "short" })}
+                    </p>
+                  </div>
+                  <StatusBadge status={jobTone(job.status)}>
+                    {t(jobStatusKeys[job.status])}
+                  </StatusBadge>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

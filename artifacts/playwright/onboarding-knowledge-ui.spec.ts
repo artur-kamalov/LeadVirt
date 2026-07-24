@@ -6,9 +6,7 @@ async function nextStep(page: import("@playwright/test").Page) {
   await page.locator("button:visible").last().click();
 }
 
-test("onboarding keeps the company step minimal and defers details to Business Information", async ({
-  page,
-}) => {
+test("onboarding requires only a company name and short context description", async ({ page }) => {
   const onboardingState = {
     businessProfileVersion: 1,
     businessProfileEtag: '"business-profile-knowledge-ui-1"',
@@ -48,21 +46,30 @@ test("onboarding keeps the company step minimal and defers details to Business I
   await page.locator("main button").nth(0).click();
   await nextStep(page);
 
-  await expect(page.getByRole("heading", { name: "What is your business called?" })).toBeVisible();
-  await expect(page.getByRole("textbox", { name: "Company name", exact: true })).toBeVisible();
-  await expect(page.locator("textarea")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Tell us about your business" })).toBeVisible();
+  const companyName = page.getByRole("textbox", { name: "Company name", exact: true });
+  const companyDescription = page.getByRole("textbox", {
+    name: "About the company",
+    exact: true,
+  });
+  await expect(companyName).toBeVisible();
+  await expect(companyName).toHaveAttribute("required", "");
+  await expect(companyDescription).toBeVisible();
+  await expect(companyDescription).toHaveAttribute("required", "");
+  await companyName.fill("Useful context fixture");
+  await expect(page.getByRole("button", { name: "Next", exact: true })).toBeDisabled();
+  await companyDescription.fill("A concise description for useful first replies.");
+  await expect(page.getByRole("button", { name: "Next", exact: true })).toBeEnabled();
   await expect(page.getByTestId("onboarding-timezone")).toHaveCount(0);
-  await expect(page.getByRole("textbox", { name: "About the company", exact: true })).toHaveCount(
-    0,
-  );
   await page.screenshot({
     path: "artifacts/playwright/onboarding-minimal-company-step.png",
     fullPage: true,
   });
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByRole("heading", { name: "What is your business called?" })).toBeVisible();
-  await expect(page.getByRole("textbox", { name: "Company name", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Tell us about your business" })).toBeVisible();
+  await expect(companyName).toBeVisible();
+  await expect(companyDescription).toHaveValue("A concise description for useful first replies.");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );

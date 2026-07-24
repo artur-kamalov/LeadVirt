@@ -43,35 +43,47 @@ const completeProfile = {
   timezone: "Europe/Paris",
 };
 
-function overview(kind: "ready" | "review") {
+function overview(kind: "ready" | "review" | "prepublish", evaluationRequired = true) {
   const ready = kind === "ready";
+  const prepublish = kind === "prepublish";
   const capabilities = [
     {
       enabled: true,
-      requirements: [
-        {
-          kind: "EVALUATION_CASE",
-          status: ready ? "SATISFIED" : "UNSATISFIED",
-        },
-      ],
+      requirements: evaluationRequired
+        ? [
+            {
+              kind: "EVALUATION_CASE",
+              status: ready || prepublish ? "SATISFIED" : "UNSATISFIED",
+            },
+          ]
+        : [],
     },
   ];
   return {
     readiness: {
       status: ready ? "READY" : "NEEDS_REVIEW",
-      activePublicationId: "publication-active",
-      serving: { status: "READY", capabilities },
-      draft: { status: "UP_TO_DATE", capabilities },
+      activePublicationId: prepublish ? null : "publication-active",
+      serving: {
+        status: prepublish ? "NOT_READY" : "READY",
+        capabilities: prepublish ? [] : capabilities,
+      },
+      draft: {
+        status: prepublish ? "CHANGES_PENDING" : "UP_TO_DATE",
+        blockers: [],
+        capabilities,
+      },
       capabilities,
-      blockerCount: ready ? 0 : 3,
+      blockerCount: ready ? 0 : prepublish ? 1 : 3,
       warningCount: 0,
-      needsReviewCount: ready ? 0 : 3,
+      needsReviewCount: ready || prepublish ? 0 : 3,
     },
-    activePublication: {
-      id: "publication-active",
-      status: "ACTIVE",
-      isActive: true,
-    },
+    activePublication: prepublish
+      ? null
+      : {
+          id: "publication-active",
+          status: "ACTIVE",
+          isActive: true,
+        },
     counts: {},
     recentJobs: [],
     permissions: {},
@@ -111,13 +123,14 @@ async function mockBase(page: Page) {
 async function mockReadiness(
   page: Page,
   options: {
-    knowledge: "ready" | "review" | "unavailable" | "null";
+    knowledge: "ready" | "review" | "prepublish" | "unavailable" | "null";
     repliesActive?: boolean;
     inboundSucceeded?: boolean;
     sampleInboundSucceeded?: boolean;
     channelConnected?: boolean;
     integrationProvider?: "TELEGRAM" | "AMOCRM";
     channelsFailingInitially?: boolean;
+    evaluationRequired?: boolean;
   },
 ) {
   let channelsFailing = Boolean(options.channelsFailingInitially);
@@ -129,7 +142,9 @@ async function mockReadiness(
       });
     }
     if (options.knowledge === "null") return route.fulfill({ json: { data: null } });
-    return route.fulfill({ json: { data: overview(options.knowledge) } });
+    return route.fulfill({
+      json: { data: overview(options.knowledge, options.evaluationRequired ?? true) },
+    });
   });
   await page.route("**/api/channels", (route) => {
     if (channelsFailing) {
@@ -275,6 +290,35 @@ test("desktop presents the first unresolved step as the primary next action", as
     path: "artifacts/tmp/dashboard-readiness-desktop.png",
     fullPage: true,
   });
+});
+
+test("clean unpublished draft advances past Knowledge to Publish", async ({ page }) => {
+  await mockReadiness(page, {
+    knowledge: "prepublish",
+    evaluationRequired: false,
+  });
+  await page.goto(`${webBase}/app`, { waitUntil: "networkidle" });
+
+  await expect(page.getByTestId("dashboard-readiness-step-knowledge")).toHaveAttribute(
+    "data-state",
+    "completed",
+  );
+  await expect(page.getByTestId("dashboard-readiness-step-knowledge")).toHaveAttribute(
+    "data-evidence",
+    "complete",
+  );
+  await expect(page.getByTestId("dashboard-readiness-step-test")).toHaveAttribute(
+    "data-state",
+    "completed",
+  );
+  await expect(page.getByTestId("dashboard-readiness-step-publish")).toHaveAttribute(
+    "data-state",
+    "current",
+  );
+  await expect(page.getByTestId("dashboard-readiness-primary")).toHaveAttribute(
+    "href",
+    "/app/knowledge?view=history",
+  );
 });
 
 test("unavailable evidence is labeled as needing a check", async ({ page }) => {
@@ -437,13 +481,22 @@ test("canonical real inbound evidence completes readiness for non-integration ch
   await expect(page.getByTestId("dashboard-readiness")).toHaveAttribute("data-ready", "true");
 });
 
-test("legacy notes do not replace structured services and schedule", async ({ page }) => {
+test("optional profile enrichment does not block the minimal launch", async ({ page }) => {
   await page.unroute("**/api/business-profile");
   await page.route("**/api/business-profile", (route) =>
     route.fulfill({
       json: {
         data: {
-          profile: { ...completeProfile, services: [], weeklySchedule: [] },
+          profile: {
+            ...completeProfile,
+            servicesCatalog: "",
+            services: [],
+            hours: "",
+            weeklySchedule: [],
+            faq: "",
+            policies: "",
+            escalationRules: "",
+          },
           version: 2,
           etag: "legacy-profile-etag",
           updatedAt: "2026-07-17T10:00:00.000Z",
@@ -459,14 +512,58 @@ test("legacy notes do not replace structured services and schedule", async ({ pa
   await page.goto(`${webBase}/app`, { waitUntil: "networkidle" });
 
   const profile = page.getByTestId("dashboard-readiness-step-profile");
-  await expect(profile).toHaveAttribute("data-state", "current");
-  await expect(profile).toHaveAttribute("data-evidence", "incomplete");
-  await expect(profile).toContainText("2");
+  await expect(profile).toHaveAttribute("data-state", "completed");
+  await expect(profile).toHaveAttribute("data-evidence", "complete");
+  await expect(profile).toContainText("Add services, hours, and policies later");
   await expect(page.getByTestId("dashboard-readiness-primary")).toHaveAttribute(
     "href",
-    "/app/knowledge?view=business",
+    "/app/inbox",
   );
-  await expect(page.getByTestId("dashboard-readiness")).toHaveAttribute("data-ready", "false");
+  await expect(page.getByTestId("dashboard-readiness")).toHaveAttribute("data-ready", "true");
+});
+
+test("safe starter skips manual tests and advances to reply activation", async ({ page }) => {
+  await page.unroute("**/api/business-profile");
+  await page.route("**/api/business-profile", (route) =>
+    route.fulfill({
+      json: {
+        data: {
+          profile: {
+            ...completeProfile,
+            servicesCatalog: "",
+            services: [],
+            hours: "",
+            weeklySchedule: [],
+            faq: "",
+            policies: "",
+            escalationRules: "",
+          },
+          version: 2,
+          etag: "minimal-profile-etag",
+          updatedAt: "2026-07-17T10:00:00.000Z",
+        },
+      },
+    }),
+  );
+  await mockReadiness(page, {
+    knowledge: "ready",
+    evaluationRequired: false,
+    repliesActive: false,
+    inboundSucceeded: false,
+  });
+  await page.goto(`${webBase}/app`, { waitUntil: "networkidle" });
+
+  const testStep = page.getByTestId("dashboard-readiness-step-test");
+  await expect(testStep).toHaveAttribute("data-state", "completed");
+  await expect(testStep).toContainText("does not require a separate manual test");
+  await expect(page.getByTestId("dashboard-readiness-step-replies")).toHaveAttribute(
+    "data-state",
+    "current",
+  );
+  await expect(page.getByTestId("dashboard-readiness-primary")).toHaveAttribute(
+    "href",
+    "/app/settings?tab=channels",
+  );
 });
 
 test("mobile keeps the detailed journey collapsed until requested", async ({ page }) => {

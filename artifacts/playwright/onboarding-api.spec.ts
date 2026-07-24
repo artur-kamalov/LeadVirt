@@ -1,4 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
+import { supportedLocales } from "../../apps/web/src/i18n/config";
+import { messages } from "../../apps/web/src/i18n/messages";
 
 const webBase = process.env.LEADVIRT_WEB_BASE ?? "http://localhost:3001";
 
@@ -141,7 +143,7 @@ test("mobile onboarding announces progress, intent availability, and saving stat
   await expect(page.getByText(/books customers automatically/i)).toHaveCount(0);
 });
 
-test("company onboarding asks only for the business name and defers details", async ({
+test("company onboarding requires only a business name and short description", async ({
   context,
   page,
 }) => {
@@ -173,11 +175,68 @@ test("company onboarding asks only for the business name and defers details", as
   await expect(companyName).toHaveAttribute("required", "");
   await expect(companyName).toHaveAttribute("maxlength", "160");
   await expect(companyName).toHaveValue("Prefilled workspace");
-  await expect(page.getByLabel(/About the company/)).toHaveCount(0);
+  const companyDescription = page.getByLabel(/About the company/);
+  await expect(companyDescription).toBeVisible();
+  await expect(companyDescription).toHaveAttribute("required", "");
+  await expect(companyDescription).toHaveAttribute("maxlength", "4000");
+  await expect(page.getByRole("button", { name: "Next", exact: true })).toBeDisabled();
+  await companyDescription.fill("A concise description for useful first replies.");
+  await expect(page.getByRole("button", { name: "Next", exact: true })).toBeEnabled();
   await expect(page.getByLabel("Catalog, services, and prices")).toHaveCount(0);
   await expect(page.getByTestId("onboarding-timezone")).toHaveCount(0);
   await expect(page.getByLabel("Business hours")).toHaveCount(0);
-  await expect(page.locator("textarea")).toHaveCount(0);
+  await expect(page.locator("textarea")).toHaveCount(1);
+});
+
+test("company onboarding keeps the minimum context clear in every interface locale", async ({
+  page,
+}) => {
+  await page.route("**/api/onboarding/state", async (route) => {
+    await route.fulfill({
+      json: {
+        data: {
+          ...businessProfileRevision(),
+          currentStep: "company",
+          completedSteps: ["business", "channels", "scenario"],
+          data: {
+            businessType: "services",
+            selectedChannels: ["telegram"],
+            scenario: "support",
+          },
+          completedAt: null,
+        },
+      },
+    });
+  });
+
+  await page.goto(`${webBase}/onboarding`, { waitUntil: "domcontentloaded" });
+
+  for (const locale of supportedLocales) {
+    const switcher = page.getByTestId("language-switcher");
+    if ((await switcher.getAttribute("data-locale")) !== locale) {
+      await switcher.click();
+      await page.getByTestId(`language-option-${locale}`).click();
+    }
+
+    await expect(
+      page.getByRole("heading", { name: messages[locale]["onboarding.company.title"] }),
+    ).toBeVisible();
+    await expect(
+      page.getByText(messages[locale]["onboarding.company.description"], { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("textbox", {
+        name: messages[locale]["onboarding.company.name"],
+        exact: true,
+      }),
+    ).toHaveAttribute("required", "");
+    await expect(
+      page.getByRole("textbox", {
+        name: messages[locale]["onboarding.company.about"],
+        exact: true,
+      }),
+    ).toHaveAttribute("required", "");
+  }
 });
 
 test("onboarding hydrates state and persists progress", async ({ page }) => {
@@ -333,6 +392,9 @@ test("onboarding completes all six steps through atomic ordered advances", async
   await page.getByRole("button", { name: /Customer support/ }).click();
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await page.getByLabel("Company name").fill("Complete onboarding workspace");
+  await page
+    .getByLabel("About the company")
+    .fill("A concise business description for useful first replies.");
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await page.getByRole("button", { name: /LeadVirt Inbox/ }).click();
   await page.getByRole("button", { name: "Next", exact: true }).click();
@@ -345,9 +407,13 @@ test("onboarding completes all six steps through atomic ordered advances", async
     timezone: expect.any(String),
     companyInfo: {
       name: "Complete onboarding workspace",
+      description: "A concise business description for useful first replies.",
     },
   });
-  expect(requests[3]?.data.companyInfo).toEqual({ name: "Complete onboarding workspace" });
+  expect(requests[3]?.data.companyInfo).toEqual({
+    name: "Complete onboarding workspace",
+    description: "A concise business description for useful first replies.",
+  });
   expect(requests[3]?.data.timezone).toEqual(expect.stringMatching(/\S/u));
 });
 
@@ -485,6 +551,69 @@ test("onboarding saves a dirty answer before Skip leaves the flow", async ({ con
       currentStep: "business",
       data: { businessType: "beauty" },
     });
+  await expect(page).toHaveURL(`${webBase}/app`);
+});
+
+test("onboarding preserves a name-only company draft without submitting a blank description", async ({
+  context,
+  page,
+}) => {
+  await context.addCookies([
+    { name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" },
+  ]);
+  let savedDraft: Record<string, unknown> | null = null;
+  await page.route("**/api/onboarding/state", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({
+        json: {
+          data: {
+            ...businessProfileRevision(),
+            currentStep: "company",
+            completedSteps: ["business", "channels", "scenario"],
+            data: {
+              businessType: "services",
+              selectedChannels: ["telegram"],
+              scenario: "support",
+            },
+            completedAt: null,
+          },
+        },
+      });
+      return;
+    }
+
+    savedDraft = route.request().postDataJSON() as Record<string, unknown>;
+    await route.fulfill({
+      json: {
+        data: {
+          ...businessProfileRevision(2),
+          currentStep: "company",
+          completedSteps: ["business", "channels", "scenario"],
+          data: {
+            businessType: "services",
+            selectedChannels: ["telegram"],
+            scenario: "support",
+            companyInfo: { name: "Partially completed company" },
+          },
+          completedAt: null,
+        },
+      },
+    });
+  });
+
+  await page.goto(`${webBase}/onboarding`, { waitUntil: "networkidle" });
+  await page.getByLabel("Company name").fill("Partially completed company");
+  await expect(page.getByRole("button", { name: "Next", exact: true })).toBeDisabled();
+  await page.getByRole("button", { name: "Skip", exact: true }).click();
+
+  await expect.poll(() => savedDraft).not.toBeNull();
+  expect(
+    (
+      savedDraft as {
+        data: { companyInfo: Record<string, string> };
+      }
+    ).data.companyInfo,
+  ).toEqual({ name: "Partially completed company" });
   await expect(page).toHaveURL(`${webBase}/app`);
 });
 
@@ -726,7 +855,7 @@ test("onboarding does not present a fresh setup when saved state cannot be loade
   await error.getByRole("button").click();
 
   await expect(error).toBeHidden();
-  await expect(page.getByRole("heading", { name: "What is your business called?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Tell us about your business" })).toBeVisible();
   await expect(page.getByPlaceholder("For example: Aura Beauty Studio")).toHaveValue(
     "Recovered workspace",
   );
@@ -816,6 +945,12 @@ test("onboarding company step sends a scoped profile write with the loaded ETag"
 
   await page.goto(`${webBase}/onboarding`, { waitUntil: "networkidle" });
   await page.getByPlaceholder("For example: Aura Beauty Studio").fill("Scoped profile update");
+  await expect(page.getByRole("textbox", { name: "About the company" })).toHaveValue(
+    "Existing description",
+  );
+  await page
+    .getByRole("textbox", { name: "About the company" })
+    .fill("Updated onboarding context for useful replies.");
   await page.getByRole("button", { name: "Next", exact: true }).click();
 
   await expect(page.getByRole("heading", { name: "Where should leads go?" })).toBeVisible();
@@ -823,10 +958,13 @@ test("onboarding company step sends a scoped profile write with the loaded ETag"
   expect(advanceIfMatches).toEqual(['"business-profile-onboarding-7"']);
   expect(advances[0]?.step).toBe("company");
   expect(Object.keys(advances[0]?.data ?? {}).sort()).toEqual(["companyInfo", "timezone"]);
-  expect(advances[0]?.data?.companyInfo).toEqual({ name: "Scoped profile update" });
+  expect(advances[0]?.data?.companyInfo).toEqual({
+    name: "Scoped profile update",
+    description: "Updated onboarding context for useful replies.",
+  });
   expect(savedData.companyInfo).toMatchObject({
     name: "Scoped profile update",
-    description: "Existing description",
+    description: "Updated onboarding context for useful replies.",
     servicesCatalog: "",
   });
   expect(advances[0]?.data).not.toHaveProperty("businessType");
@@ -893,6 +1031,64 @@ test("onboarding shows API validation beside the visible company name", async ({
   await expect(page.getByText("The company name is invalid.")).toHaveCount(0);
 });
 
+test("onboarding shows API validation beside the visible company description", async ({
+  context,
+  page,
+}) => {
+  await context.addCookies([
+    { name: "leadvirt-locale", value: "en", url: webBase, sameSite: "Lax" },
+  ]);
+  await page.route("**/api/onboarding/state", async (route) => {
+    await route.fulfill({
+      json: {
+        data: {
+          ...businessProfileRevision(3),
+          currentStep: "company",
+          completedSteps: ["business", "channels", "scenario"],
+          data: {
+            businessType: "services",
+            selectedChannels: ["telegram"],
+            scenario: "support",
+            timezone: "Europe/Paris",
+            companyInfo: { name: "Validation fixture", description: "Existing description" },
+          },
+          completedAt: null,
+        },
+      },
+    });
+  });
+  await page.route("**/api/onboarding/advance", async (route) => {
+    await route.fulfill({
+      status: 400,
+      json: {
+        error: {
+          code: "KNOWLEDGE_VALIDATION_INPUT_INVALID",
+          message: "The request contains invalid fields.",
+          fieldErrors: [
+            {
+              field: "data.companyInfo.description",
+              code: "KNOWLEDGE_VALIDATION_INPUT_INVALID",
+              message: "The company description is invalid.",
+            },
+          ],
+        },
+      },
+    });
+  });
+
+  await page.goto(`${webBase}/onboarding`, { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+
+  await expect(page.getByText("The company description is invalid.")).toBeVisible();
+  const companyDescription = page.getByLabel("About the company");
+  await expect(companyDescription).toHaveAttribute("aria-invalid", "true");
+  await expect(companyDescription).toBeFocused();
+  await expect(page.getByTestId("onboarding-persistence-error")).toHaveCount(0);
+
+  await companyDescription.fill("Corrected company description");
+  await expect(page.getByText("The company description is invalid.")).toHaveCount(0);
+});
+
 test("onboarding ignores profile ETags from workflow, completion, and navigation responses", async ({
   context,
   page,
@@ -957,16 +1153,19 @@ test("onboarding ignores profile ETags from workflow, completion, and navigation
   await page.getByRole("button", { name: /Customer support/ }).click();
   await page.getByRole("button", { name: "Next", exact: true }).click();
 
-  await expect(page.getByRole("heading", { name: "What is your business called?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Tell us about your business" })).toBeVisible();
   const companyName = page.getByPlaceholder("For example: Aura Beauty Studio");
+  const companyDescription = page.getByLabel("About the company");
   await companyName.fill("First fenced profile save");
+  await companyDescription.fill("Context preserved across profile saves.");
   await page.getByRole("button", { name: "Next", exact: true }).click();
 
   await expect(page.getByRole("heading", { name: "Where should leads go?" })).toBeVisible();
   expect(profileIfMatches).toEqual(['"business-profile-onboarding-1"']);
 
   await page.getByRole("button", { name: "Back", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "What is your business called?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Tell us about your business" })).toBeVisible();
+  await expect(companyDescription).toHaveValue("Context preserved across profile saves.");
   await companyName.fill("Second fenced profile save");
   await page.getByRole("button", { name: "Next", exact: true }).click();
 

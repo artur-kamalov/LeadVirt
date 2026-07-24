@@ -96,6 +96,112 @@ const capabilityFixMessagesRu: Record<keyof typeof capabilityFixMessagesEn, stri
   "knowledge.capability.action.details": "Открыть настройку",
 };
 
+const quickStartMessagesEn = {
+  "knowledge.quickStart.title": "Get useful replies live first",
+  "knowledge.quickStart.badge": "Quick start",
+  "knowledge.quickStart.description":
+    "Add the business name and one useful context item. LeadVirt configures safe reply functions; advanced workflows can wait until after launch.",
+  "knowledge.quickStart.safety":
+    "The assistant answers only from confirmed business context. It does not invent missing prices or availability and cannot book, access accounts, or give regulated advice in starter mode.",
+  "knowledge.quickStart.step.business": "Confirm the business basics",
+  "knowledge.quickStart.step.businessDescription":
+    "The business name identifies the assistant, but is not enough for useful customer replies.",
+  "knowledge.quickStart.step.context": "Add useful business context",
+  "knowledge.quickStart.step.contextDescription":
+    "Add a short description, website, or price list. At least one is required before applying the recommended reply settings.",
+  "knowledge.quickStart.step.activate": "Use the recommended reply settings",
+  "knowledge.quickStart.step.activateDescription":
+    "This configures safe reply functions only. You will still review and publish before customers use them.",
+  "knowledge.quickStart.optional": "Recommended",
+  "knowledge.quickStart.required": "Required",
+  "knowledge.quickStart.contextComplete": "Useful context added",
+  "knowledge.quickStart.complete": "Basics confirmed",
+  "knowledge.quickStart.applied": "Recommended settings applied",
+  "knowledge.quickStart.reversible":
+    "These settings remain editable. Applying the preset does not change business data, publish the draft, or activate a channel.",
+  "knowledge.quickStart.permission":
+    "An owner or admin must complete the reply settings and publication. You can still add business context.",
+  "knowledge.quickStart.action.business": "Add business basics",
+  "knowledge.quickStart.action.context": "Add short description",
+  "knowledge.quickStart.action.ownerRequired": "Owner or admin required",
+  "knowledge.quickStart.action.website": "Add website",
+  "knowledge.quickStart.action.priceList": "Add price list",
+  "knowledge.quickStart.action.apply": "Apply recommended settings",
+  "knowledge.quickStart.action.review": "Review before launch: {count}",
+  "knowledge.quickStart.action.publish": "Review and publish",
+  "knowledge.quickStart.action.test": "Test a reply",
+  "knowledge.quickStart.action.activateReplies": "Activate customer replies",
+  "knowledge.quickStart.applyError":
+    "Starter mode was not applied. Current settings were reloaded; retry when ready.",
+  "knowledge.quickStart.advanced.title": "Advanced workflows",
+  "knowledge.quickStart.advanced.enabled": "{count} enabled",
+  "knowledge.quickStart.advanced.description":
+    "Lead qualification, booking actions, account access, and regulated topics need explicit setup. Configure them after the basic assistant is live.",
+  "knowledge.quickStart.settings.title": "Advanced AI settings",
+  "knowledge.quickStart.settings.description":
+    "Review individual reply functions and permissions. This is not required for the basic launch.",
+  "knowledge.quickStart.improvements.title": "Improve answers later",
+  "knowledge.quickStart.improvements.description":
+    "These recommendations can improve answer coverage later. They do not block the minimum launch.",
+  "knowledge.quickStart.confirm.title": "Apply recommended reply settings?",
+  "knowledge.quickStart.confirm.description":
+    "General questions, Pricing, Appointment discovery, and Product recommendations will be enabled in Answer only mode. Lead qualification, Appointment booking, Order and account support, and Regulated topics will be turned off. Business information and channel connections will not change. Review and publication are still required.",
+  "knowledge.quickStart.confirm.apply": "Apply recommended settings",
+} as const;
+
+const quickStartMessagesRu: Record<keyof typeof quickStartMessagesEn, string> = {
+  "knowledge.quickStart.title": "Сначала запустите полезные ответы",
+  "knowledge.quickStart.badge": "Быстрый старт",
+  "knowledge.quickStart.description":
+    "Добавьте название бизнеса и один полезный источник контекста. LeadVirt настроит безопасные ответы, а сложные сценарии можно подключить позже.",
+  "knowledge.quickStart.safety":
+    "Ассистент отвечает только по подтверждённой информации. Он не придумывает цены и доступность, не создаёт записи, не открывает данные аккаунтов и не консультирует по регулируемым темам.",
+  "knowledge.quickStart.step.business": "Подтвердите основную информацию",
+  "knowledge.quickStart.step.businessDescription":
+    "Название идентифицирует ассистента, но его недостаточно для полезных ответов клиентам.",
+  "knowledge.quickStart.step.context": "Добавьте контекст бизнеса",
+  "knowledge.quickStart.step.contextDescription":
+    "Добавьте короткое описание, сайт или прайс-лист. Хотя бы один вариант обязателен перед применением рекомендуемых настроек.",
+  "knowledge.quickStart.step.activate": "Используйте рекомендуемые настройки ответов",
+  "knowledge.quickStart.step.activateDescription":
+    "Это настроит только безопасные функции ответов. До общения с клиентами останется проверить и опубликовать версию.",
+  "knowledge.quickStart.optional": "Рекомендуется",
+  "knowledge.quickStart.required": "Обязательно",
+  "knowledge.quickStart.contextComplete": "Контекст добавлен",
+  "knowledge.quickStart.complete": "Основные данные подтверждены",
+  "knowledge.quickStart.applied": "Рекомендуемые настройки применены",
+  "knowledge.quickStart.reversible":
+    "Эти настройки можно менять. Шаблон не изменяет данные бизнеса, не публикует версию и не включает канал.",
+  "knowledge.quickStart.permission":
+    "Завершить настройку ответов и публикацию может только владелец или администратор. Вы можете добавить контекст бизнеса.",
+  "knowledge.quickStart.action.business": "Добавить данные бизнеса",
+  "knowledge.quickStart.action.context": "Добавить короткое описание",
+  "knowledge.quickStart.action.ownerRequired": "Нужен владелец или администратор",
+  "knowledge.quickStart.action.website": "Добавить сайт",
+  "knowledge.quickStart.action.priceList": "Добавить прайс-лист",
+  "knowledge.quickStart.action.apply": "Применить рекомендуемые настройки",
+  "knowledge.quickStart.action.review": "Проверить перед запуском: {count}",
+  "knowledge.quickStart.action.publish": "Проверить и опубликовать",
+  "knowledge.quickStart.action.test": "Проверить ответ",
+  "knowledge.quickStart.action.activateReplies": "Включить ответы клиентам",
+  "knowledge.quickStart.applyError":
+    "Стартовый режим не применён. Текущие настройки обновлены; повторите попытку.",
+  "knowledge.quickStart.advanced.title": "Расширенные сценарии",
+  "knowledge.quickStart.advanced.enabled": "Включено: {count}",
+  "knowledge.quickStart.advanced.description":
+    "Квалификация лидов, создание записей, доступ к заказам и регулируемые темы требуют отдельной настройки. Подключите их после запуска базового ассистента.",
+  "knowledge.quickStart.settings.title": "Расширенные настройки AI",
+  "knowledge.quickStart.settings.description":
+    "Здесь можно изменить отдельные функции ответов и разрешения. Для базового запуска это необязательно.",
+  "knowledge.quickStart.improvements.title": "Улучшить ответы позже",
+  "knowledge.quickStart.improvements.description":
+    "Эти рекомендации можно выполнить позже для более полных ответов. Они не блокируют минимальный запуск.",
+  "knowledge.quickStart.confirm.title": "Применить рекомендуемые настройки ответов?",
+  "knowledge.quickStart.confirm.description":
+    "«Общие вопросы», «Цены», «Подбор услуг» и «Рекомендации товаров» будут включены в режиме «Только отвечать». «Квалификация лидов», «Создание записей», «Поддержка заказов и аккаунтов» и «Регулируемые темы» будут выключены. Данные бизнеса и подключения каналов не изменятся. Проверка и публикация всё равно потребуются.",
+  "knowledge.quickStart.confirm.apply": "Применить рекомендуемые настройки",
+};
+
 const capabilityRequirementLabelsEn = {
   "knowledge.capability.requirement.business_identity": "Business name and basic information",
   "knowledge.capability.requirement.contact_route": "Contact route to a team member",
@@ -184,6 +290,7 @@ const capabilityRequirementLabelsRu: Record<keyof typeof capabilityRequirementLa
 const en = {
   ...capabilityFixMessagesEn,
   ...capabilityRequirementLabelsEn,
+  ...quickStartMessagesEn,
   "knowledge.common.close": "Close",
   "knowledge.common.cancel": "Cancel",
   "knowledge.common.tryAgain": "Try again",
@@ -297,9 +404,9 @@ const en = {
   "knowledge.capability.servingDescription":
     "This fixed set is currently available in customer replies.",
   "knowledge.capability.servingEmpty": "No capabilities are active in the published version.",
-  "knowledge.capability.draftTitle": "AI functions and readiness",
+  "knowledge.capability.draftTitle": "Reply functions",
   "knowledge.capability.draftDescription":
-    "Enable only the functions you need. Open a blocked row to see the exact setup steps.",
+    "Safe starter functions are shown first. Missing context can be added after launch; action-taking workflows stay under Advanced.",
   "knowledge.capability.readOnly":
     "Only workspace owners and administrators can change these settings.",
   "knowledge.capability.loadError": "Capability settings could not be loaded.",
@@ -476,6 +583,7 @@ export type KnowledgeTranslationKey = keyof typeof en;
 const ru: Record<KnowledgeTranslationKey, string> = {
   ...capabilityFixMessagesRu,
   ...capabilityRequirementLabelsRu,
+  ...quickStartMessagesRu,
   "knowledge.common.close": "Закрыть",
   "knowledge.common.cancel": "Отмена",
   "knowledge.common.tryAgain": "Повторить",
@@ -590,9 +698,9 @@ const ru: Record<KnowledgeTranslationKey, string> = {
   "knowledge.capability.servingDescription":
     "Этот неизменяемый набор сейчас доступен в ответах клиентам.",
   "knowledge.capability.servingEmpty": "В опубликованной версии нет активных возможностей.",
-  "knowledge.capability.draftTitle": "Функции AI и готовность",
+  "knowledge.capability.draftTitle": "Функции ответов",
   "knowledge.capability.draftDescription":
-    "Включайте только нужные функции. Откройте заблокированную строку, чтобы увидеть точные шаги настройки.",
+    "Безопасные стартовые функции показаны первыми. Недостающий контекст можно добавить после запуска, а сценарии с действиями находятся в расширенных настройках.",
   "knowledge.capability.readOnly":
     "Изменять эти настройки могут только владельцы и администраторы пространства.",
   "knowledge.capability.loadError": "Не удалось загрузить настройки возможностей.",
@@ -773,6 +881,7 @@ const ru: Record<KnowledgeTranslationKey, string> = {
 const es: Record<KnowledgeTranslationKey, string> = {
   ...capabilityFixMessagesEn,
   ...capabilityRequirementLabelsEn,
+  ...quickStartMessagesEn,
   "knowledge.common.close": "Cerrar",
   "knowledge.common.cancel": "Cancelar",
   "knowledge.common.tryAgain": "Intentar de nuevo",
@@ -1071,6 +1180,7 @@ const es: Record<KnowledgeTranslationKey, string> = {
 const fr: Record<KnowledgeTranslationKey, string> = {
   ...capabilityFixMessagesEn,
   ...capabilityRequirementLabelsEn,
+  ...quickStartMessagesEn,
   "knowledge.common.close": "Fermer",
   "knowledge.common.cancel": "Annuler",
   "knowledge.common.tryAgain": "Réessayer",
@@ -1368,6 +1478,7 @@ const fr: Record<KnowledgeTranslationKey, string> = {
 const de: Record<KnowledgeTranslationKey, string> = {
   ...capabilityFixMessagesEn,
   ...capabilityRequirementLabelsEn,
+  ...quickStartMessagesEn,
   "knowledge.common.close": "Schließen",
   "knowledge.common.cancel": "Abbrechen",
   "knowledge.common.tryAgain": "Erneut versuchen",
@@ -1669,6 +1780,7 @@ const de: Record<KnowledgeTranslationKey, string> = {
 const pt: Record<KnowledgeTranslationKey, string> = {
   ...capabilityFixMessagesEn,
   ...capabilityRequirementLabelsEn,
+  ...quickStartMessagesEn,
   "knowledge.common.close": "Fechar",
   "knowledge.common.cancel": "Cancelar",
   "knowledge.common.tryAgain": "Tentar novamente",

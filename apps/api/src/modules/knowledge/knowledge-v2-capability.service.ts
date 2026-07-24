@@ -12,6 +12,7 @@ import {
   type KnowledgeCapabilityEvidenceV1,
   type KnowledgeCapabilityLocaleConstraintsV1,
   type KnowledgeOperationalCapabilityProjectionV1,
+  type KnowledgeCapabilityRequirementDefinitionV1,
   type KnowledgeCapabilityScopeV1,
   type KnowledgeCapabilitySnapshotV1,
   type KnowledgeCapabilityTypeV1,
@@ -69,6 +70,7 @@ const capabilityInclude = {
 type CapabilityRecord = Prisma.KnowledgeV2CapabilityGetPayload<{
   include: typeof capabilityInclude;
 }>;
+type RequirementDefinitionRecord = CapabilityRecord["requirementDefinitions"][number];
 
 export interface KnowledgeV2CapabilityEvidenceSelection {
   factVersionIds: string[];
@@ -111,6 +113,68 @@ function capabilityEtag(record: Pick<CapabilityRecord, "id" | "etag">) {
   return strongKnowledgeV2Etag("capability", record.id, record.etag);
 }
 
+function currentRequirementDefinitions(record: CapabilityRecord) {
+  const selected = new Map<string, RequirementDefinitionRecord>();
+  for (const definition of record.requirementDefinitions) {
+    const current = selected.get(definition.requirementKey);
+    if (
+      !current ||
+      (definition.tenantOverride && !current.tenantOverride) ||
+      (definition.tenantOverride === current.tenantOverride &&
+        definition.definitionVersion > current.definitionVersion)
+    ) {
+      selected.set(definition.requirementKey, definition);
+    }
+  }
+  return [...selected.values()].sort((left, right) =>
+    left.requirementKey.localeCompare(right.requirementKey),
+  );
+}
+
+function requirementDefinitionHashValue(
+  definition: RequirementDefinitionRecord | KnowledgeCapabilityRequirementDefinitionV1,
+) {
+  return {
+    schemaVersion: 1,
+    requirementKey: definition.requirementKey,
+    definitionVersion: definition.definitionVersion,
+    predicateVersion: definition.predicateVersion,
+    kind: definition.kind,
+    severity: definition.severity,
+    riskLevel: definition.riskLevel,
+    active: definition.active,
+    requiredScope: definition.requiredScope,
+    localeConstraints: definition.localeConstraints,
+    freshnessSlaSeconds: definition.freshnessSlaSeconds ?? null,
+    satisfactionPredicate: definition.satisfactionPredicate,
+    templateOrigin: definition.templateOrigin,
+    tenantOverride: definition.tenantOverride,
+  };
+}
+
+function hasExactCurrentRequirements(
+  record: CapabilityRecord,
+  desired: readonly KnowledgeCapabilityRequirementDefinitionV1[],
+) {
+  const current = currentRequirementDefinitions(record);
+  if (current.length !== desired.length) return false;
+  const desiredByKey = new Map(
+    desired.map((requirement) => [requirement.requirementKey, requirement]),
+  );
+  return current.every((definition) => {
+    const requirement = desiredByKey.get(definition.requirementKey);
+    if (!requirement) return false;
+    const expectedDefinitionHash = canonicalKnowledgeV2Hash(
+      requirementDefinitionHashValue(requirement),
+    );
+    return (
+      definition.immutableHash === canonicalKnowledgeV2Hash(requirement) &&
+      canonicalKnowledgeV2Hash(requirementDefinitionHashValue(definition)) ===
+        expectedDefinitionHash
+    );
+  });
+}
+
 function capabilityView(record: CapabilityRecord): KnowledgeV2CapabilityView {
   return {
     id: record.id,
@@ -129,6 +193,39 @@ function capabilityView(record: CapabilityRecord): KnowledgeV2CapabilityView {
   };
 }
 
+function capabilityListView(records: CapabilityRecord[]): KnowledgeV2CapabilityListView {
+  const definitions = definitionsFromRecords(records);
+  const capabilityIds = Object.fromEntries(
+    records.map((capability) => [capability.capabilityType, capability.id]),
+  ) as Partial<Record<KnowledgeCapabilityTypeV1, string>>;
+  const starterDefaults = buildDefaultKnowledgeCapabilityDefinitionsV1({ capabilityIds });
+  const recordsByType = new Map(
+    records.map((capability) => [capability.capabilityType, capability]),
+  );
+  const exactCapabilityState =
+    records.length === starterDefaults.length &&
+    starterDefaults.every((desired) => {
+      const current = recordsByType.get(desired.capabilityType);
+      return (
+        current?.enabled === desired.enabled && current.allowedAutonomy === desired.allowedAutonomy
+      );
+    });
+  const platformPolicyPresent = starterDefaults.every((desired) => {
+    const current = recordsByType.get(desired.capabilityType);
+    return current ? hasExactCurrentRequirements(current, desired.requirements) : false;
+  });
+  return {
+    targetKey,
+    capabilitySetHash: hashKnowledgeCapabilitySetV1(definitions),
+    starterPreset: {
+      id: "SAFE_ANSWER_STARTER_V1",
+      policyVersion: 2,
+      applied: exactCapabilityState && platformPolicyPresent,
+    },
+    items: records.map(capabilityView),
+  };
+}
+
 function definitionsFromRecords(records: CapabilityRecord[]): KnowledgeCapabilityDefinitionV1[] {
   return records.map((record) => ({
     schemaVersion: 1,
@@ -144,7 +241,7 @@ function definitionsFromRecords(records: CapabilityRecord[]): KnowledgeCapabilit
     weight: 100,
     requiredScope: scopeOrNull(record.scope),
     localeConstraints: null,
-    requirements: record.requirementDefinitions.map((definition) => ({
+    requirements: currentRequirementDefinitions(record).map((definition) => ({
       schemaVersion: 1,
       requirementKey: definition.requirementKey,
       definitionVersion: definition.definitionVersion,
@@ -353,6 +450,15 @@ function capabilityGates(
   );
 }
 
+function deferredCapabilityGates(
+  capabilities: readonly KnowledgeV2CapabilityReadinessView[],
+): KnowledgeV2PublicationGateView[] {
+  return capabilityGates(capabilities, "BLOCKER").map((gate) => ({
+    ...gate,
+    status: "WARNING",
+  }));
+}
+
 function unique(values: string[]) {
   return [...new Set(values)].sort();
 }
@@ -408,13 +514,142 @@ export class KnowledgeV2CapabilityService {
   async listCapabilities(context: RequestContext): Promise<KnowledgeV2CapabilityListView> {
     return this.prisma.$transaction(async (tx) => {
       const records = await this.loadRecords(tx, context.tenantId);
-      const definitions = definitionsFromRecords(records);
-      return {
-        targetKey,
-        capabilitySetHash: hashKnowledgeCapabilitySetV1(definitions),
-        items: records.map(capabilityView),
-      };
+      return capabilityListView(records);
     });
+  }
+
+  async applyStarterPreset(
+    context: RequestContext,
+    idempotencyKey: string,
+  ): Promise<KnowledgeV2MutationResult<KnowledgeV2CapabilityListView>> {
+    const result = await this.idempotency.execute(
+      {
+        tenantId: context.tenantId,
+        endpoint: "POST:/knowledge/v2/capabilities/presets/starter",
+        key: idempotencyKey,
+        request: { preset: "SAFE_ANSWER_STARTER_V1" },
+      },
+      async (tx) => {
+        await lockKnowledgeCorpusTransition(tx, context.tenantId);
+        const policyUpgrade = await this.applyStarterPolicyDefaults(tx, context.tenantId);
+        await tx.$queryRaw(Prisma.sql`
+          SELECT "id"
+          FROM "KnowledgeV2Capability"
+          WHERE "tenantId" = ${context.tenantId}
+            AND "targetKey" = ${targetKey}
+          ORDER BY "id"
+          FOR UPDATE
+        `);
+        const current = await tx.knowledgeV2Capability.findMany({
+          where: { tenantId: context.tenantId, targetKey },
+          include: capabilityInclude,
+          orderBy: [{ capabilityType: "asc" }, { id: "asc" }],
+        });
+        const defaults = buildDefaultKnowledgeCapabilityDefinitionsV1({
+          tenantId: context.tenantId,
+          capabilityIds: Object.fromEntries(
+            current.map((capability) => [capability.capabilityType, capability.id]),
+          ),
+        });
+        const desiredByType = new Map(
+          defaults.map((capability) => [capability.capabilityType, capability]),
+        );
+        const changed = current.filter((capability) => {
+          const desired = desiredByType.get(capability.capabilityType);
+          return (
+            desired &&
+            (capability.enabled !== desired.enabled ||
+              capability.allowedAutonomy !== desired.allowedAutonomy)
+          );
+        });
+        const capabilityChanges = [
+          ...policyUpgrade.insertedCapabilityTypes.map((capabilityType) => {
+            const desired = desiredByType.get(capabilityType)!;
+            return {
+              capabilityType,
+              previous: null,
+              next: {
+                enabled: desired.enabled,
+                allowedAutonomy: desired.allowedAutonomy,
+              },
+            };
+          }),
+          ...changed.map((capability) => {
+            const desired = desiredByType.get(capability.capabilityType)!;
+            return {
+              capabilityType: capability.capabilityType,
+              previous: {
+                enabled: capability.enabled,
+                allowedAutonomy: capability.allowedAutonomy,
+              },
+              next: {
+                enabled: desired.enabled,
+                allowedAutonomy: desired.allowedAutonomy,
+              },
+            };
+          }),
+        ];
+        for (const capability of changed) {
+          const desired = desiredByType.get(capability.capabilityType)!;
+          await tx.knowledgeV2Capability.update({
+            where: { id: capability.id },
+            data: {
+              enabled: desired.enabled,
+              allowedAutonomy: desired.allowedAutonomy,
+              generation: { increment: 1 },
+              etag: { increment: 1 },
+              updatedByUserId: context.userId,
+            },
+          });
+        }
+        if (changed.length > 0 || policyUpgrade.upgraded) {
+          await this.advanceCapabilityDraft(tx, context.tenantId);
+          await this.revokeAutomaticReplies(tx, context.tenantId);
+          await tx.auditLog.create({
+            data: {
+              tenantId: context.tenantId,
+              actorUserId: context.userId,
+              action: "knowledge.v2.capability_starter_preset_applied",
+              entityType: "knowledge_capability_preset",
+              entityId: targetKey,
+              payload: {
+                preset: "SAFE_ANSWER_STARTER_V1",
+                changedCapabilityTypes: capabilityChanges.map(
+                  (capability) => capability.capabilityType,
+                ),
+                changes: capabilityChanges,
+                policyUpgrade: policyUpgrade.upgraded
+                  ? {
+                      previousDefinitionVersions: policyUpgrade.previousDefinitionVersions,
+                      insertedCapabilityTypes: policyUpgrade.insertedCapabilityTypes,
+                      insertedRequirementDefinitions: policyUpgrade.insertedRequirementDefinitions,
+                      activeDefinitionVersion: 2,
+                    }
+                  : null,
+                automaticRepliesRevoked: true,
+              },
+            },
+          });
+        }
+        const updated = await tx.knowledgeV2Capability.findMany({
+          where: { tenantId: context.tenantId, targetKey },
+          include: capabilityInclude,
+          orderBy: [{ capabilityType: "asc" }, { id: "asc" }],
+        });
+        return {
+          httpStatus: HttpStatus.OK,
+          responseBody: {
+            resource: capabilityListView(updated),
+            idempotencyReplayed: false,
+          },
+          responseRef: targetKey,
+        };
+      },
+    );
+    return {
+      resource: result.responseBody.resource,
+      idempotencyReplayed: result.idempotencyReplayed,
+    };
   }
 
   async updateCapability(
@@ -450,7 +685,6 @@ export class KnowledgeV2CapabilityService {
       },
       async (tx) => {
         await lockKnowledgeCorpusTransition(tx, context.tenantId);
-        await this.ensureDefaults(tx, context.tenantId);
         await tx.$queryRaw(Prisma.sql`
           SELECT "id"
           FROM "KnowledgeV2Capability"
@@ -497,31 +731,7 @@ export class KnowledgeV2CapabilityService {
             })
           : current;
         if (changed) {
-          await tx.knowledgeV2Settings.upsert({
-            where: { tenantId: context.tenantId },
-            create: { tenantId: context.tenantId, draftGeneration: 2, etag: 2 },
-            update: { draftGeneration: { increment: 1 }, etag: { increment: 1 } },
-          });
-          const validationWhere = {
-            tenantId: context.tenantId,
-            targetKey,
-            corpusKind: "STRUCTURED_V2" as const,
-            publicationId: null,
-          };
-          await tx.knowledgeV2PublicationValidation.updateMany({
-            where: {
-              ...validationWhere,
-              status: "PENDING",
-            },
-            data: { status: "EXPIRED", evaluatedAt: new Date() },
-          });
-          await tx.knowledgeV2PublicationValidation.updateMany({
-            where: {
-              ...validationWhere,
-              status: "PASSED",
-            },
-            data: { status: "EXPIRED" },
-          });
+          await this.advanceCapabilityDraft(tx, context.tenantId);
           await this.revokeAutomaticReplies(tx, context.tenantId);
           await tx.auditLog.create({
             data: {
@@ -577,19 +787,35 @@ export class KnowledgeV2CapabilityService {
       capabilities: definitions,
       evidence: evidenceBundle.evidence,
     });
-    const enabledCapabilityBlockers: KnowledgeV2PublicationGateView[] = snapshot.capabilities.some(
-      (capability) => capability.enabled,
-    )
-      ? []
-      : [
-          {
-            code: "KNOWLEDGE_CAPABILITY_ENABLED_REQUIRED",
-            status: "BLOCKED",
-            title: "Enable a customer capability",
-            message: "Enable at least one customer capability before validating this draft.",
-            resource: { type: "CAPABILITY", id: targetKey },
-          },
-        ];
+    const enabledCapabilities = snapshot.capabilities.filter((capability) => capability.enabled);
+    const executableCapabilities = enabledCapabilities.filter(
+      (capability) => capability.executable,
+    );
+    const enabledCapabilityBlockers: KnowledgeV2PublicationGateView[] =
+      enabledCapabilities.length > 0
+        ? []
+        : [
+            {
+              code: "KNOWLEDGE_CAPABILITY_ENABLED_REQUIRED",
+              status: "BLOCKED",
+              title: "Enable a customer capability",
+              message: "Enable at least one customer capability before validating this draft.",
+              resource: { type: "CAPABILITY", id: targetKey },
+            },
+          ];
+    const readyCapabilityBlockers: KnowledgeV2PublicationGateView[] =
+      enabledCapabilities.length > 0 && executableCapabilities.length === 0
+        ? [
+            {
+              code: "KNOWLEDGE_CAPABILITY_READY_REQUIRED",
+              status: "BLOCKED",
+              title: "Prepare one safe customer capability",
+              message:
+                "At least one enabled capability must be safe to answer before publishing this draft.",
+              resource: { type: "CAPABILITY", id: targetKey },
+            },
+          ]
+        : [];
     const operationalBlockers: KnowledgeV2PublicationGateView[] =
       evidenceBundle.operationalProjection.permissionGeneration === null
         ? [
@@ -609,12 +835,8 @@ export class KnowledgeV2CapabilityService {
       definitions,
       records,
       views,
-      blockers: [
-        ...enabledCapabilityBlockers,
-        ...operationalBlockers,
-        ...capabilityGates(views, "BLOCKER"),
-      ],
-      warnings: capabilityGates(views, "WARNING"),
+      blockers: [...enabledCapabilityBlockers, ...readyCapabilityBlockers, ...operationalBlockers],
+      warnings: [...deferredCapabilityGates(views), ...capabilityGates(views, "WARNING")],
     };
   }
 
@@ -626,7 +848,7 @@ export class KnowledgeV2CapabilityService {
   ) {
     const definitionByKey = new Map(
       bundle.records.flatMap((capability) =>
-        capability.requirementDefinitions.map(
+        currentRequirementDefinitions(capability).map(
           (definition) => [`${capability.id}:${definition.requirementKey}`, definition] as const,
         ),
       ),
@@ -859,8 +1081,10 @@ export class KnowledgeV2CapabilityService {
     },
   ) {
     const recordById = new Map(input.bundle.records.map((record) => [record.id, record]));
-    const enabled = input.bundle.snapshot.capabilities.filter((capability) => capability.enabled);
-    if (enabled.length === 0) {
+    const executable = input.bundle.snapshot.capabilities.filter(
+      (capability) => capability.executable,
+    );
+    if (executable.length === 0) {
       throw knowledgeV2Error(
         HttpStatus.CONFLICT,
         "KNOWLEDGE_VALIDATION_CAPABILITY_ENABLED_REQUIRED",
@@ -878,7 +1102,7 @@ export class KnowledgeV2CapabilityService {
       if (typeof hash === "string") persistedCapabilityHashes.set(evaluation.capabilityId, hash);
     }
     await tx.knowledgePublicationCapability.createMany({
-      data: enabled.map((capability) => {
+      data: executable.map((capability) => {
         const record = recordById.get(capability.capabilityId);
         const persistedEvaluationHash = persistedCapabilityHashes.get(capability.capabilityId);
         if (!record || !persistedEvaluationHash) {
@@ -909,7 +1133,9 @@ export class KnowledgeV2CapabilityService {
     db: Prisma.TransactionClient | PrismaService,
     tenantId: string,
   ): Promise<CapabilityRecord[]> {
-    await this.ensureDefaults(db, tenantId);
+    if (db instanceof PrismaService) {
+      return db.$transaction((tx) => this.loadRecords(tx, tenantId));
+    }
     return db.knowledgeV2Capability.findMany({
       where: { tenantId, targetKey },
       include: capabilityInclude,
@@ -917,22 +1143,43 @@ export class KnowledgeV2CapabilityService {
     });
   }
 
-  private async ensureDefaults(db: Prisma.TransactionClient | PrismaService, tenantId: string) {
+  private async applyStarterPolicyDefaults(
+    db: Prisma.TransactionClient,
+    tenantId: string,
+  ): Promise<{
+    upgraded: boolean;
+    insertedCapabilityTypes: KnowledgeCapabilityTypeV1[];
+    insertedRequirementDefinitions: number;
+    previousDefinitionVersions: number[];
+  }> {
     const defaults = buildDefaultKnowledgeCapabilityDefinitionsV1({ tenantId });
-    await db.knowledgeV2Capability.createMany({
-      data: defaults.map((definition) => ({
-        id: definition.capabilityId,
-        tenantId,
-        capabilityType: definition.capabilityType,
-        targetKey,
-        enabled: definition.enabled,
-        allowedAutonomy: definition.allowedAutonomy,
-        templateKey: definition.templateKey,
-        templateVersion: definition.templateVersion,
-        serverOwned: definition.serverOwned,
-      })),
-      skipDuplicates: true,
+    const existingCapabilities = await db.knowledgeV2Capability.findMany({
+      where: { tenantId, targetKey },
+      select: { id: true, capabilityType: true },
     });
+    const existingCapabilityTypes = new Set(
+      existingCapabilities.map((capability) => capability.capabilityType),
+    );
+    const missingDefaults = defaults.filter(
+      (definition) => !existingCapabilityTypes.has(definition.capabilityType),
+    );
+    const capabilityDefaultsToInsert = missingDefaults;
+    if (capabilityDefaultsToInsert.length > 0) {
+      await db.knowledgeV2Capability.createMany({
+        data: capabilityDefaultsToInsert.map((definition) => ({
+          id: definition.capabilityId,
+          tenantId,
+          capabilityType: definition.capabilityType,
+          targetKey,
+          enabled: definition.enabled,
+          allowedAutonomy: definition.allowedAutonomy,
+          templateKey: definition.templateKey,
+          templateVersion: definition.templateVersion,
+          serverOwned: definition.serverOwned,
+        })),
+        skipDuplicates: true,
+      });
+    }
     const capabilities = await db.knowledgeV2Capability.findMany({
       where: { tenantId, targetKey },
       select: { id: true, capabilityType: true },
@@ -950,6 +1197,13 @@ export class KnowledgeV2CapabilityService {
     const completeDefaults = buildDefaultKnowledgeCapabilityDefinitionsV1({
       tenantId,
       capabilityIds,
+    }).filter((capability) => capabilityIds[capability.capabilityType]);
+    const existingRequirements = await db.knowledgeV2RequirementDefinition.findMany({
+      where: {
+        tenantId,
+        capabilityId: { in: capabilities.map((capability) => capability.id) },
+      },
+      select: { id: true, definitionVersion: true },
     });
     const requirementDefaults = completeDefaults.flatMap((capability) => {
       const capabilityId = capabilityIds[capability.capabilityType]!;
@@ -981,41 +1235,41 @@ export class KnowledgeV2CapabilityService {
         immutableHash: canonicalKnowledgeV2Hash(requirement),
       }));
     });
-    await db.knowledgeV2RequirementDefinition.createMany({
+    const insertedRequirements = await db.knowledgeV2RequirementDefinition.createMany({
       data: requirementDefaults,
       skipDuplicates: true,
     });
-    const persistedRequirements = await db.knowledgeV2RequirementDefinition.findMany({
-      where: {
-        tenantId,
-        capabilityId: { in: capabilities.map((capability) => capability.id) },
-      },
-      select: {
-        capabilityId: true,
-        requirementKey: true,
-        definitionVersion: true,
-      },
+    const reconciledCapabilities = await db.knowledgeV2Capability.findMany({
+      where: { tenantId, targetKey },
+      include: capabilityInclude,
+      orderBy: [{ capabilityType: "asc" }, { id: "asc" }],
     });
-    const persistedRequirementKeys = new Set(
-      persistedRequirements.map(
-        (requirement) =>
-          `${requirement.capabilityId}:${requirement.requirementKey}:${requirement.definitionVersion}`,
-      ),
+    const desiredByType = new Map(
+      completeDefaults.map((capability) => [capability.capabilityType, capability]),
     );
-    if (
-      requirementDefaults.some(
-        (requirement) =>
-          !persistedRequirementKeys.has(
-            `${requirement.capabilityId}:${requirement.requirementKey}:${requirement.definitionVersion}`,
-          ),
-      )
-    ) {
+    const requirementsComplete =
+      reconciledCapabilities.length === completeDefaults.length &&
+      reconciledCapabilities.every((capability) => {
+        const desired = desiredByType.get(capability.capabilityType);
+        return desired ? hasExactCurrentRequirements(capability, desired.requirements) : false;
+      });
+    if (!requirementsComplete) {
       throw knowledgeV2Error(
         HttpStatus.INTERNAL_SERVER_ERROR,
         "KNOWLEDGE_DEPENDENCY_CAPABILITY_SNAPSHOT_INVALID",
         "Default capability requirements could not be reconciled.",
       );
     }
+    return {
+      upgraded: capabilityDefaultsToInsert.length > 0 || insertedRequirements.count > 0,
+      insertedCapabilityTypes: capabilityDefaultsToInsert.map(
+        (capability) => capability.capabilityType,
+      ),
+      insertedRequirementDefinitions: insertedRequirements.count,
+      previousDefinitionVersions: [
+        ...new Set(existingRequirements.map((requirement) => requirement.definitionVersion)),
+      ].sort((left, right) => left - right),
+    };
   }
 
   private async evidence(
@@ -1327,5 +1581,27 @@ export class KnowledgeV2CapabilityService {
         AND "channelId" IN (${Prisma.join(channelIds)})
         AND "deletedAt" IS NULL
     `);
+  }
+
+  private async advanceCapabilityDraft(tx: Prisma.TransactionClient, tenantId: string) {
+    await tx.knowledgeV2Settings.upsert({
+      where: { tenantId },
+      create: { tenantId, draftGeneration: 2, etag: 2 },
+      update: { draftGeneration: { increment: 1 }, etag: { increment: 1 } },
+    });
+    const validationWhere = {
+      tenantId,
+      targetKey,
+      corpusKind: "STRUCTURED_V2" as const,
+      publicationId: null,
+    };
+    await tx.knowledgeV2PublicationValidation.updateMany({
+      where: { ...validationWhere, status: "PENDING" },
+      data: { status: "EXPIRED", evaluatedAt: new Date() },
+    });
+    await tx.knowledgeV2PublicationValidation.updateMany({
+      where: { ...validationWhere, status: "PASSED" },
+      data: { status: "EXPIRED" },
+    });
   }
 }

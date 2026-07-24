@@ -83,7 +83,7 @@ type PendingReconciliation = {
   versionId: string;
   versionNumber: number;
   versionHash: string;
-  action: "CREATE" | "UPDATE" | "DISABLE";
+  action: "CREATE" | "UPDATE" | "VERIFY" | "DISABLE";
   semanticKey: string;
   sourceValueHash: string;
 };
@@ -279,9 +279,32 @@ export class KnowledgeV2OnboardingProjectionService {
       throw new Error("KNOWLEDGE_DEPENDENCY_ONBOARDING_FACT_HEAD_INVALID");
     }
     const archived = !spec.value;
-    const material = archived
+    const baseMaterial = archived
       ? this.factMaterialFromVersion(previous!)
       : this.factMaterial(spec.value, locale, spec.audience, spec.riskLevel);
+    const directOwnerVerification =
+      !archived &&
+      (fieldChanged || !existing) &&
+      (context.role === "OWNER" || context.role === "ADMIN") &&
+      (baseMaterial.riskLevel === "LOW" || baseMaterial.riskLevel === "MEDIUM");
+    const preservesOwnerVerification =
+      !archived &&
+      previous?.verificationStatus === "VERIFIED" &&
+      previous.authority === "OWNER_VERIFIED" &&
+      Boolean(previous.verifiedByUserId) &&
+      Boolean(previous.verifiedAt) &&
+      this.factMaterialContentHash(previous) === this.factMaterialContentHash(baseMaterial);
+    const ownerVerified = directOwnerVerification || preservesOwnerVerification;
+    const material: FactMaterial = {
+      ...baseMaterial,
+      ...(preservesOwnerVerification
+        ? {
+            effectiveFrom: previous.effectiveFrom,
+            effectiveUntil: previous.effectiveUntil,
+          }
+        : {}),
+      authority: ownerVerified ? "OWNER_VERIFIED" : baseMaterial.authority,
+    };
     if (existing) {
       const materialIsCurrent =
         existing.deletedAt === null &&
@@ -309,6 +332,17 @@ export class KnowledgeV2OnboardingProjectionService {
 
     const versionNumber = (existing?.latestVersionNumber ?? 0) + 1;
     const createdAt = new Date();
+    const verificationStatus = ownerVerified ? "VERIFIED" : "UNVERIFIED";
+    const verifiedByUserId = directOwnerVerification
+      ? context.userId
+      : ownerVerified
+        ? previous!.verifiedByUserId
+        : null;
+    const verifiedAt = directOwnerVerification
+      ? createdAt
+      : ownerVerified
+        ? previous!.verifiedAt
+        : null;
     const evidence = this.evidence(context, spec, locale);
     const fact = existing
       ? existing
@@ -329,9 +363,12 @@ export class KnowledgeV2OnboardingProjectionService {
       versionNumber,
       material,
       lifecycleStatus: archived ? "ARCHIVED" : "DRAFT",
+      verificationStatus,
       changeReason: archived ? "Removed from onboarding" : "Updated from onboarding",
       supersedesVersionId: previous?.id ?? null,
       createdByUserId: context.userId,
+      verifiedByUserId,
+      verifiedAt,
       createdAt,
       evidence,
     });
@@ -374,11 +411,13 @@ export class KnowledgeV2OnboardingProjectionService {
         riskLevel: material.riskLevel,
         authority: material.authority,
         lifecycleStatus: archived ? "ARCHIVED" : "DRAFT",
-        verificationStatus: "UNVERIFIED",
+        verificationStatus,
         changeReason: archived ? "Removed from onboarding" : "Updated from onboarding",
         supersedesVersionId: previous?.id ?? null,
         immutableHash,
         createdByUserId: context.userId,
+        verifiedByUserId,
+        verifiedAt,
         createdAt,
       },
     });
@@ -395,7 +434,7 @@ export class KnowledgeV2OnboardingProjectionService {
         versionId: version.id,
         versionNumber,
         versionHash: immutableHash,
-        action: existing ? "UPDATE" : "CREATE",
+        action: ownerVerified ? "VERIFY" : existing ? "UPDATE" : "CREATE",
         semanticKey: spec.semanticKey,
         sourceValueHash: this.valueHash(spec.value),
       },
@@ -937,9 +976,12 @@ export class KnowledgeV2OnboardingProjectionService {
     versionNumber: number;
     material: FactMaterial;
     lifecycleStatus: "DRAFT" | "ARCHIVED";
+    verificationStatus: "UNVERIFIED" | "VERIFIED";
     changeReason: string;
     supersedesVersionId: string | null;
     createdByUserId: string;
+    verifiedByUserId: string | null;
+    verifiedAt: Date | null;
     createdAt: Date;
     evidence: ProjectionEvidence;
   }) {
@@ -965,14 +1007,14 @@ export class KnowledgeV2OnboardingProjectionService {
       riskLevel: input.material.riskLevel,
       authority: input.material.authority,
       lifecycleStatus: input.lifecycleStatus,
-      verificationStatus: "UNVERIFIED",
+      verificationStatus: input.verificationStatus,
       extractionConfidence: input.material.extractionConfidence,
       extractionModelVersion: input.material.extractionModelVersion,
       changeReason: input.changeReason,
       supersedesVersionId: input.supersedesVersionId,
       createdByUserId: input.createdByUserId,
-      verifiedByUserId: null,
-      verifiedAt: null,
+      verifiedByUserId: input.verifiedByUserId,
+      verifiedAt: dateValue(input.verifiedAt),
       rejectedByUserId: null,
       rejectedAt: null,
       createdAt: input.createdAt.toISOString(),
@@ -1038,6 +1080,23 @@ export class KnowledgeV2OnboardingProjectionService {
       effectiveUntil: dateValue(value.effectiveUntil),
       riskLevel: value.riskLevel,
       authority: value.authority,
+      extractionConfidence: value.extractionConfidence,
+      extractionModelVersion: value.extractionModelVersion,
+    });
+  }
+
+  private factMaterialContentHash(value: FactVersion | FactMaterial) {
+    return canonicalKnowledgeV2Hash({
+      normalizedValue: value.normalizedValue,
+      displayValue: value.displayValue,
+      localizedValues: value.localizedValues,
+      unit: value.unit,
+      currency: value.currency,
+      timeZone: value.timeZone,
+      locale: value.locale,
+      localeBehavior: value.localeBehavior,
+      scope: value.scope,
+      riskLevel: value.riskLevel,
       extractionConfidence: value.extractionConfidence,
       extractionModelVersion: value.extractionModelVersion,
     });

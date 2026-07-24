@@ -66,7 +66,7 @@ import { KnowledgeV2TestRunService } from "./knowledge-v2-test-run.service.js";
 const targetKey = "workspace-v2";
 const corpusKind = "STRUCTURED_V2";
 const pipelineVersion = "knowledge-v2";
-const validationPolicyVersion = "structured-v2-capability-snapshot-v1";
+const validationPolicyVersion = "structured-v2-capability-snapshot-v2";
 const validationTtlMs = 15 * 60 * 1000;
 const activationDeadlineMs = 30 * 60 * 1000;
 
@@ -246,12 +246,12 @@ function capabilitySnapshotsMatch(
   publication: PublicationRecord,
   evaluation: KnowledgeV2CapabilityEvaluationBundle,
 ) {
-  const enabled = evaluation.snapshot.capabilities.filter((capability) => capability.enabled);
-  if (enabled.length !== publication.capabilitySnapshots.length) return false;
+  const executable = evaluation.snapshot.capabilities.filter((capability) => capability.executable);
+  if (executable.length !== publication.capabilitySnapshots.length) return false;
   const snapshotsById = new Map(
     publication.capabilitySnapshots.map((snapshot) => [snapshot.capabilityId, snapshot]),
   );
-  return enabled.every((capability) => {
+  return executable.every((capability) => {
     const snapshot = snapshotsById.get(capability.capabilityId);
     return (
       snapshot?.capabilityType === capability.capabilityType &&
@@ -3064,10 +3064,7 @@ export class KnowledgeV2PublicationService {
             "High-risk facts require owner-verified authority, evidence, and a future expiry.",
             resource,
             {
-              task:
-                fact.entityType === "BUSINESS_OFFERING"
-                  ? "verify-services"
-                  : "verify-fact",
+              task: fact.entityType === "BUSINESS_OFFERING" ? "verify-services" : "verify-fact",
             },
           ),
         );

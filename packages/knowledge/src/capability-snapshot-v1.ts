@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { compareKnowledgeCanonicalText } from "./canonical-order.js";
 
 export const KNOWLEDGE_CAPABILITY_SNAPSHOT_V1_EVALUATOR_VERSION =
-  "knowledge-capability-snapshot-v1" as const;
+  "knowledge-capability-snapshot-v2" as const;
 export const KNOWLEDGE_CAPABILITY_REQUIREMENT_PREDICATE_V1 = "knowledge-requirement-v1" as const;
 export const KNOWLEDGE_CAPABILITY_TENANT_SUPPORTED_LOCALES_V1 = "TENANT_SUPPORTED" as const;
 
@@ -1470,11 +1470,13 @@ export function evaluateKnowledgeCapabilitySnapshotV1(
           : warningCount > 0
             ? "READY_WITH_WARNINGS"
             : "READY";
+      const executable = capability.enabled && status !== "BLOCKED";
       const capabilityHash = sha256(definitionHashValue(capability));
       const evaluationValue = {
         capabilityId: capability.capabilityId,
         capabilityHash,
         status,
+        executable,
         blockerCount,
         warningCount,
         configurationErrors: sortedUnique(configurationErrors),
@@ -1487,7 +1489,7 @@ export function evaluateKnowledgeCapabilitySnapshotV1(
         name: capability.name,
         enabled: capability.enabled,
         allowedAutonomy: capability.allowedAutonomy,
-        executable: capability.enabled,
+        executable,
         weight: capability.weight,
         status,
         configurationHash: capabilityHash,
@@ -1509,15 +1511,17 @@ export function evaluateKnowledgeCapabilitySnapshotV1(
       })),
     ),
   });
-  const executable = capabilities.filter((capability) => capability.executable);
-  const blockerCount = executable.reduce((sum, capability) => sum + capability.blockerCount, 0);
-  const warningCount = executable.reduce((sum, capability) => sum + capability.warningCount, 0);
+  const enabled = capabilities.filter((capability) => capability.enabled);
+  const executable = enabled.filter((capability) => capability.executable);
+  const blockerCount = enabled.reduce((sum, capability) => sum + capability.blockerCount, 0);
+  const warningCount = enabled.reduce((sum, capability) => sum + capability.warningCount, 0);
   const executableStatus: KnowledgeCapabilityReadinessStatusV1 =
-    executable.length === 0
+    enabled.length === 0
       ? "NOT_APPLICABLE"
-      : executable.some((capability) => capability.status === "BLOCKED")
+      : executable.length === 0
         ? "BLOCKED"
-        : executable.some((capability) => capability.status === "READY_WITH_WARNINGS")
+        : blockerCount > 0 ||
+            executable.some((capability) => capability.status === "READY_WITH_WARNINGS")
           ? "READY_WITH_WARNINGS"
           : "READY";
   const capabilitySetHash = hashKnowledgeCapabilitySetV1(input.capabilities);
@@ -1528,7 +1532,12 @@ export function evaluateKnowledgeCapabilitySnapshotV1(
     capabilitySetHash,
     requirementEvaluationSetHash,
     capabilityEvaluationHashes: capabilities.map((capability) => capability.evaluationHash),
-    executableStatus,
+    executableReadiness: {
+      status: executableStatus,
+      capabilityIds: executable.map((capability) => capability.capabilityId),
+      blockerCount,
+      warningCount,
+    },
   };
   return {
     schemaVersion: 1,
@@ -1560,7 +1569,7 @@ export interface KnowledgeCapabilityDefaultTemplateV1 {
 export interface KnowledgeCapabilityDefaultRequirementTemplateV1 {
   capabilityType: KnowledgeCapabilityTypeV1;
   requirementKey: string;
-  definitionVersion: 1;
+  definitionVersion: 2;
   kind: KnowledgeCapabilityRequirementKindV1;
   severity: KnowledgeCapabilityRequirementSeverityV1;
   riskLevel: KnowledgeCapabilityRiskLevelV1;
@@ -1570,7 +1579,7 @@ export interface KnowledgeCapabilityDefaultRequirementTemplateV1 {
   localeConstraints: null;
   satisfactionPredicate: KnowledgeCapabilityRequirementPredicateV1;
   predicateVersion: typeof KNOWLEDGE_CAPABILITY_REQUIREMENT_PREDICATE_V1;
-  templateOrigin: "PLATFORM_V1";
+  templateOrigin: "PLATFORM_V2";
   tenantOverride: false;
 }
 
@@ -1585,11 +1594,18 @@ const capabilityTemplateRows = [
   ["REGULATED_TOPIC", "platform.capability.regulated-topic"],
 ] as const satisfies readonly (readonly [KnowledgeCapabilityTypeV1, string])[];
 
+const safeLaunchCapabilityTypes = new Set<KnowledgeCapabilityTypeV1>([
+  "GENERAL_FAQ",
+  "PRICING",
+  "APPOINTMENT_DISCOVERY",
+  "COMMERCE_RECOMMENDATION",
+]);
+
 export const KNOWLEDGE_CAPABILITY_DEFAULT_TEMPLATES_V1: readonly KnowledgeCapabilityDefaultTemplateV1[] =
   capabilityTemplateRows.map(([capabilityType, templateKey]) => ({
     capabilityType,
     targetKey: "workspace-v2",
-    enabled: capabilityType === "GENERAL_FAQ",
+    enabled: safeLaunchCapabilityTypes.has(capabilityType),
     allowedAutonomy: "ANSWER_ONLY",
     templateKey,
     templateVersion: 1,
@@ -1615,7 +1631,7 @@ const requirementTemplateRows = [
     "GENERAL_FAQ",
     "business_identity",
     "FACT",
-    "BLOCKER",
+    "WARNING",
     "LOW",
     "FACT_KEY_EQUALS",
     ["business/name"],
@@ -1654,7 +1670,7 @@ const requirementTemplateRows = [
     "GENERAL_FAQ",
     "escalation_route",
     "RULE",
-    "BLOCKER",
+    "WARNING",
     "MEDIUM",
     "RULE_TYPE_IN",
     ["ESCALATION"],
@@ -1680,7 +1696,7 @@ const requirementTemplateRows = [
     "LEAD_QUALIFICATION",
     "qualification_fields",
     "FACT",
-    "BLOCKER",
+    "WARNING",
     "MEDIUM",
     "FACT_KEY_PREFIX",
     ["lead/qualification/"],
@@ -1693,7 +1709,7 @@ const requirementTemplateRows = [
     "LEAD_QUALIFICATION",
     "disqualifier_rules",
     "RULE",
-    "BLOCKER",
+    "WARNING",
     "HIGH",
     "RULE_TYPE_IN",
     ["PROHIBITION"],
@@ -1719,7 +1735,7 @@ const requirementTemplateRows = [
     "LEAD_QUALIFICATION",
     "routing_rules",
     "RULE",
-    "BLOCKER",
+    "WARNING",
     "MEDIUM",
     "RULE_TYPE_IN",
     ["ESCALATION"],
@@ -1732,7 +1748,7 @@ const requirementTemplateRows = [
     "PRICING",
     "structured_price",
     "FACT",
-    "BLOCKER",
+    "WARNING",
     "HIGH",
     "FIELD_TYPE_IN",
     ["MONEY"],
@@ -1745,7 +1761,7 @@ const requirementTemplateRows = [
     "PRICING",
     "pricing_conditions",
     "FACT",
-    "BLOCKER",
+    "WARNING",
     "HIGH",
     "FACT_KEY_PREFIX",
     ["pricing/"],
@@ -1758,7 +1774,7 @@ const requirementTemplateRows = [
     "PRICING",
     "quote_policy",
     "RULE",
-    "BLOCKER",
+    "WARNING",
     "HIGH",
     "RULE_TYPE_IN",
     ["APPROVAL", "PROHIBITION"],
@@ -1784,7 +1800,7 @@ const requirementTemplateRows = [
     "APPOINTMENT_DISCOVERY",
     "service_details",
     "FACT",
-    "BLOCKER",
+    "WARNING",
     "MEDIUM",
     "FACT_KEY_PREFIX",
     ["service/"],
@@ -1797,7 +1813,7 @@ const requirementTemplateRows = [
     "APPOINTMENT_DISCOVERY",
     "business_hours",
     "FACT",
-    "BLOCKER",
+    "WARNING",
     "MEDIUM",
     "FACT_KEY_PREFIX",
     ["location/"],
@@ -1810,7 +1826,7 @@ const requirementTemplateRows = [
     "APPOINTMENT_DISCOVERY",
     "booking_policy",
     "RULE",
-    "BLOCKER",
+    "WARNING",
     "HIGH",
     "RULE_TYPE_IN",
     ["APPROVAL", "PROHIBITION"],
@@ -1823,7 +1839,7 @@ const requirementTemplateRows = [
     "APPOINTMENT_DISCOVERY",
     "calendar_connector",
     "CONNECTOR",
-    "BLOCKER",
+    "WARNING",
     "HIGH",
     "CONNECTOR_CONNECTED",
     ["calendar"],
@@ -1836,7 +1852,7 @@ const requirementTemplateRows = [
     "APPOINTMENT_DISCOVERY",
     "availability_tool",
     "TOOL",
-    "BLOCKER",
+    "WARNING",
     "HIGH",
     "TOOL_AVAILABLE",
     ["calendar.availability"],
@@ -1979,7 +1995,7 @@ const requirementTemplateRows = [
     "COMMERCE_RECOMMENDATION",
     "product_attributes",
     "FACT",
-    "BLOCKER",
+    "WARNING",
     "MEDIUM",
     "FACT_KEY_PREFIX",
     ["product/"],
@@ -1992,7 +2008,7 @@ const requirementTemplateRows = [
     "COMMERCE_RECOMMENDATION",
     "commerce_policies",
     "RULE",
-    "BLOCKER",
+    "WARNING",
     "HIGH",
     "RULE_TYPE_IN",
     ["APPROVAL", "PROHIBITION"],
@@ -2098,7 +2114,7 @@ export const KNOWLEDGE_CAPABILITY_DEFAULT_REQUIREMENT_TEMPLATES_V1: readonly Kno
     ]) => ({
       capabilityType,
       requirementKey,
-      definitionVersion: 1,
+      definitionVersion: 2,
       kind,
       severity,
       riskLevel,
@@ -2115,7 +2131,7 @@ export const KNOWLEDGE_CAPABILITY_DEFAULT_REQUIREMENT_TEMPLATES_V1: readonly Kno
         ...(maxAgeSeconds === null ? {} : { maxAgeSeconds }),
       },
       predicateVersion: KNOWLEDGE_CAPABILITY_REQUIREMENT_PREDICATE_V1,
-      templateOrigin: "PLATFORM_V1",
+      templateOrigin: "PLATFORM_V2",
       tenantOverride: false,
     }),
   );

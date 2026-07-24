@@ -402,7 +402,67 @@ async function main() {
       step: "crm",
       data: { crm: "none" },
     });
+    const preLaunchState = await prisma.onboardingState.findUniqueOrThrow({
+      where: { tenantId: advanceTenant.id },
+    });
+    const preLaunchData = record(preLaunchState.data);
+    const preLaunchCompany = record(preLaunchData.companyInfo);
+    await prisma.onboardingState.update({
+      where: { tenantId: advanceTenant.id },
+      data: {
+        data: {
+          ...preLaunchData,
+          companyInfo: { ...preLaunchCompany, description: "" },
+        } as Prisma.InputJsonObject,
+      },
+    });
+    let missingDescriptionLaunchError: unknown;
+    try {
+      await onboarding.advance(advanceContext, { step: "launch", data: {} });
+    } catch (error) {
+      missingDescriptionLaunchError = error;
+    }
+    const missingDescriptionResponse =
+      typeof missingDescriptionLaunchError === "object" &&
+      missingDescriptionLaunchError !== null &&
+      "getResponse" in missingDescriptionLaunchError &&
+      typeof missingDescriptionLaunchError.getResponse === "function"
+        ? record(missingDescriptionLaunchError.getResponse())
+        : {};
+    assert(
+      missingDescriptionResponse.code === "ONBOARDING_STEP_INCOMPLETE" &&
+        missingDescriptionResponse.field === "data.companyInfo.description",
+      "Fresh launch did not reject the missing short description with a field error.",
+    );
+    const stateAfterRejectedLaunch = await prisma.onboardingState.findUniqueOrThrow({
+      where: { tenantId: advanceTenant.id },
+    });
+    assert(
+      stateAfterRejectedLaunch.completedAt === null,
+      "Rejected launch persisted onboarding completion.",
+    );
+    await prisma.onboardingState.update({
+      where: { tenantId: advanceTenant.id },
+      data: { data: preLaunchData as Prisma.InputJsonObject },
+    });
     const launched = await onboarding.advance(advanceContext, { step: "launch", data: {} });
+    const launchedData = record(launched.data);
+    await prisma.onboardingState.update({
+      where: { tenantId: advanceTenant.id },
+      data: {
+        data: {
+          ...launchedData,
+          companyInfo: {
+            ...record(launchedData.companyInfo),
+            description: "",
+          },
+        } as Prisma.InputJsonObject,
+      },
+    });
+    const legacyLaunchReplay = await onboarding.advance(advanceContext, {
+      step: "launch",
+      data: {},
+    });
     const replayed = await onboarding.advance(advanceContext, {
       step: "scenario",
       data: { scenario: "support" },
@@ -431,11 +491,15 @@ async function main() {
       replayed.currentStep === "launch" && replayed.completedAt === launched.completedAt,
       "An older-step replay regressed or recompleted onboarding.",
     );
+    assert(
+      legacyLaunchReplay.completedAt === launched.completedAt,
+      "A completed legacy workspace could not replay launch without a description.",
+    );
 
     console.log(
       JSON.stringify({
         ok: true,
-        assertions: 37,
+        assertions: 40,
         sources: sources.length,
         audits: auditCount,
         outboxEvents: outboxCount,

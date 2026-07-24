@@ -407,6 +407,7 @@ function KnowledgeView({
         canPublish={overview.permissions.canPublish}
         canRollback={overview.permissions.canRollback}
         readiness={overview.readiness}
+        task={task}
         onNavigate={onNavigate}
         onChanged={onChanged}
       />

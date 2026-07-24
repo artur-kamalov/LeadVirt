@@ -40,13 +40,14 @@ export interface DashboardReadinessSnapshot {
 }
 
 export type DashboardReadinessDetail =
-  | { kind: "profile_complete" }
+  | { kind: "profile_minimum_ready" }
   | { kind: "profile_missing"; count: number }
   | { kind: "knowledge_complete" }
   | { kind: "knowledge_review"; count: number }
   | { kind: "knowledge_blocked"; count: number }
   | { kind: "knowledge_updating" }
   | { kind: "test_complete" }
+  | { kind: "test_not_required" }
   | { kind: "test_incomplete" }
   | { kind: "publish_complete" }
   | { kind: "publish_incomplete" }
@@ -138,19 +139,9 @@ function hasText(value: string | null | undefined) {
   return Boolean(value?.trim());
 }
 
-function countMissingProfileSections(profile: BusinessProfileData) {
-  const hasCoreProfile = hasText(profile.name) && hasText(profile.description);
-  const hasServices = profile.services.some((service) => hasText(service.name));
-  const hasSchedule = profile.weeklySchedule.some((entry) => entry.enabled);
-
-  return [
-    hasCoreProfile,
-    hasServices,
-    hasSchedule,
-    hasText(profile.faq),
-    hasText(profile.policies),
-    hasText(profile.escalationRules),
-  ].filter((complete) => !complete).length;
+function countMissingLaunchProfileFields(profile: BusinessProfileData) {
+  return [hasText(profile.name), hasText(profile.description)].filter((complete) => !complete)
+    .length;
 }
 
 function profileAssessment(
@@ -159,9 +150,9 @@ function profileAssessment(
   if (profile.state === "unavailable") {
     return { evidence: "needs_check", detail: { kind: "needs_check" } };
   }
-  const missing = countMissingProfileSections(profile.value.profile);
+  const missing = countMissingLaunchProfileFields(profile.value.profile);
   return missing === 0
-    ? { evidence: "complete", detail: { kind: "profile_complete" } }
+    ? { evidence: "complete", detail: { kind: "profile_minimum_ready" } }
     : { evidence: "incomplete", detail: { kind: "profile_missing", count: missing } };
 }
 
@@ -173,8 +164,15 @@ function knowledgeAssessment(
   }
 
   const readiness = knowledge.value.readiness;
-  if (readiness.status === "UPDATING" || readiness.draft.status === "PROCESSING") {
+  if (readiness.draft.status === "PROCESSING") {
     return { evidence: "incomplete", detail: { kind: "knowledge_updating" } };
+  }
+  const draftBlockerCount = readiness.draft.blockers?.length ?? 0;
+  if (readiness.draft.status === "FAILED" || draftBlockerCount > 0) {
+    return {
+      evidence: "incomplete",
+      detail: { kind: "knowledge_blocked", count: Math.max(1, draftBlockerCount) },
+    };
   }
   if (readiness.needsReviewCount > 0) {
     return {
@@ -182,18 +180,7 @@ function knowledgeAssessment(
       detail: { kind: "knowledge_review", count: readiness.needsReviewCount },
     };
   }
-  if (
-    readiness.blockerCount > 0 ||
-    readiness.status === "BLOCKED" ||
-    readiness.status === "NEEDS_REVIEW" ||
-    readiness.draft.status === "FAILED"
-  ) {
-    return {
-      evidence: "incomplete",
-      detail: { kind: "knowledge_blocked", count: Math.max(1, readiness.blockerCount) },
-    };
-  }
-  if (readiness.status === "READY" || readiness.status === "READY_WITH_WARNINGS") {
+  if (readiness.draft.status === "UP_TO_DATE" || readiness.draft.status === "CHANGES_PENDING") {
     return { evidence: "complete", detail: { kind: "knowledge_complete" } };
   }
   return { evidence: "needs_check", detail: { kind: "needs_check" } };
@@ -212,7 +199,7 @@ function testAssessment(
       : [],
   );
   if (requirements.length === 0) {
-    return { evidence: "needs_check", detail: { kind: "needs_check" } };
+    return { evidence: "complete", detail: { kind: "test_not_required" } };
   }
 
   const complete =

@@ -1,8 +1,9 @@
 import "reflect-metadata";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { loadEnvFile } from "@leadvirt/config";
-import { prisma } from "@leadvirt/db";
+import { Prisma, prisma } from "@leadvirt/db";
 import {
+  KNOWLEDGE_CAPABILITY_SNAPSHOT_V1_EVALUATOR_VERSION,
   buildDefaultKnowledgeCapabilityDefinitionsV1,
   hashKnowledgeCapabilitySetV1,
   loadKnowledgeOperationalCapabilityProjectionV1,
@@ -24,7 +25,7 @@ process.env.PORT = "4001";
 const apiOrigin = "http://localhost:4001";
 const apiBaseUrl = `${apiOrigin}/api`;
 const targetKey = "workspace-v2";
-const validationPolicyVersion = "structured-v2-capability-snapshot-v1";
+const validationPolicyVersion = "structured-v2-capability-snapshot-v2";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -129,6 +130,7 @@ async function main() {
   const suffix = `${Date.now()}-${randomUUID().slice(0, 8)}`;
   const userIds: string[] = [];
   let tenantId: string | null = null;
+  let legacyTenantId: string | null = null;
 
   try {
     const tenant = await prisma.tenant.create({
@@ -192,13 +194,58 @@ async function main() {
       );
     }
     assert(
-      (await prisma.knowledgeV2Capability.count({ where: { tenantId: tenant.id } })) === 8,
-      "Concurrent overview initialization did not create exactly 8 capabilities.",
+      (await prisma.knowledgeV2Capability.count({ where: { tenantId: tenant.id } })) === 0,
+      "Capability overview created policy rows during a read.",
     );
     assert(
       (await prisma.knowledgeV2RequirementDefinition.count({ where: { tenantId: tenant.id } })) ===
-        36,
-      "Concurrent overview initialization did not create exactly 36 requirements.",
+        0,
+      "Capability overview created requirement rows during a read.",
+    );
+
+    const emptyList = await request("/knowledge/v2/capabilities", {
+      headers: { cookie: manager.cookie },
+    });
+    const emptyListData = data(emptyList);
+    assert(
+      asRecords(emptyListData.items, "empty capability list").length === 0 &&
+        asRecord(emptyListData.starterPreset, "empty starter preset").applied === false,
+      "A zero-row tenant did not expose the unapplied starter state.",
+    );
+    const emptyPatch = await request("/knowledge/v2/capabilities/GENERAL_FAQ", {
+      method: "PATCH",
+      headers: {
+        cookie: owner.cookie,
+        "if-match": '"kv2-missing"',
+        "idempotency-key": `capability-empty-patch-${suffix}`,
+      },
+      body: JSON.stringify({ enabled: true }),
+    });
+    expectError(emptyPatch, 404, "KNOWLEDGE_DEPENDENCY_CAPABILITY_NOT_FOUND");
+    assert(
+      (await prisma.knowledgeV2Capability.count({ where: { tenantId: tenant.id } })) === 0 &&
+        (await prisma.knowledgeV2RequirementDefinition.count({
+          where: { tenantId: tenant.id },
+        })) === 0,
+      "A zero-row PATCH created capability policy.",
+    );
+
+    const initialPresetKey = `capability-initial-starter-${suffix}`;
+    const initialPreset = await request("/knowledge/v2/capabilities/presets/starter", {
+      method: "POST",
+      headers: { cookie: owner.cookie, "idempotency-key": initialPresetKey },
+    });
+    const initialPresetData = data(initialPreset);
+    assert(
+      initialPresetData.idempotencyReplayed === false,
+      "Initial starter preset was incorrectly reported as a replay.",
+    );
+    assert(
+      (await prisma.knowledgeV2Capability.count({ where: { tenantId: tenant.id } })) === 8 &&
+        (await prisma.knowledgeV2RequirementDefinition.count({
+          where: { tenantId: tenant.id },
+        })) === 36,
+      "Explicit starter preset did not create the complete policy.",
     );
 
     const firstList = await request("/knowledge/v2/capabilities", {
@@ -206,7 +253,14 @@ async function main() {
     });
     const firstListData = data(firstList);
     const firstItems = asRecords(firstListData.items, "capability list");
+    const freshStarterPreset = asRecord(firstListData.starterPreset, "fresh starter preset");
     assert(firstListData.targetKey === targetKey, "Capability list target is incorrect.");
+    assert(
+      freshStarterPreset.id === "SAFE_ANSWER_STARTER_V1" &&
+        freshStarterPreset.policyVersion === 2 &&
+        freshStarterPreset.applied === true,
+      "Explicitly initialized tenant does not report the applied starter policy.",
+    );
     assert(
       firstListData.capabilitySetHash === expectedCapabilitySetHash,
       "Default capability hash is not deterministic.",
@@ -244,8 +298,12 @@ async function main() {
       "GENERAL_FAQ must be enabled by default.",
     );
     assert(
-      firstItems.filter((item) => item.enabled === true).length === 1,
-      "Only GENERAL_FAQ may be enabled by default.",
+      firstItems
+        .filter((item) => item.enabled === true)
+        .map((item) => String(item.capabilityType))
+        .sort()
+        .join(",") === "APPOINTMENT_DISCOVERY,COMMERCE_RECOMMENDATION,GENERAL_FAQ,PRICING",
+      "The safe answer-only starter capabilities are not enabled by default.",
     );
 
     const secondList = await request("/knowledge/v2/capabilities", {
@@ -253,7 +311,7 @@ async function main() {
     });
     assert(
       JSON.stringify(secondList.payload) === JSON.stringify(firstList.payload),
-      "Repeated default seeding changed the list response.",
+      "Repeated capability reads changed the list response.",
     );
     assert(
       (await prisma.knowledgeV2RequirementDefinition.count({ where: { tenantId: tenant.id } })) ===
@@ -310,8 +368,10 @@ async function main() {
     });
     expectError(missingIfMatch, 428, "KNOWLEDGE_VALIDATION_PRECONDITION_REQUIRED");
 
-    const settingsBefore = await prisma.knowledgeV2Settings.create({
-      data: { tenantId: tenant.id, draftGeneration: 7, etag: 11 },
+    const settingsBefore = await prisma.knowledgeV2Settings.upsert({
+      where: { tenantId: tenant.id },
+      create: { tenantId: tenant.id, draftGeneration: 7, etag: 11 },
+      update: { draftGeneration: 7, etag: 11 },
     });
     const capabilityRecord = await prisma.knowledgeV2Capability.findUniqueOrThrow({
       where: {
@@ -417,7 +477,7 @@ async function main() {
           remediation: null,
           capabilityEvaluationHash: servingCapabilityEvaluationHash,
         },
-        evaluatorVersion: "knowledge-capability-snapshot-v1",
+        evaluatorVersion: KNOWLEDGE_CAPABILITY_SNAPSHOT_V1_EVALUATOR_VERSION,
         immutableHash: canonicalKnowledgeV2Hash({
           validationId: servingValidation.id,
           requirementDefinitionId: requirement.id,
@@ -834,12 +894,565 @@ async function main() {
       serving.capabilitySetHash !== draft.capabilitySetHash,
       "Serving and draft readiness collapsed into one snapshot.",
     );
+    const draftCapabilityBlockers = asRecords(draft.blockers, "draft blockers").filter((item) =>
+      String(item.code).startsWith("KNOWLEDGE_CAPABILITY_"),
+    );
+    assert(
+      draftCapabilityBlockers.length === 0,
+      "Safe answer-only capability setup was exposed as a publication blocker.",
+    );
+    for (const capabilityType of [
+      "GENERAL_FAQ",
+      "PRICING",
+      "APPOINTMENT_DISCOVERY",
+      "COMMERCE_RECOMMENDATION",
+    ]) {
+      assert(
+        capability(draftCapabilities, capabilityType).status === "READY_WITH_WARNINGS",
+        `${capabilityType} is not launchable with safe runtime fallback.`,
+      );
+    }
+    assert(
+      asRecords(draft.warnings, "draft warnings").some((item) =>
+        String(item.code).startsWith("KNOWLEDGE_CAPABILITY_"),
+      ),
+      "Optional capability improvements were not retained as readiness warnings.",
+    );
+
+    const managerPresetDenied = await request("/knowledge/v2/capabilities/presets/starter", {
+      method: "POST",
+      headers: {
+        cookie: manager.cookie,
+        "idempotency-key": `capability-starter-manager-${suffix}`,
+      },
+    });
+    expectError(managerPresetDenied, 403);
+    const missingPresetIdempotency = await request("/knowledge/v2/capabilities/presets/starter", {
+      method: "POST",
+      headers: { cookie: owner.cookie },
+    });
+    expectError(missingPresetIdempotency, 400, "KNOWLEDGE_VALIDATION_IDEMPOTENCY_KEY_REQUIRED");
+    const presetKey = `capability-starter-${suffix}`;
+    const preset = await request("/knowledge/v2/capabilities/presets/starter", {
+      method: "POST",
+      headers: { cookie: owner.cookie, "idempotency-key": presetKey },
+    });
+    const presetData = data(preset);
+    const presetResource = asRecord(presetData.resource, "starter preset resource");
+    const presetItems = asRecords(presetResource.items, "starter preset capabilities");
+    const enabledPresetTypes = presetItems
+      .filter((item) => item.enabled === true)
+      .map((item) => String(item.capabilityType))
+      .sort();
+    assert(
+      enabledPresetTypes.join(",") ===
+        "APPOINTMENT_DISCOVERY,COMMERCE_RECOMMENDATION,GENERAL_FAQ,PRICING",
+      "Starter preset did not apply the safe capability set atomically.",
+    );
+    assert(
+      presetItems.every((item) => item.allowedAutonomy === "ANSWER_ONLY"),
+      "Starter preset left a capability above answer-only autonomy.",
+    );
+    assert(
+      presetResource.capabilitySetHash === expectedCapabilitySetHash,
+      "Starter preset did not restore the deterministic default hash.",
+    );
+    assert(
+      asRecord(presetResource.starterPreset, "applied starter preset").applied === true,
+      "Starter preset response did not report the exact applied state.",
+    );
+    const presetSettings = await prisma.knowledgeV2Settings.findUniqueOrThrow({
+      where: { tenantId: tenant.id },
+    });
+    assert(
+      presetSettings.draftGeneration === 9 && presetSettings.etag === 13,
+      "Starter preset did not advance the draft exactly once.",
+    );
+    const presetAudit = await prisma.auditLog.findFirstOrThrow({
+      where: {
+        tenantId: tenant.id,
+        action: "knowledge.v2.capability_starter_preset_applied",
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    const presetChanges = asRecords(
+      asRecord(presetAudit.payload, "starter preset audit").changes,
+      "starter preset audit changes",
+    );
+    const faqPresetChange = presetChanges.find((item) => item.capabilityType === "GENERAL_FAQ");
+    assert(faqPresetChange, "Starter preset audit omitted the changed FAQ capability.");
+    assert(
+      asRecord(faqPresetChange.previous, "starter preset previous state").allowedAutonomy ===
+        "COLLECT_INFORMATION" &&
+        asRecord(faqPresetChange.next, "starter preset next state").allowedAutonomy ===
+          "ANSWER_ONLY",
+      "Starter preset audit did not persist exact previous and next values.",
+    );
+    const presetReplay = await request("/knowledge/v2/capabilities/presets/starter", {
+      method: "POST",
+      headers: { cookie: owner.cookie, "idempotency-key": presetKey },
+    });
+    const presetReplayData = data(presetReplay);
+    assert(
+      presetReplayData.idempotencyReplayed === true,
+      "Starter preset replay was not idempotent.",
+    );
+    const replayedPresetSettings = await prisma.knowledgeV2Settings.findUniqueOrThrow({
+      where: { tenantId: tenant.id },
+    });
+    assert(
+      replayedPresetSettings.draftGeneration === 9 && replayedPresetSettings.etag === 13,
+      "Starter preset replay advanced the draft twice.",
+    );
+
+    const legacyTenant = await prisma.tenant.create({
+      data: {
+        name: "Capability policy reconciliation smoke",
+        slug: `capability-policy-reconciliation-${suffix}`,
+        timezone: "Europe/Paris",
+      },
+    });
+    legacyTenantId = legacyTenant.id;
+    await prisma.membership.create({
+      data: { tenantId: legacyTenant.id, userId: owner.user.id, role: "OWNER" },
+    });
+    const legacySessionToken = `lv-capability-legacy-${randomBytes(32).toString("hex")}`;
+    await prisma.authSession.create({
+      data: {
+        tenantId: legacyTenant.id,
+        userId: owner.user.id,
+        tokenHash: hashSecret(legacySessionToken),
+        expiresAt: new Date(Date.now() + 60 * 60_000),
+        ipAddress: "127.0.0.1",
+        userAgent: "knowledge-v2-capability-policy-reconciliation-smoke",
+      },
+    });
+    const legacyCookie = cookie(legacySessionToken);
+    const platformV2Defaults = buildDefaultKnowledgeCapabilityDefinitionsV1({
+      tenantId: legacyTenant.id,
+    });
+    await prisma.knowledgeV2Capability.createMany({
+      data: platformV2Defaults.map((capabilityDefinition) => ({
+        id: capabilityDefinition.capabilityId,
+        tenantId: legacyTenant.id,
+        capabilityType: capabilityDefinition.capabilityType,
+        targetKey,
+        enabled: capabilityDefinition.enabled,
+        allowedAutonomy: "ANSWER_ONLY" as const,
+        templateKey: capabilityDefinition.templateKey,
+        templateVersion: capabilityDefinition.templateVersion,
+        serverOwned: true,
+      })),
+    });
+    const legacyCapabilities = await prisma.knowledgeV2Capability.findMany({
+      where: { tenantId: legacyTenant.id, targetKey },
+      orderBy: { capabilityType: "asc" },
+    });
+    const legacyCapabilityByType = new Map(
+      legacyCapabilities.map((capabilityRecord) => [
+        capabilityRecord.capabilityType,
+        capabilityRecord,
+      ]),
+    );
+    await prisma.knowledgeV2RequirementDefinition.createMany({
+      data: platformV2Defaults.flatMap((capabilityDefinition) => {
+        const capabilityRecord = legacyCapabilityByType.get(capabilityDefinition.capabilityType)!;
+        return capabilityDefinition.requirements.map((requirement) => {
+          const legacyDefinition = {
+            ...requirement,
+            definitionVersion: 1,
+            severity: "BLOCKER" as const,
+            templateOrigin: "PLATFORM_V1",
+          };
+          return {
+            id: randomUUID(),
+            tenantId: legacyTenant.id,
+            capabilityId: capabilityRecord.id,
+            requirementKey: requirement.requirementKey,
+            definitionVersion: 1,
+            kind: requirement.kind,
+            severity: "BLOCKER" as const,
+            riskLevel: requirement.riskLevel,
+            active: true,
+            freshnessSlaSeconds: requirement.freshnessSlaSeconds ?? null,
+            requiredScope: Prisma.DbNull,
+            localeConstraints: Prisma.DbNull,
+            satisfactionPredicate: requirement.satisfactionPredicate as Prisma.InputJsonValue,
+            predicateVersion: requirement.predicateVersion,
+            templateOrigin: "PLATFORM_V1",
+            tenantOverride: false,
+            immutableHash: canonicalKnowledgeV2Hash(legacyDefinition),
+          };
+        });
+      }),
+    });
+    const legacySettings = await prisma.knowledgeV2Settings.create({
+      data: { tenantId: legacyTenant.id, draftGeneration: 4, etag: 6 },
+    });
+    const legacyOperationalProjection = await loadKnowledgeOperationalCapabilityProjectionV1(
+      prisma,
+      { tenantId: legacyTenant.id },
+    );
+    assert(
+      legacyOperationalProjection.permissionGeneration !== null,
+      "Legacy reconciliation fixture has no operational permission generation.",
+    );
+    const legacyCapabilitySetHash = canonicalKnowledgeV2Hash({
+      fixture: "legacy-capability-policy-v1",
+      tenantId: legacyTenant.id,
+    });
+    const legacyRequirementSetHash = canonicalKnowledgeV2Hash({
+      fixture: "legacy-requirements-v1",
+      tenantId: legacyTenant.id,
+    });
+    const legacyManifestHash = canonicalKnowledgeV2Hash([]);
+    const legacyBinding = {
+      operationalBindingSchemaVersion: legacyOperationalProjection.schemaVersion,
+      operationalRegistryVersion: legacyOperationalProjection.registryVersion,
+      operationalRegistryHash: legacyOperationalProjection.registryHash,
+      operationalDependencySetHash: legacyOperationalProjection.dependencySetHash,
+      operationalBindingHash: legacyOperationalProjection.bindingHash,
+      operationalPermissionGeneration: legacyOperationalProjection.permissionGeneration,
+    };
+    const legacyPublication = await prisma.knowledgePublication.create({
+      data: {
+        tenantId: legacyTenant.id,
+        targetKey,
+        corpusKind: "STRUCTURED_V2",
+        sequence: 1,
+        status: "ACTIVE",
+        manifestHash: legacyManifestHash,
+        pipelineVersion: "knowledge-v2",
+        retrievalPolicyVersion: "knowledge-v2",
+        promptPolicyVersion: "knowledge-v2",
+        capabilitySetHash: legacyCapabilitySetHash,
+        requirementEvaluationSetHash: legacyRequirementSetHash,
+        ...legacyBinding,
+        readyAt: new Date(),
+        activatedAt: new Date(),
+      },
+    });
+    const legacyPointer = await prisma.activeKnowledgePublication.create({
+      data: {
+        tenantId: legacyTenant.id,
+        targetKey,
+        publicationId: legacyPublication.id,
+        sequence: legacyPublication.sequence,
+      },
+    });
+    const legacyDraftValidation = await prisma.knowledgeV2PublicationValidation.create({
+      data: {
+        tenantId: legacyTenant.id,
+        targetKey,
+        corpusKind: "STRUCTURED_V2",
+        candidateId: targetKey,
+        candidateVersion: legacySettings.draftGeneration,
+        candidateManifestHash: legacyManifestHash,
+        candidateItems: [],
+        status: "PASSED",
+        blockers: [],
+        warnings: [],
+        capabilitySetHash: legacyCapabilitySetHash,
+        requirementEvaluationSetHash: legacyRequirementSetHash,
+        ...legacyBinding,
+        validationPolicyVersion,
+        evaluatedAt: new Date(),
+        validUntil: new Date(Date.now() + 60 * 60_000),
+      },
+    });
+    const legacyChannel = await prisma.channel.create({
+      data: {
+        tenantId: legacyTenant.id,
+        type: "WEBHOOK",
+        status: "ACTIVE",
+        name: "Legacy policy automatic reply channel",
+        publicKey: `capability-policy-legacy-${suffix}`,
+        settings: { deliveryMode: "managed", fixture: "policy-reconciliation" },
+      },
+    });
+    await prisma.channel.update({
+      where: { id: legacyChannel.id },
+      data: {
+        automaticRepliesEnabled: true,
+        automaticRepliesGeneration: 2,
+        automaticRepliesPublicationId: legacyPublication.id,
+        automaticRepliesPublicationEtag: legacyPointer.etag,
+        automaticRepliesCapabilitySetHash: legacyCapabilitySetHash,
+        automaticRepliesOperationalBindingHash: legacyOperationalProjection.bindingHash,
+        automaticRepliesOperationalPermissionGeneration:
+          legacyOperationalProjection.permissionGeneration,
+        automaticRepliesChannelFingerprint: automaticReplyChannelFingerprint(legacyChannel),
+        automaticRepliesActivatedAt: new Date(),
+        automaticRepliesActivatedByUserId: owner.user.id,
+      },
+    });
+
+    const legacyList = await request("/knowledge/v2/capabilities", {
+      headers: { cookie: legacyCookie },
+    });
+    const legacyListData = data(legacyList);
+    assert(
+      asRecord(legacyListData.starterPreset, "legacy starter preset").applied === false,
+      "Legacy v1 policy was incorrectly reported as the applied starter preset.",
+    );
+    const legacyFaq = capability(
+      asRecords(legacyListData.items, "legacy capability list"),
+      "GENERAL_FAQ",
+    );
+    const legacyNoopPatch = await request("/knowledge/v2/capabilities/GENERAL_FAQ", {
+      method: "PATCH",
+      headers: {
+        cookie: legacyCookie,
+        "if-match": String(legacyFaq.etag),
+        "idempotency-key": `capability-policy-legacy-noop-${suffix}`,
+      },
+      body: JSON.stringify({ enabled: true, allowedAutonomy: "ANSWER_ONLY" }),
+    });
+    data(legacyNoopPatch);
+    const [
+      untouchedLegacySettings,
+      untouchedLegacyValidation,
+      untouchedLegacyChannel,
+      untouchedLegacyDefinitions,
+      incidentalPolicyAuditCount,
+    ] = await Promise.all([
+      prisma.knowledgeV2Settings.findUniqueOrThrow({
+        where: { tenantId: legacyTenant.id },
+      }),
+      prisma.knowledgeV2PublicationValidation.findUniqueOrThrow({
+        where: { id: legacyDraftValidation.id },
+      }),
+      prisma.channel.findUniqueOrThrow({ where: { id: legacyChannel.id } }),
+      prisma.knowledgeV2RequirementDefinition.findMany({
+        where: { tenantId: legacyTenant.id },
+        select: { definitionVersion: true },
+      }),
+      prisma.auditLog.findMany({
+        where: {
+          tenantId: legacyTenant.id,
+          action: "knowledge.v2.capability_starter_preset_applied",
+        },
+      }),
+    ]);
+    assert(
+      untouchedLegacySettings.draftGeneration === 4 && untouchedLegacySettings.etag === 6,
+      "Legacy capability GET changed the draft.",
+    );
+    assert(
+      untouchedLegacyValidation.status === "PASSED",
+      "Legacy capability GET expired valid draft validation.",
+    );
+    assert(
+      untouchedLegacyChannel.automaticRepliesEnabled === true &&
+        untouchedLegacyChannel.automaticRepliesGeneration === 2 &&
+        untouchedLegacyChannel.automaticRepliesPublicationId === legacyPublication.id,
+      "Legacy capability GET revoked automatic replies.",
+    );
+    assert(
+      untouchedLegacyDefinitions.length === 36 &&
+        untouchedLegacyDefinitions.every((item) => item.definitionVersion === 1),
+      "Legacy capability GET inserted a new platform policy.",
+    );
+    assert(
+      incidentalPolicyAuditCount.length === 0,
+      "Legacy capability GET wrote a mutation audit.",
+    );
+
+    const legacyPresetKey = `capability-policy-upgrade-${suffix}`;
+    const legacyPreset = await request("/knowledge/v2/capabilities/presets/starter", {
+      method: "POST",
+      headers: { cookie: legacyCookie, "idempotency-key": legacyPresetKey },
+    });
+    const legacyPresetData = data(legacyPreset);
+    assert(
+      asRecord(
+        asRecord(legacyPresetData.resource, "legacy starter preset resource").starterPreset,
+        "legacy applied starter preset",
+      ).applied === true,
+      "Explicit legacy upgrade did not report the applied starter policy.",
+    );
+    const [
+      upgradedLegacySettings,
+      upgradedLegacyValidation,
+      upgradedLegacyChannel,
+      upgradedLegacyDefinitions,
+      legacyPresetAudits,
+    ] = await Promise.all([
+      prisma.knowledgeV2Settings.findUniqueOrThrow({
+        where: { tenantId: legacyTenant.id },
+      }),
+      prisma.knowledgeV2PublicationValidation.findUniqueOrThrow({
+        where: { id: legacyDraftValidation.id },
+      }),
+      prisma.channel.findUniqueOrThrow({ where: { id: legacyChannel.id } }),
+      prisma.knowledgeV2RequirementDefinition.findMany({
+        where: { tenantId: legacyTenant.id },
+        select: { definitionVersion: true },
+      }),
+      prisma.auditLog.findMany({
+        where: {
+          tenantId: legacyTenant.id,
+          action: "knowledge.v2.capability_starter_preset_applied",
+        },
+      }),
+    ]);
+    assert(
+      upgradedLegacySettings.draftGeneration === 5 && upgradedLegacySettings.etag === 7,
+      "Explicit starter preset did not advance the legacy draft exactly once.",
+    );
+    assert(
+      upgradedLegacyValidation.status === "EXPIRED",
+      "Explicit starter preset did not expire stale legacy validation.",
+    );
+    assert(
+      upgradedLegacyChannel.automaticRepliesEnabled === false &&
+        upgradedLegacyChannel.automaticRepliesGeneration === 3 &&
+        upgradedLegacyChannel.automaticRepliesPublicationId === null,
+      "Explicit starter preset did not revoke the legacy automatic-reply binding.",
+    );
+    assert(
+      upgradedLegacyDefinitions.filter((item) => item.definitionVersion === 1).length === 36 &&
+        upgradedLegacyDefinitions.filter((item) => item.definitionVersion === 2).length === 36,
+      "Explicit starter preset did not preserve v1 and insert v2 definitions.",
+    );
+    assert(legacyPresetAudits.length === 1, "Explicit starter preset audit is missing.");
+    const legacyPresetPayload = asRecord(
+      legacyPresetAudits[0]!.payload,
+      "legacy starter preset audit",
+    );
+    const legacyPolicyUpgrade = asRecord(
+      legacyPresetPayload.policyUpgrade,
+      "legacy starter preset policy upgrade",
+    );
+    assert(
+      asRecords(legacyPresetPayload.changes, "legacy starter preset changes").length === 0 &&
+        Array.isArray(legacyPolicyUpgrade.previousDefinitionVersions) &&
+        legacyPolicyUpgrade.previousDefinitionVersions.join(",") === "1" &&
+        legacyPolicyUpgrade.insertedRequirementDefinitions === 36 &&
+        legacyPolicyUpgrade.activeDefinitionVersion === 2,
+      "Starter preset audit omitted exact capability or policy upgrade details.",
+    );
+
+    const legacyPresetReplay = await request("/knowledge/v2/capabilities/presets/starter", {
+      method: "POST",
+      headers: { cookie: legacyCookie, "idempotency-key": legacyPresetKey },
+    });
+    assert(
+      data(legacyPresetReplay).idempotencyReplayed === true,
+      "Legacy starter preset replay was not idempotent.",
+    );
+    const [replayedLegacySettings, replayedLegacyChannel, replayedLegacyAuditCount] =
+      await Promise.all([
+        prisma.knowledgeV2Settings.findUniqueOrThrow({
+          where: { tenantId: legacyTenant.id },
+        }),
+        prisma.channel.findUniqueOrThrow({ where: { id: legacyChannel.id } }),
+        prisma.auditLog.count({
+          where: {
+            tenantId: legacyTenant.id,
+            action: "knowledge.v2.capability_starter_preset_applied",
+          },
+        }),
+      ]);
+    assert(
+      replayedLegacySettings.draftGeneration === 5 &&
+        replayedLegacySettings.etag === 7 &&
+        replayedLegacyChannel.automaticRepliesGeneration === 3 &&
+        replayedLegacyAuditCount === 1,
+      "Legacy starter preset replay repeated upgrade side effects.",
+    );
+
+    const faqDefinition = expectedByType.get("GENERAL_FAQ")!;
+    const businessIdentity = faqDefinition.requirements.find(
+      (requirement) => requirement.requirementKey === "business_identity",
+    )!;
+    const faqCapability = await prisma.knowledgeV2Capability.findUniqueOrThrow({
+      where: {
+        tenantId_capabilityType_targetKey: {
+          tenantId: tenant.id,
+          capabilityType: "GENERAL_FAQ",
+          targetKey,
+        },
+      },
+    });
+    const malformedOverride = {
+      ...businessIdentity,
+      definitionVersion: 3,
+      severity: "BLOCKER" as const,
+      templateOrigin: "TENANT_OVERRIDE",
+      tenantOverride: true,
+    };
+    await prisma.knowledgeV2RequirementDefinition.create({
+      data: {
+        id: randomUUID(),
+        tenantId: tenant.id,
+        capabilityId: faqCapability.id,
+        requirementKey: malformedOverride.requirementKey,
+        definitionVersion: malformedOverride.definitionVersion,
+        kind: malformedOverride.kind,
+        severity: malformedOverride.severity,
+        riskLevel: malformedOverride.riskLevel,
+        active: malformedOverride.active,
+        freshnessSlaSeconds: malformedOverride.freshnessSlaSeconds ?? null,
+        requiredScope: Prisma.DbNull,
+        localeConstraints: Prisma.DbNull,
+        satisfactionPredicate: malformedOverride.satisfactionPredicate as Prisma.InputJsonValue,
+        predicateVersion: malformedOverride.predicateVersion,
+        templateOrigin: malformedOverride.templateOrigin,
+        tenantOverride: malformedOverride.tenantOverride,
+        immutableHash: canonicalKnowledgeV2Hash(malformedOverride),
+      },
+    });
+    const overriddenList = data(
+      await request("/knowledge/v2/capabilities", {
+        headers: { cookie: owner.cookie },
+      }),
+    );
+    assert(
+      asRecord(overriddenList.starterPreset, "overridden starter preset").applied === false,
+      "A tenant override was incorrectly reported as the exact starter requirement set.",
+    );
+    const [integritySettingsBefore, integrityAuditCountBefore] = await Promise.all([
+      prisma.knowledgeV2Settings.findUniqueOrThrow({ where: { tenantId: tenant.id } }),
+      prisma.auditLog.count({
+        where: {
+          tenantId: tenant.id,
+          action: "knowledge.v2.capability_starter_preset_applied",
+        },
+      }),
+    ]);
+    const rejectedOverridePreset = await request("/knowledge/v2/capabilities/presets/starter", {
+      method: "POST",
+      headers: {
+        cookie: owner.cookie,
+        "idempotency-key": `capability-malformed-override-${suffix}`,
+      },
+    });
+    expectError(rejectedOverridePreset, 500, "KNOWLEDGE_DEPENDENCY_CAPABILITY_SNAPSHOT_INVALID");
+    const [integritySettingsAfter, integrityAuditCountAfter] = await Promise.all([
+      prisma.knowledgeV2Settings.findUniqueOrThrow({ where: { tenantId: tenant.id } }),
+      prisma.auditLog.count({
+        where: {
+          tenantId: tenant.id,
+          action: "knowledge.v2.capability_starter_preset_applied",
+        },
+      }),
+    ]);
+    assert(
+      integritySettingsAfter.draftGeneration === integritySettingsBefore.draftGeneration &&
+        integritySettingsAfter.etag === integritySettingsBefore.etag &&
+        integrityAuditCountAfter === integrityAuditCountBefore,
+      "Rejected requirement reconciliation committed starter side effects.",
+    );
 
     console.log(
       JSON.stringify({
         ok: true,
         checks: {
-          concurrentColdOverviewInitialization: concurrentOverviews.length,
+          concurrentColdOverviewReads: concurrentOverviews.length,
+          zeroRowGetSideEffectFree: true,
+          zeroRowPatchSideEffectFree: true,
+          explicitStarterCreation: true,
           deterministicDefaults: 8,
           requirementDefaults: 36,
           roles: ["OWNER", "ADMIN", "MANAGER_DENIED"],
@@ -850,6 +1463,11 @@ async function main() {
           automaticReplyRevocation: true,
           unrelatedOutboxPreserved: true,
           readinessSnapshotsSeparated: true,
+          atomicStarterPreset: true,
+          explicitPolicyUpgrade: true,
+          legacyReadSideEffectFree: true,
+          legacyPatchSideEffectFree: true,
+          exactRequirementSetIntegrity: true,
         },
         hashes: {
           serving: expectedCapabilitySetHash,
@@ -858,8 +1476,9 @@ async function main() {
       }),
     );
   } finally {
-    if (tenantId) {
-      await prisma.tenant.deleteMany({ where: { id: tenantId } }).catch(() => undefined);
+    const tenantIds = [tenantId, legacyTenantId].filter((value): value is string => value !== null);
+    if (tenantIds.length > 0) {
+      await prisma.tenant.deleteMany({ where: { id: { in: tenantIds } } }).catch(() => undefined);
     }
     if (userIds.length > 0) {
       await prisma.user.deleteMany({ where: { id: { in: userIds } } }).catch(() => undefined);

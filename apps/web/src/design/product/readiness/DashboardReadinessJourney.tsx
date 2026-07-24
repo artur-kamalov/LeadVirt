@@ -66,8 +66,8 @@ function detailMessage(detail: DashboardReadinessDetail): {
   values?: TranslationValues;
 } {
   switch (detail.kind) {
-    case "profile_complete":
-      return { key: "dashboard.readiness.detail.profileComplete" };
+    case "profile_minimum_ready":
+      return { key: "dashboard.readiness.detail.profileMinimumReady" };
     case "profile_missing":
       return { key: "dashboard.readiness.detail.profileMissing", values: { count: detail.count } };
     case "knowledge_complete":
@@ -83,6 +83,8 @@ function detailMessage(detail: DashboardReadinessDetail): {
       return { key: "dashboard.readiness.detail.knowledgeUpdating" };
     case "test_complete":
       return { key: "dashboard.readiness.detail.testComplete" };
+    case "test_not_required":
+      return { key: "dashboard.readiness.detail.testNotRequired" };
     case "test_incomplete":
       return { key: "dashboard.readiness.detail.testIncomplete" };
     case "publish_complete":

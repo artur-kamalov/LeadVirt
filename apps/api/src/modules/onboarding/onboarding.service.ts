@@ -66,7 +66,7 @@ export class OnboardingService {
       await lockKnowledgeV2CorpusTransition(tx, context.tenantId);
       const current = await this.ensureState(context, tx);
       const completedSteps = this.completedSteps(current.completedSteps);
-      this.assertStepReady(dto.step, current.data, completedSteps);
+      this.assertStepReady(dto.step, current.data, completedSteps, current.completedAt);
       if (!completedSteps.includes(dto.step)) completedSteps.push(dto.step);
       const updated = await tx.onboardingState.update({
         where: { tenantId: context.tenantId },
@@ -97,7 +97,7 @@ export class OnboardingService {
         ifMatch,
       );
       const completedSteps = this.completedSteps(updated.state.completedSteps);
-      this.assertStepReady(dto.step, updated.state.data, completedSteps);
+      this.assertStepReady(dto.step, updated.state.data, completedSteps, updated.state.completedAt);
       if (!completedSteps.includes(dto.step)) completedSteps.push(dto.step);
       const stepIndex = ONBOARDING_STEPS.indexOf(dto.step as (typeof ONBOARDING_STEPS)[number]);
       const currentStepIndex = ONBOARDING_STEPS.indexOf(
@@ -176,7 +176,12 @@ export class OnboardingService {
       : [];
   }
 
-  private assertStepReady(step: string, value: Prisma.JsonValue | null, completedSteps: string[]) {
+  private assertStepReady(
+    step: string,
+    value: Prisma.JsonValue | null,
+    completedSteps: string[],
+    completedAt: Date | null,
+  ) {
     const stepIndex = ONBOARDING_STEPS.indexOf(step as (typeof ONBOARDING_STEPS)[number]);
     const missingPrerequisite = ONBOARDING_STEPS.slice(0, Math.max(stepIndex, 0)).find(
       (candidate) => !completedSteps.includes(candidate),
@@ -190,6 +195,23 @@ export class OnboardingService {
 
     const data = record(value);
     const companyInfo = record(data.companyInfo);
+    const legacyCompletion = completedAt !== null && completedSteps.includes("launch");
+    const companyNameReady = nonBlank(companyInfo.name);
+    const companyDescriptionReady = nonBlank(companyInfo.description) || legacyCompletion;
+    if ((step === "company" || step === "launch") && companyNameReady && !companyDescriptionReady) {
+      throw new BadRequestException({
+        code: "ONBOARDING_STEP_INCOMPLETE",
+        message: "Add a short business description before continuing.",
+        field: "data.companyInfo.description",
+        fieldErrors: [
+          {
+            field: "data.companyInfo.description",
+            code: "ONBOARDING_COMPANY_DESCRIPTION_REQUIRED",
+            message: "A nonblank short business description is required.",
+          },
+        ],
+      });
+    }
     const dataReady = (candidate: (typeof ONBOARDING_STEPS)[number]) =>
       candidate === "business"
         ? nonBlank(data.businessType)
@@ -198,7 +220,7 @@ export class OnboardingService {
           : candidate === "scenario"
             ? nonBlank(data.scenario)
             : candidate === "company"
-              ? nonBlank(companyInfo.name)
+              ? companyNameReady && companyDescriptionReady
               : candidate === "crm"
                 ? nonBlank(data.crm)
                 : true;

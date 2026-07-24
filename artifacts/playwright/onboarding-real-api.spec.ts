@@ -98,6 +98,8 @@ test("a clean QA owner completes all six onboarding steps against the real API",
   const runId = Date.now().toString();
   const company = {
     name: `LeadVirt Onboarding QA ${runId}`,
+    description:
+      "A local service business that answers customer questions and arranges consultations.",
   };
 
   await page.setViewportSize({ width: 1440, height: 1000 });
@@ -151,16 +153,23 @@ test("a clean QA owner completes all six onboarding steps against the real API",
   await expect(next).toBeEnabled();
   await advance(page, () => next.click());
 
-  await expectStep(page, 4, "What is your business called?");
+  await expectStep(page, 4, "Tell us about your business");
   await expect(back).toBeEnabled();
   await expect(next).toBeDisabled();
 
   const companyName = page.getByRole("textbox", { name: "Company name", exact: true });
+  const companyDescription = page.getByRole("textbox", {
+    name: "About the company",
+    exact: true,
+  });
   await expect(companyName).toHaveAttribute("maxlength", "160");
-  await expect(page.locator("textarea")).toHaveCount(0);
+  await expect(companyDescription).toHaveAttribute("maxlength", "4000");
+  await expect(companyDescription).toHaveAttribute("required", "");
   await expect(page.getByTestId("onboarding-timezone")).toHaveCount(0);
 
   await companyName.fill(company.name);
+  await expect(next).toBeDisabled();
+  await companyDescription.fill(company.description);
   await expect(next).toBeEnabled();
   await advance(page, () => next.click());
 

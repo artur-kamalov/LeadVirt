@@ -233,6 +233,7 @@ async function main() {
     "internal",
   );
   await expectInvalidOnboarding({ data: { companyInfo: { name: "   " } } }, "name");
+  await expectInvalidOnboarding({ data: { companyInfo: { description: "   " } } }, "description");
   await expectInvalidOnboarding({ data: { businessType: "   " } }, "businessType");
   await expectInvalidOnboarding(
     { data: { companyInfo: { description: "x".repeat(4_001) } } },
