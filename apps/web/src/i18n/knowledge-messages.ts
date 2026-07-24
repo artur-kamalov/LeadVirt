@@ -1,6 +1,189 @@
 import type { Locale } from "./config";
 
+const capabilityFixMessagesEn = {
+  "knowledge.capability.fixes.show": "Show required setup ({count})",
+  "knowledge.capability.fixes.hide": "Hide required setup",
+  "knowledge.capability.fixes.intro":
+    "Complete these items before this function can be published. Open an item to configure it.",
+  "knowledge.capability.fixes.disableHint":
+    "Do not need this function? Turn it off so it does not block publishing.",
+  "knowledge.capability.fixes.disabled": "This function is off and does not block publishing.",
+  "knowledge.capability.fixes.ready": "All requirements for this function are complete.",
+  "knowledge.capability.fixes.required": "Required",
+  "knowledge.capability.fixes.recommended": "Recommended",
+  "knowledge.capability.fixes.saved": "Setting saved",
+  "knowledge.capability.requirement.custom": "Additional required setup",
+  "knowledge.capability.reason.satisfied": "Complete",
+  "knowledge.capability.reason.disabled": "The function is disabled",
+  "knowledge.capability.reason.inactive": "This check is inactive",
+  "knowledge.capability.reason.invalid":
+    "This requirement cannot be configured. LeadVirt support must correct it.",
+  "knowledge.capability.reason.conflict": "Conflicting information must be resolved",
+  "knowledge.capability.reason.stale": "The existing information is out of date",
+  "knowledge.capability.reason.missing": "This information has not been configured",
+  "knowledge.capability.reason.threshold": "There is not enough approved information",
+  "knowledge.capability.reason.scope": "Information is missing for part of the business",
+  "knowledge.capability.reason.locale": "Information is missing for an enabled language",
+  "knowledge.capability.reason.localeContext": "Customer languages have not been configured",
+  "knowledge.capability.kind.fact": "Add or verify this information in Business information.",
+  "knowledge.capability.kind.rule": "Create and approve the required rule in Guidance.",
+  "knowledge.capability.kind.document": "Add or update an approved file or website in Sources.",
+  "knowledge.capability.kind.connector":
+    "Connect the required integration. If it is marked Coming soon, this function cannot be published yet.",
+  "knowledge.capability.kind.tool":
+    "Enable the integration that provides this action. If it is marked Coming soon, this function cannot be published yet.",
+  "knowledge.capability.kind.permission":
+    "Configure the integration or rule that grants this permission.",
+  "knowledge.capability.kind.locale":
+    "Configure customer languages and provide knowledge for each enabled language.",
+  "knowledge.capability.kind.evaluation":
+    "Run the required test scenarios and correct any failed result.",
+  "knowledge.capability.action.business": "Open business information",
+  "knowledge.capability.action.guidance": "Open guidance",
+  "knowledge.capability.action.sources": "Open sources",
+  "knowledge.capability.action.integrations": "Open integrations",
+  "knowledge.capability.action.languages": "Open language settings",
+  "knowledge.capability.action.test": "Open tests",
+  "knowledge.capability.action.details": "Open setup",
+} as const;
+
+const capabilityFixMessagesRu: Record<keyof typeof capabilityFixMessagesEn, string> = {
+  "knowledge.capability.fixes.show": "Показать, что настроить ({count})",
+  "knowledge.capability.fixes.hide": "Скрыть список",
+  "knowledge.capability.fixes.intro":
+    "Выполните эти пункты, чтобы функцию можно было опубликовать. Откройте пункт для настройки.",
+  "knowledge.capability.fixes.disableHint":
+    "Функция не нужна? Выключите её, чтобы она не блокировала публикацию.",
+  "knowledge.capability.fixes.disabled": "Функция выключена и не блокирует публикацию.",
+  "knowledge.capability.fixes.ready": "Все требования для этой функции выполнены.",
+  "knowledge.capability.fixes.required": "Обязательно",
+  "knowledge.capability.fixes.recommended": "Рекомендуется",
+  "knowledge.capability.fixes.saved": "Настройка сохранена",
+  "knowledge.capability.requirement.custom": "Дополнительная обязательная настройка",
+  "knowledge.capability.reason.satisfied": "Выполнено",
+  "knowledge.capability.reason.disabled": "Функция выключена",
+  "knowledge.capability.reason.inactive": "Эта проверка отключена",
+  "knowledge.capability.reason.invalid":
+    "Это требование нельзя настроить. Его должна исправить поддержка LeadVirt.",
+  "knowledge.capability.reason.conflict": "Нужно устранить противоречие в данных",
+  "knowledge.capability.reason.stale": "Существующая информация устарела",
+  "knowledge.capability.reason.missing": "Эта информация ещё не настроена",
+  "knowledge.capability.reason.threshold": "Недостаточно подтверждённой информации",
+  "knowledge.capability.reason.scope": "Информация заполнена не для всего бизнеса",
+  "knowledge.capability.reason.locale": "Нет информации для одного из включённых языков",
+  "knowledge.capability.reason.localeContext": "Языки клиентов ещё не настроены",
+  "knowledge.capability.kind.fact":
+    "Добавьте или подтвердите эти данные в разделе «Информация о бизнесе».",
+  "knowledge.capability.kind.rule": "Создайте и подтвердите нужное правило в разделе «Правила».",
+  "knowledge.capability.kind.document":
+    "Добавьте или обновите подтверждённый файл или сайт в разделе «Источники».",
+  "knowledge.capability.kind.connector":
+    "Подключите нужную интеграцию. Если она отмечена «Скоро», эту функцию пока нельзя опубликовать.",
+  "knowledge.capability.kind.tool":
+    "Включите интеграцию, которая выполняет это действие. Если она отмечена «Скоро», эту функцию пока нельзя опубликовать.",
+  "knowledge.capability.kind.permission":
+    "Настройте интеграцию или правило, которое даёт это разрешение.",
+  "knowledge.capability.kind.locale":
+    "Настройте языки клиентов и добавьте знания для каждого включённого языка.",
+  "knowledge.capability.kind.evaluation":
+    "Запустите обязательные тестовые сценарии и исправьте неуспешные результаты.",
+  "knowledge.capability.action.business": "Открыть информацию о бизнесе",
+  "knowledge.capability.action.guidance": "Открыть правила",
+  "knowledge.capability.action.sources": "Открыть источники",
+  "knowledge.capability.action.integrations": "Открыть интеграции",
+  "knowledge.capability.action.languages": "Открыть настройки языков",
+  "knowledge.capability.action.test": "Открыть тесты",
+  "knowledge.capability.action.details": "Открыть настройку",
+};
+
+const capabilityRequirementLabelsEn = {
+  "knowledge.capability.requirement.business_identity": "Business name and basic information",
+  "knowledge.capability.requirement.contact_route": "Contact route to a team member",
+  "knowledge.capability.requirement.approved_knowledge": "Approved knowledge source",
+  "knowledge.capability.requirement.escalation_route":
+    "Rule for handing a conversation to the team",
+  "knowledge.capability.requirement.supported_locales": "Knowledge in customer languages",
+  "knowledge.capability.requirement.qualification_fields": "Questions used to qualify a lead",
+  "knowledge.capability.requirement.disqualifier_rules": "Lead rejection conditions",
+  "knowledge.capability.requirement.collection_consent": "Permission to collect lead data",
+  "knowledge.capability.requirement.routing_rules": "Rules for routing qualified leads",
+  "knowledge.capability.requirement.structured_price": "Verified service prices",
+  "knowledge.capability.requirement.pricing_conditions": "Price calculation conditions",
+  "knowledge.capability.requirement.quote_policy": "Rule for uncertain or custom prices",
+  "knowledge.capability.requirement.dynamic_quote_tool": "Automatic price calculation",
+  "knowledge.capability.requirement.service_details": "Service descriptions",
+  "knowledge.capability.requirement.business_hours": "Business hours",
+  "knowledge.capability.requirement.booking_policy": "Appointment rules",
+  "knowledge.capability.requirement.calendar_connector": "Connected calendar",
+  "knowledge.capability.requirement.availability_tool": "Calendar availability check",
+  "knowledge.capability.requirement.booking_constraints": "Appointment restrictions",
+  "knowledge.capability.requirement.confirmation_rule": "Customer confirmation rule",
+  "knowledge.capability.requirement.booking_tool": "Create appointments in the calendar",
+  "knowledge.capability.requirement.booking_permission": "Permission to create appointments",
+  "knowledge.capability.requirement.booking_safety_cases": "Safe appointment test scenarios",
+  "knowledge.capability.requirement.support_policy": "Order and account support rules",
+  "knowledge.capability.requirement.account_lookup_tool": "Order or account lookup",
+  "knowledge.capability.requirement.customer_state_permission": "Permission to read customer data",
+  "knowledge.capability.requirement.identity_verification_cases":
+    "Identity checks before disclosing customer data",
+  "knowledge.capability.requirement.product_attributes": "Product attributes",
+  "knowledge.capability.requirement.commerce_policies": "Product recommendation and sales rules",
+  "knowledge.capability.requirement.inventory_tool": "Product availability check",
+  "knowledge.capability.requirement.catalog_connector": "Connected product catalog",
+  "knowledge.capability.requirement.approved_wording": "Approved wording for regulated topics",
+  "knowledge.capability.requirement.regulated_rules": "Restrictions and specialist handoff rules",
+  "knowledge.capability.requirement.specialist_permission":
+    "Permission to hand off to a specialist",
+  "knowledge.capability.requirement.regulated_safety_cases":
+    "Safe response tests for regulated topics",
+} as const;
+
+const capabilityRequirementLabelsRu: Record<keyof typeof capabilityRequirementLabelsEn, string> = {
+  "knowledge.capability.requirement.business_identity": "Название и основная информация о бизнесе",
+  "knowledge.capability.requirement.contact_route": "Контакт для связи с сотрудником",
+  "knowledge.capability.requirement.approved_knowledge": "Подтверждённый источник знаний",
+  "knowledge.capability.requirement.escalation_route": "Правило передачи диалога сотруднику",
+  "knowledge.capability.requirement.supported_locales": "Знания на языках клиентов",
+  "knowledge.capability.requirement.qualification_fields": "Вопросы для квалификации лида",
+  "knowledge.capability.requirement.disqualifier_rules": "Условия отказа или дисквалификации лида",
+  "knowledge.capability.requirement.collection_consent": "Разрешение на сбор данных лида",
+  "knowledge.capability.requirement.routing_rules": "Правила передачи подходящего лида",
+  "knowledge.capability.requirement.structured_price": "Подтверждённые цены услуг",
+  "knowledge.capability.requirement.pricing_conditions": "Условия расчёта цены",
+  "knowledge.capability.requirement.quote_policy":
+    "Правило ответа о неточной или индивидуальной цене",
+  "knowledge.capability.requirement.dynamic_quote_tool": "Автоматический расчёт цены",
+  "knowledge.capability.requirement.service_details": "Описание услуг",
+  "knowledge.capability.requirement.business_hours": "График работы",
+  "knowledge.capability.requirement.booking_policy": "Правила записи",
+  "knowledge.capability.requirement.calendar_connector": "Подключённый календарь",
+  "knowledge.capability.requirement.availability_tool": "Проверка свободного времени в календаре",
+  "knowledge.capability.requirement.booking_constraints": "Ограничения записи",
+  "knowledge.capability.requirement.confirmation_rule": "Подтверждение записи клиентом",
+  "knowledge.capability.requirement.booking_tool": "Создание записи в календаре",
+  "knowledge.capability.requirement.booking_permission": "Разрешение создавать записи",
+  "knowledge.capability.requirement.booking_safety_cases": "Проверки безопасного оформления записи",
+  "knowledge.capability.requirement.support_policy": "Правила поддержки заказов и аккаунтов",
+  "knowledge.capability.requirement.account_lookup_tool": "Поиск заказа или аккаунта",
+  "knowledge.capability.requirement.customer_state_permission": "Разрешение читать данные клиента",
+  "knowledge.capability.requirement.identity_verification_cases":
+    "Проверки личности перед выдачей данных",
+  "knowledge.capability.requirement.product_attributes": "Характеристики товаров",
+  "knowledge.capability.requirement.commerce_policies": "Правила рекомендаций и продаж",
+  "knowledge.capability.requirement.inventory_tool": "Проверка наличия товара",
+  "knowledge.capability.requirement.catalog_connector": "Подключённый каталог товаров",
+  "knowledge.capability.requirement.approved_wording":
+    "Проверенные формулировки для регулируемых тем",
+  "knowledge.capability.requirement.regulated_rules": "Запреты и правила передачи специалисту",
+  "knowledge.capability.requirement.specialist_permission":
+    "Возможность передать диалог специалисту",
+  "knowledge.capability.requirement.regulated_safety_cases":
+    "Тесты безопасных ответов на регулируемые темы",
+};
+
 const en = {
+  ...capabilityFixMessagesEn,
+  ...capabilityRequirementLabelsEn,
   "knowledge.common.close": "Close",
   "knowledge.common.cancel": "Cancel",
   "knowledge.common.tryAgain": "Try again",
@@ -114,9 +297,9 @@ const en = {
   "knowledge.capability.servingDescription":
     "This fixed set is currently available in customer replies.",
   "knowledge.capability.servingEmpty": "No capabilities are active in the published version.",
-  "knowledge.capability.draftTitle": "Draft capabilities",
+  "knowledge.capability.draftTitle": "AI functions and readiness",
   "knowledge.capability.draftDescription":
-    "Choose which customer needs the next published version may handle.",
+    "Enable only the functions you need. Open a blocked row to see the exact setup steps.",
   "knowledge.capability.readOnly":
     "Only workspace owners and administrators can change these settings.",
   "knowledge.capability.loadError": "Capability settings could not be loaded.",
@@ -291,6 +474,8 @@ const en = {
 export type KnowledgeTranslationKey = keyof typeof en;
 
 const ru: Record<KnowledgeTranslationKey, string> = {
+  ...capabilityFixMessagesRu,
+  ...capabilityRequirementLabelsRu,
   "knowledge.common.close": "Закрыть",
   "knowledge.common.cancel": "Отмена",
   "knowledge.common.tryAgain": "Повторить",
@@ -405,9 +590,9 @@ const ru: Record<KnowledgeTranslationKey, string> = {
   "knowledge.capability.servingDescription":
     "Этот неизменяемый набор сейчас доступен в ответах клиентам.",
   "knowledge.capability.servingEmpty": "В опубликованной версии нет активных возможностей.",
-  "knowledge.capability.draftTitle": "Возможности черновика",
+  "knowledge.capability.draftTitle": "Функции AI и готовность",
   "knowledge.capability.draftDescription":
-    "Выберите задачи клиентов, которые сможет решать следующая опубликованная версия.",
+    "Включайте только нужные функции. Откройте заблокированную строку, чтобы увидеть точные шаги настройки.",
   "knowledge.capability.readOnly":
     "Изменять эти настройки могут только владельцы и администраторы пространства.",
   "knowledge.capability.loadError": "Не удалось загрузить настройки возможностей.",
@@ -586,6 +771,8 @@ const ru: Record<KnowledgeTranslationKey, string> = {
 };
 
 const es: Record<KnowledgeTranslationKey, string> = {
+  ...capabilityFixMessagesEn,
+  ...capabilityRequirementLabelsEn,
   "knowledge.common.close": "Cerrar",
   "knowledge.common.cancel": "Cancelar",
   "knowledge.common.tryAgain": "Intentar de nuevo",
@@ -882,6 +1069,8 @@ const es: Record<KnowledgeTranslationKey, string> = {
 };
 
 const fr: Record<KnowledgeTranslationKey, string> = {
+  ...capabilityFixMessagesEn,
+  ...capabilityRequirementLabelsEn,
   "knowledge.common.close": "Fermer",
   "knowledge.common.cancel": "Annuler",
   "knowledge.common.tryAgain": "Réessayer",
@@ -1177,6 +1366,8 @@ const fr: Record<KnowledgeTranslationKey, string> = {
 };
 
 const de: Record<KnowledgeTranslationKey, string> = {
+  ...capabilityFixMessagesEn,
+  ...capabilityRequirementLabelsEn,
   "knowledge.common.close": "Schließen",
   "knowledge.common.cancel": "Abbrechen",
   "knowledge.common.tryAgain": "Erneut versuchen",
@@ -1476,6 +1667,8 @@ const de: Record<KnowledgeTranslationKey, string> = {
 };
 
 const pt: Record<KnowledgeTranslationKey, string> = {
+  ...capabilityFixMessagesEn,
+  ...capabilityRequirementLabelsEn,
   "knowledge.common.close": "Fechar",
   "knowledge.common.cancel": "Cancelar",
   "knowledge.common.tryAgain": "Tentar novamente",

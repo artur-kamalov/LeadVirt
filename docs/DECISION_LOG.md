@@ -1,5 +1,18 @@
 # Decision Log
 
+## 2026-07-24: Make Capability Readiness A Remediation Checklist
+
+Decision: Enabled AI capabilities expose every unmet requirement as a localized, expandable setup task with a stable reason code and one direct remediation target. Backend labels and explanations remain diagnostic data and are not rendered as customer copy. Capability setting-save state is visually separate from publication readiness.
+
+Context: The Overview rendered only blocker and warning counts. Users could not see what was missing, and every remediation linked back to the same collapsed capability row. A green `Saved` label beside red blockers also implied that readiness had been fixed when only the toggle or autonomy setting had been stored.
+
+Consequences:
+
+- Live and persisted readiness preserve the evaluator reason code and generate the same kind-based remediation contract.
+- Facts open Business Information, rules open Guidance, documents open Sources, locale settings open the expanded Business settings, evaluation cases open Test, and connector/tool/permission requirements open Integrations.
+- Requirements tied to an integration marked `Coming soon` remain visibly impossible to publish; the UI tells the owner to disable the capability when it is not needed.
+- Exact `capabilityId` links expand and focus the relevant row. Desktop and mobile actions remain keyboard accessible, at least 44px, and free of horizontal overflow.
+
 ## 2026-07-24: Treat Service Files As A Workspace Catalog Lifecycle
 
 Decision: Every service-file import has an immutable `ADD` or global `REPLACE` mode. `REPLACE` reconciles all imported services in the workspace, regardless of filename or source lineage, while current manual field ownership and fully manual services survive. Applying a replacement retires prior imported catalog lineages and bindings. The operation is fenced by the exact candidate manifest, global replacement scope, business revision, ETags, idempotency, and one catalog advisory lock.

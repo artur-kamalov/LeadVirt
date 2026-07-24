@@ -185,33 +185,42 @@ function readiness(
       allowedAutonomy: "ANSWER_ONLY",
       generation: 1,
       etag: '"kv2-capability-general-faq-1"',
-      status: "READY_WITH_WARNINGS",
+      status: "BLOCKED",
       weight: 100,
-      blockerCount: 0,
-      warningCount: 1,
+      blockerCount: 1,
+      warningCount: 0,
       requirements: [
         {
-          id: "verified-business-fact",
+          id: "business_identity",
           kind: "FACT",
-          label: "Verified business facts",
+          label: "Backend business identity",
           status: "SATISFIED",
+          reasonCode: "SATISFIED",
           severity: "BLOCKER",
           riskLevel: "LOW",
-          explanation: "Verified business facts are available.",
+          explanation: "Backend business identity evidence is available.",
           evidence: [{ type: "FACT", id: "fact-business-name", label: "Business name" }],
           remediation: null,
           evaluatedAt,
         },
         {
-          id: "optional-escalation-guidance",
+          id: "escalation_route",
           kind: "RULE",
-          label: "Escalation guidance",
+          label: "Backend escalation route",
           status: "UNSATISFIED",
-          severity: "WARNING",
-          riskLevel: "LOW",
-          explanation: "Optional escalation guidance has not been approved.",
+          reasonCode: "EVIDENCE_MISSING",
+          severity: "BLOCKER",
+          riskLevel: "MEDIUM",
+          explanation: "Backend escalation guidance is missing.",
           evidence: [],
-          remediation: { action: "CREATE_GUIDANCE_RULE", label: "Add approved guidance" },
+          remediation: {
+            action: "ADD_OR_APPROVE_RULE",
+            label: "Add backend escalation guidance",
+            destination: {
+              view: "guidance",
+              task: "operator-handoff",
+            },
+          },
           evaluatedAt,
         },
       ],
@@ -1009,6 +1018,81 @@ test("capability controls keep published state separate and update the draft wit
   });
 });
 
+test("capability blockers expose localized fixes and preserve exact remediation targets", async ({
+  page,
+}) => {
+  await authenticate(page);
+  const localeResponse = await page.request.patch(`${apiBase}/settings/preferences/locale`, {
+    data: { locale: "ru" },
+  });
+  expect(localeResponse.ok()).toBeTruthy();
+  await page
+    .context()
+    .addCookies([{ name: "leadvirt-locale", value: "ru", url: webBase, sameSite: "Lax" }]);
+  await installKnowledgeMocks(page);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(`${webBase}/app/knowledge?view=overview`, { waitUntil: "domcontentloaded" });
+
+  const fixes = page.getByTestId("knowledge-capability-fixes-GENERAL_FAQ");
+  const requirements = page.getByTestId("knowledge-capability-requirements-GENERAL_FAQ");
+  await expect(fixes).toBeVisible();
+  await expect(fixes).toHaveAttribute("aria-expanded", "false");
+  await fixes.click();
+  await expect(fixes).toHaveAttribute("aria-expanded", "true");
+  await expect(requirements).toBeVisible();
+
+  const escalation = page.getByTestId("knowledge-capability-requirement-escalation_route");
+  await expect(escalation).toBeVisible();
+  await expect(escalation).toContainText(/[А-Яа-яЁё]/u);
+  await expect(page.getByText("Backend escalation route", { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByText("Backend escalation guidance is missing.", { exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByText("Add backend escalation guidance", { exact: true })).toHaveCount(0);
+  await page.screenshot({
+    path: "artifacts/playwright/knowledge-capability-fixes-desktop.png",
+    fullPage: true,
+    animations: "disabled",
+  });
+
+  const remediation = escalation.locator("a, button");
+  await expect(remediation).toHaveCount(1);
+  await remediation.click();
+  await expect(page).toHaveURL(/\/app\/knowledge\?[^#]*view=guidance/u);
+  const remediationUrl = new URL(page.url());
+  expect(remediationUrl.pathname).toBe("/app/knowledge");
+  expect(remediationUrl.searchParams.get("view")).toBe("guidance");
+  expect(remediationUrl.searchParams.get("task")).toBe("operator-handoff");
+  await expect(page.getByTestId("knowledge-tab-guidance")).toHaveAttribute("aria-selected", "true");
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${webBase}/app/knowledge?view=overview&capabilityId=general-faq`, {
+    waitUntil: "domcontentloaded",
+  });
+  const focusedRow = page.locator('[data-capability-id="general-faq"]');
+  await expect(focusedRow).toBeFocused();
+  await expect(fixes).toHaveAttribute("aria-expanded", "true");
+  await expect(requirements).toBeVisible();
+
+  const mobileActions = page.locator(
+    '[data-testid="knowledge-capability-fixes-GENERAL_FAQ"], [data-testid="knowledge-capability-requirement-escalation_route"] a, [data-testid="knowledge-capability-requirement-escalation_route"] button',
+  );
+  const mobileActionSizes = await mobileActions.evaluateAll((elements) =>
+    elements.map((element) => {
+      const rect = element.getBoundingClientRect();
+      return { height: rect.height, width: rect.width };
+    }),
+  );
+  expect(mobileActionSizes.length).toBeGreaterThanOrEqual(2);
+  expect(mobileActionSizes.every(({ height, width }) => height >= 44 && width >= 44)).toBe(true);
+  await expectNoHorizontalPageOverflow(page);
+  await page.screenshot({
+    path: "artifacts/playwright/knowledge-capability-fixes-mobile.png",
+    fullPage: true,
+    animations: "disabled",
+  });
+});
+
 test("Knowledge default audience preserves hidden scope and is read-only without permission", async ({
   page,
   browser,
@@ -1091,7 +1175,12 @@ test("app Knowledge navigation preserves all views and shows honest availability
   await expect(
     page.getByTestId("knowledge-serving-capabilities").getByText("General questions"),
   ).toBeVisible();
-  await expect(page.getByText("Ready with warnings", { exact: true })).toBeVisible();
+  await expect(
+    page
+      .getByTestId("knowledge-draft-capabilities")
+      .locator('[data-capability-type="GENERAL_FAQ"]')
+      .getByText("Blocked", { exact: true }),
+  ).toBeVisible();
   await expectNoHorizontalPageOverflow(page);
   await page.screenshot({
     path: "artifacts/screenshots/knowledge-overview-desktop.png",

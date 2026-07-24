@@ -1,10 +1,11 @@
 "use client";
 
 import React from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
   ArrowRight,
+  ChevronDown,
   CheckCircle2,
   Clock3,
   FileWarning,
@@ -21,6 +22,9 @@ import type {
   KnowledgeV2JobStatus,
   KnowledgeV2OverviewView,
   KnowledgeV2ReadinessStatus,
+  KnowledgeV2ReadinessRequirementView,
+  KnowledgeV2RequirementKind,
+  KnowledgeV2RequirementReasonCode,
 } from "@leadvirt/types";
 import { useI18n } from "@/i18n/I18nProvider";
 import type { TranslationKey } from "@/i18n/messages";
@@ -80,6 +84,70 @@ const capabilityNameKeys: Record<KnowledgeV2CapabilityType, TranslationKey> = {
   REGULATED_TOPIC: "knowledge.capability.type.regulatedTopic",
 };
 
+const capabilityRequirementLabelKeys: Partial<Record<string, TranslationKey>> = {
+  business_identity: "knowledge.capability.requirement.business_identity",
+  contact_route: "knowledge.capability.requirement.contact_route",
+  approved_knowledge: "knowledge.capability.requirement.approved_knowledge",
+  escalation_route: "knowledge.capability.requirement.escalation_route",
+  supported_locales: "knowledge.capability.requirement.supported_locales",
+  qualification_fields: "knowledge.capability.requirement.qualification_fields",
+  disqualifier_rules: "knowledge.capability.requirement.disqualifier_rules",
+  collection_consent: "knowledge.capability.requirement.collection_consent",
+  routing_rules: "knowledge.capability.requirement.routing_rules",
+  structured_price: "knowledge.capability.requirement.structured_price",
+  pricing_conditions: "knowledge.capability.requirement.pricing_conditions",
+  quote_policy: "knowledge.capability.requirement.quote_policy",
+  dynamic_quote_tool: "knowledge.capability.requirement.dynamic_quote_tool",
+  service_details: "knowledge.capability.requirement.service_details",
+  business_hours: "knowledge.capability.requirement.business_hours",
+  booking_policy: "knowledge.capability.requirement.booking_policy",
+  calendar_connector: "knowledge.capability.requirement.calendar_connector",
+  availability_tool: "knowledge.capability.requirement.availability_tool",
+  booking_constraints: "knowledge.capability.requirement.booking_constraints",
+  confirmation_rule: "knowledge.capability.requirement.confirmation_rule",
+  booking_tool: "knowledge.capability.requirement.booking_tool",
+  booking_permission: "knowledge.capability.requirement.booking_permission",
+  booking_safety_cases: "knowledge.capability.requirement.booking_safety_cases",
+  support_policy: "knowledge.capability.requirement.support_policy",
+  account_lookup_tool: "knowledge.capability.requirement.account_lookup_tool",
+  customer_state_permission: "knowledge.capability.requirement.customer_state_permission",
+  identity_verification_cases: "knowledge.capability.requirement.identity_verification_cases",
+  product_attributes: "knowledge.capability.requirement.product_attributes",
+  commerce_policies: "knowledge.capability.requirement.commerce_policies",
+  inventory_tool: "knowledge.capability.requirement.inventory_tool",
+  catalog_connector: "knowledge.capability.requirement.catalog_connector",
+  approved_wording: "knowledge.capability.requirement.approved_wording",
+  regulated_rules: "knowledge.capability.requirement.regulated_rules",
+  specialist_permission: "knowledge.capability.requirement.specialist_permission",
+  regulated_safety_cases: "knowledge.capability.requirement.regulated_safety_cases",
+};
+
+const capabilityRequirementKindKeys: Record<KnowledgeV2RequirementKind, TranslationKey> = {
+  FACT: "knowledge.capability.kind.fact",
+  RULE: "knowledge.capability.kind.rule",
+  DOCUMENT_COVERAGE: "knowledge.capability.kind.document",
+  CONNECTOR: "knowledge.capability.kind.connector",
+  TOOL: "knowledge.capability.kind.tool",
+  PERMISSION: "knowledge.capability.kind.permission",
+  LOCALE: "knowledge.capability.kind.locale",
+  EVALUATION_CASE: "knowledge.capability.kind.evaluation",
+};
+
+const capabilityRequirementReasonKeys: Record<KnowledgeV2RequirementReasonCode, TranslationKey> = {
+  SATISFIED: "knowledge.capability.reason.satisfied",
+  CAPABILITY_DISABLED: "knowledge.capability.reason.disabled",
+  REQUIREMENT_INACTIVE: "knowledge.capability.reason.inactive",
+  INVALID_DEFINITION: "knowledge.capability.reason.invalid",
+  INVALID_PREDICATE: "knowledge.capability.reason.invalid",
+  ACTIVE_CONFLICT: "knowledge.capability.reason.conflict",
+  EVIDENCE_STALE: "knowledge.capability.reason.stale",
+  EVIDENCE_MISSING: "knowledge.capability.reason.missing",
+  THRESHOLD_NOT_MET: "knowledge.capability.reason.threshold",
+  SCOPE_NOT_COVERED: "knowledge.capability.reason.scope",
+  LOCALE_NOT_COVERED: "knowledge.capability.reason.locale",
+  LOCALE_CONTEXT_MISSING: "knowledge.capability.reason.localeContext",
+};
+
 const autonomyLabelKeys: Record<KnowledgeV2CapabilityAutonomy, TranslationKey> = {
   ANSWER_ONLY: "knowledge.capability.autonomy.answerOnly",
   COLLECT_INFORMATION: "knowledge.capability.autonomy.collectInformation",
@@ -129,6 +197,9 @@ export function KnowledgeOverview({
   const { formatDate, formatNumber, t } = useI18n();
   const searchParams = useSearchParams();
   const focusedCapabilityId = searchParams.get("capabilityId");
+  const [expandedCapabilityId, setExpandedCapabilityId] = React.useState<string | null>(
+    focusedCapabilityId,
+  );
   const [expandedGateKey, setExpandedGateKey] = React.useState<string | null>(null);
   const expandedGateDetailsRef = React.useRef<HTMLDivElement>(null);
   const { readiness } = overview;
@@ -174,10 +245,13 @@ export function KnowledgeOverview({
 
   React.useEffect(() => {
     if (!focusedCapabilityId || capabilityLoading) return;
+    setExpandedCapabilityId(focusedCapabilityId);
     const target = findKnowledgeDataElement("data-capability-id", focusedCapabilityId);
     if (!target) return;
-    target.scrollIntoView({ block: "center" });
-    target.focus();
+    window.requestAnimationFrame(() => {
+      target.scrollIntoView({ block: "center" });
+      target.focus();
+    });
   }, [capabilityLoading, focusedCapabilityId]);
 
   const capabilitySaving = Object.values(capabilityStates).some(
@@ -522,6 +596,11 @@ export function KnowledgeOverview({
                   controlsLoading={capabilityLoading || Boolean(capabilityLoadError)}
                   saveState={capabilityStates[capability.capabilityType]}
                   focused={focusedCapabilityId === capability.capabilityId}
+                  expanded={expandedCapabilityId === capability.capabilityId}
+                  onExpandedChange={(expanded) =>
+                    setExpandedCapabilityId(expanded ? capability.capabilityId : null)
+                  }
+                  onNavigate={onNavigate}
                   onEnabledChange={(enabled) =>
                     void saveCapability(capability.capabilityType, { enabled })
                   }
@@ -654,6 +733,9 @@ function CapabilityDraftRow({
   controlsLoading,
   saveState,
   focused,
+  expanded,
+  onExpandedChange,
+  onNavigate,
   onEnabledChange,
   onAutonomyChange,
   onReload,
@@ -664,16 +746,86 @@ function CapabilityDraftRow({
   controlsLoading: boolean;
   saveState?: CapabilitySaveState;
   focused: boolean;
+  expanded: boolean;
+  onExpandedChange: (expanded: boolean) => void;
+  onNavigate: (target: KnowledgeViewId | KnowledgeNavigationTarget) => void;
   onEnabledChange: (enabled: boolean) => void;
   onAutonomyChange: (autonomy: KnowledgeV2CapabilityAutonomy) => void;
   onReload: () => void;
 }) {
-  const { formatNumber, t } = useI18n();
+  const router = useRouter();
+  const { formatNumber, locale, t } = useI18n();
   const name = t(capabilityNameKeys[capability.capabilityType]);
   const enabled = setting?.enabled ?? capability.enabled;
   const autonomy = setting?.allowedAutonomy ?? capability.allowedAutonomy;
   const saving = saveState?.status === "saving";
   const controlsDisabled = controlsLoading || saving || !setting;
+  const unresolvedRequirements = capability.requirements
+    .filter((requirement) => !["SATISFIED", "NOT_APPLICABLE"].includes(requirement.status))
+    .sort((left, right) => {
+      if (left.severity === right.severity) return left.id.localeCompare(right.id);
+      return left.severity === "BLOCKER" ? -1 : 1;
+    });
+  const requirementsId = `knowledge-capability-requirements-${capability.capabilityType}`;
+
+  function openRequirement(requirement: KnowledgeV2ReadinessRequirementView) {
+    if (requirement.remediation?.href) {
+      router.push(requirement.remediation.href);
+      return;
+    }
+
+    const destination = requirement.remediation?.destination;
+    if (destination) {
+      onNavigate({
+        view: destination.view,
+        task: destination.task,
+        resourceType: destination.resource?.type,
+        resourceId: destination.resource?.id,
+        sourceId: destination.sourceId,
+        documentId: destination.documentId,
+        revisionId: destination.revisionId,
+      });
+      return;
+    }
+
+    if (requirement.kind === "FACT") {
+      onNavigate({ view: "business", task: "complete-capability-requirement" });
+    } else if (requirement.kind === "RULE") {
+      onNavigate({ view: "guidance", task: requirement.id });
+    } else if (requirement.kind === "DOCUMENT_COVERAGE") {
+      onNavigate({ view: "sources", task: requirement.id });
+    } else if (requirement.kind === "LOCALE") {
+      onNavigate({ view: "business", task: "configure-locales" });
+    } else if (requirement.kind === "EVALUATION_CASE") {
+      onNavigate({ view: "test", task: requirement.id });
+    } else {
+      router.push("/app/integrations");
+    }
+  }
+
+  function requirementActionKey(requirement: KnowledgeV2ReadinessRequirementView): TranslationKey {
+    if (requirement.remediation?.href) return "knowledge.capability.action.integrations";
+    const destination = requirement.remediation?.destination;
+    if (destination?.view === "business") {
+      return destination.task === "configure-locales"
+        ? "knowledge.capability.action.languages"
+        : "knowledge.capability.action.business";
+    }
+    if (destination?.view === "guidance") return "knowledge.capability.action.guidance";
+    if (destination?.view === "sources") return "knowledge.capability.action.sources";
+    if (destination?.view === "test") return "knowledge.capability.action.test";
+    if (requirement.kind === "FACT") return "knowledge.capability.action.business";
+    if (requirement.kind === "RULE") return "knowledge.capability.action.guidance";
+    if (requirement.kind === "DOCUMENT_COVERAGE") {
+      return "knowledge.capability.action.sources";
+    }
+    if (requirement.kind === "LOCALE") return "knowledge.capability.action.languages";
+    if (requirement.kind === "EVALUATION_CASE") return "knowledge.capability.action.test";
+    if (["CONNECTOR", "TOOL", "PERMISSION"].includes(requirement.kind)) {
+      return "knowledge.capability.action.integrations";
+    }
+    return "knowledge.capability.action.details";
+  }
 
   return (
     <div
@@ -695,12 +847,14 @@ function CapabilityDraftRow({
           ) : null}
         </div>
         <p className="mt-1 text-xs text-zinc-500">
-          {t("knowledge.overview.requirements", {
-            done: formatNumber(
-              capability.requirements.filter((item) => item.status === "SATISFIED").length,
-            ),
-            total: formatNumber(capability.requirements.length),
-          })}
+          {enabled
+            ? t("knowledge.overview.requirements", {
+                done: formatNumber(
+                  capability.requirements.filter((item) => item.status === "SATISFIED").length,
+                ),
+                total: formatNumber(capability.requirements.length),
+              })
+            : t("knowledge.capability.fixes.disabled")}
         </p>
         <div className="mt-2 flex min-h-5 flex-wrap items-center gap-3" aria-live="polite">
           {capability.blockerCount > 0 ? (
@@ -713,31 +867,33 @@ function CapabilityDraftRow({
               {t("knowledge.common.warnings", { count: formatNumber(capability.warningCount) })}
             </span>
           ) : null}
-          {saving ? (
-            <span className="flex items-center gap-1.5 text-xs text-sky-300">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              {t("knowledge.capability.saving")}
-            </span>
-          ) : saveState?.status === "saved" ? (
+          {enabled && unresolvedRequirements.length === 0 ? (
             <span className="flex items-center gap-1.5 text-xs text-emerald-300">
               <CheckCircle2 className="h-3.5 w-3.5" />
-              {t("knowledge.capability.saved")}
-            </span>
-          ) : saveState?.status === "error" ? (
-            <span className="flex min-w-0 items-center gap-1.5 text-xs text-amber-300" role="alert">
-              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-              <span>{saveState.error}</span>
-              <Button
-                size="icon"
-                variant="ghost"
-                aria-label={t("knowledge.capability.reload")}
-                onClick={onReload}
-              >
-                <RefreshCw className="h-3.5 w-3.5" />
-              </Button>
+              {t("knowledge.capability.fixes.ready")}
             </span>
           ) : null}
         </div>
+        {enabled && unresolvedRequirements.length > 0 ? (
+          <button
+            type="button"
+            aria-controls={requirementsId}
+            aria-expanded={expanded}
+            className="mt-2 inline-flex min-h-11 max-w-full items-center gap-2 rounded-md text-left text-sm font-medium text-emerald-300 transition-colors hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50"
+            data-testid={`knowledge-capability-fixes-${capability.capabilityType}`}
+            onClick={() => onExpandedChange(!expanded)}
+          >
+            <ListChecks className="h-4 w-4 shrink-0" />
+            <span className="min-w-0">
+              {t(expanded ? "knowledge.capability.fixes.hide" : "knowledge.capability.fixes.show", {
+                count: formatNumber(unresolvedRequirements.length),
+              })}
+            </span>
+            <ChevronDown
+              className={cn("h-4 w-4 shrink-0 transition-transform", expanded && "rotate-180")}
+            />
+          </button>
+        ) : null}
       </div>
 
       <div className="min-w-0">
@@ -761,6 +917,32 @@ function CapabilityDraftRow({
             {t(autonomyLabelKeys[autonomy])}
           </div>
         )}
+        <div className="mt-2 min-h-5" aria-live="polite">
+          {saving ? (
+            <span className="flex items-center gap-1.5 text-xs text-sky-300">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              {t("knowledge.capability.saving")}
+            </span>
+          ) : saveState?.status === "saved" ? (
+            <span className="flex items-center gap-1.5 text-xs text-emerald-300">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              {t("knowledge.capability.fixes.saved")}
+            </span>
+          ) : saveState?.status === "error" ? (
+            <span className="flex min-w-0 items-center gap-1.5 text-xs text-amber-300" role="alert">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              <span>{saveState.error}</span>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label={t("knowledge.capability.reload")}
+                onClick={onReload}
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+              </Button>
+            </span>
+          ) : null}
+        </div>
       </div>
 
       <div className="flex min-w-28 items-center justify-between gap-3 lg:justify-end">
@@ -783,6 +965,90 @@ function CapabilityDraftRow({
           </span>
         )}
       </div>
+
+      {expanded && enabled && unresolvedRequirements.length > 0 ? (
+        <div
+          id={requirementsId}
+          className="-mx-5 -mb-4 min-w-0 border-t border-white/10 bg-white/[0.015] px-5 py-4 lg:col-span-3"
+          data-testid={requirementsId}
+        >
+          <div className="flex min-w-0 items-start gap-3">
+            <FileWarning className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+            <div className="min-w-0">
+              <p className="text-sm leading-5 text-zinc-300">
+                {t("knowledge.capability.fixes.intro")}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-zinc-500">
+                {t("knowledge.capability.fixes.disableHint")}
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 divide-y divide-white/10 border-y border-white/10">
+            {unresolvedRequirements.map((requirement) => {
+              const titleKey = capabilityRequirementLabelKeys[requirement.id];
+              const title = titleKey
+                ? t(titleKey)
+                : locale === "en"
+                  ? requirement.label
+                  : t("knowledge.capability.requirement.custom");
+              const reasonKey =
+                capabilityRequirementReasonKeys[requirement.reasonCode] ??
+                (requirement.status === "STALE"
+                  ? "knowledge.capability.reason.stale"
+                  : requirement.status === "CONFLICTED"
+                    ? "knowledge.capability.reason.conflict"
+                    : "knowledge.capability.reason.missing");
+
+              return (
+                <div
+                  key={requirement.id}
+                  className="grid min-w-0 gap-3 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                  data-testid={`knowledge-capability-requirement-${requirement.id}`}
+                >
+                  <div className="flex min-w-0 items-start gap-3">
+                    {requirement.severity === "BLOCKER" ? (
+                      <FileWarning className="mt-0.5 h-4 w-4 shrink-0 text-rose-400" />
+                    ) : (
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+                    )}
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="text-sm font-medium text-zinc-100">{title}</h4>
+                        <span
+                          className={cn(
+                            "text-xs font-medium",
+                            requirement.severity === "BLOCKER" ? "text-rose-400" : "text-amber-400",
+                          )}
+                        >
+                          {t(
+                            requirement.severity === "BLOCKER"
+                              ? "knowledge.capability.fixes.required"
+                              : "knowledge.capability.fixes.recommended",
+                          )}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs font-medium text-zinc-300">{t(reasonKey)}</p>
+                      <p className="mt-1 text-xs leading-5 text-zinc-500">
+                        {t(capabilityRequirementKindKeys[requirement.kind])}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="min-h-11 w-full justify-center sm:w-auto"
+                    onClick={() => openRequirement(requirement)}
+                  >
+                    {t(requirementActionKey(requirement))}
+                    <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

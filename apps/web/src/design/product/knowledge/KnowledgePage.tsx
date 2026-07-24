@@ -320,7 +320,12 @@ function KnowledgeView({
   const factId = searchParams.get("factId");
 
   React.useEffect(() => {
-    if (view === "business" && task === "verify-fact") setAdvancedOpen(true);
+    if (
+      view === "business" &&
+      ["verify-fact", "configure-locales", "complete-capability-requirement"].includes(task ?? "")
+    ) {
+      setAdvancedOpen(true);
+    }
   }, [task, view]);
 
   const serviceBlockerFactIds = React.useMemo(

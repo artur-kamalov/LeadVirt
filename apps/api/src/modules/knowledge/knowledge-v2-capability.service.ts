@@ -24,7 +24,10 @@ import type {
   KnowledgeV2JsonValue,
   KnowledgeV2MutationResult,
   KnowledgeV2PublicationGateView,
+  KnowledgeV2ReadinessRemediationView,
   KnowledgeV2ReadinessRequirementView,
+  KnowledgeV2RequirementKind,
+  KnowledgeV2RequirementReasonCode,
   KnowledgeV2ResourceRef,
   KnowledgeV2UpdateCapabilityRequest,
 } from "@leadvirt/types";
@@ -164,35 +167,116 @@ function definitionsFromRecords(records: CapabilityRecord[]): KnowledgeCapabilit
 function evidenceResource(ref: KnowledgeCapabilityEvidenceRefV1): KnowledgeV2ResourceRef {
   if (ref.type === "FACT_VERSION") return { type: "FACT", id: ref.id };
   if (ref.type === "GUIDANCE_RULE_VERSION") return { type: "GUIDANCE_RULE", id: ref.id };
-  if (ref.type === "DOCUMENT_REVISION") return { type: "REVISION", id: ref.id };
+  if (ref.type === "DOCUMENT_REVISION") {
+    return ref.versionId
+      ? { type: "REVISION", id: ref.versionId }
+      : { type: "DOCUMENT", id: ref.id };
+  }
   return { type: "SETTINGS", id: ref.id };
+}
+
+function requirementRemediation(
+  remediation: { action: string; label: string },
+  kind: KnowledgeV2RequirementKind,
+  capability: { id: string; name: string },
+  evidenceRefs: readonly KnowledgeCapabilityEvidenceRefV1[],
+): KnowledgeV2ReadinessRemediationView {
+  const capabilityResource = {
+    type: "CAPABILITY" as const,
+    id: capability.id,
+    label: capability.name,
+  };
+  const evidence = evidenceRefs[0];
+  if (kind === "CONNECTOR" || kind === "TOOL" || kind === "PERMISSION") {
+    return {
+      action: remediation.action,
+      label: remediation.label,
+      resource: capabilityResource,
+      href: "/app/integrations",
+    };
+  }
+  if (kind === "LOCALE") {
+    return {
+      action: remediation.action,
+      label: remediation.label,
+      resource: capabilityResource,
+      destination: {
+        view: "business",
+        task: "configure-locales",
+        resource: capabilityResource,
+      },
+    };
+  }
+  if (kind === "FACT") {
+    const resource =
+      evidence?.type === "FACT_VERSION" ? evidenceResource(evidence) : capabilityResource;
+    return {
+      action: remediation.action,
+      label: remediation.label,
+      resource,
+      destination: { view: "business", task: "complete-capability-requirement", resource },
+    };
+  }
+  if (kind === "RULE") {
+    const resource =
+      evidence?.type === "GUIDANCE_RULE_VERSION" ? evidenceResource(evidence) : capabilityResource;
+    return {
+      action: remediation.action,
+      label: remediation.label,
+      resource,
+      destination: { view: "guidance", resource },
+    };
+  }
+  if (kind === "DOCUMENT_COVERAGE") {
+    const documentRef = evidence?.type === "DOCUMENT_REVISION" ? evidence : null;
+    const resource = documentRef
+      ? { type: "DOCUMENT" as const, id: documentRef.id }
+      : capabilityResource;
+    return {
+      action: remediation.action,
+      label: remediation.label,
+      resource,
+      destination: {
+        view: "sources",
+        resource,
+        ...(documentRef?.id ? { documentId: documentRef.id } : {}),
+        ...(documentRef?.versionId ? { revisionId: documentRef.versionId } : {}),
+      },
+    };
+  }
+  const testCaseRef = evidence?.type === "EVALUATION_CASE" ? evidence : null;
+  const resource = testCaseRef
+    ? { type: "TEST_CASE" as const, id: testCaseRef.id }
+    : capabilityResource;
+  return {
+    action: remediation.action,
+    label: remediation.label,
+    resource,
+    destination: { view: "test", resource },
+  };
 }
 
 function requirementView(
   requirement: KnowledgeCapabilitySnapshotV1["capabilities"][number]["requirements"][number],
   capability: { id: string; name: string },
 ): KnowledgeV2ReadinessRequirementView {
-  const resource = {
-    type: "CAPABILITY" as const,
-    id: capability.id,
-    label: capability.name,
-  };
   return {
     id: requirement.requirementKey,
     kind: requirement.kind,
     label: requirement.label,
     status: requirement.status,
+    reasonCode: requirement.reasonCode,
     severity: requirement.severity,
     riskLevel: requirement.riskLevel,
     explanation: requirement.explanation,
     evidence: requirement.evidenceRefs.map(evidenceResource),
     remediation: requirement.remediation
-      ? {
-          action: requirement.remediation.action,
-          label: requirement.remediation.label,
-          resource,
-          destination: { view: "overview", resource },
-        }
+      ? requirementRemediation(
+          requirement.remediation,
+          requirement.kind,
+          capability,
+          requirement.evidenceRefs,
+        )
       : null,
     evaluatedAt: requirement.evaluatedAt,
   };
@@ -242,45 +326,25 @@ function capabilityReadinessViews(
 }
 
 function capabilityGates(
-  snapshot: KnowledgeCapabilitySnapshotV1,
+  capabilities: readonly KnowledgeV2CapabilityReadinessView[],
   severity: "BLOCKER" | "WARNING",
 ): KnowledgeV2PublicationGateView[] {
-  return snapshot.capabilities.flatMap((capability) =>
+  return capabilities.flatMap((capability) =>
     capability.enabled
       ? capability.requirements.flatMap((requirement) =>
           requirement.severity === severity && requirement.status !== "SATISFIED"
             ? [
                 {
-                  code: `KNOWLEDGE_CAPABILITY_${capability.capabilityType}_${requirement.requirementKey}_${requirement.status}`.toUpperCase(),
+                  code: `KNOWLEDGE_CAPABILITY_${capability.capabilityType}_${requirement.id}_${requirement.status}`.toUpperCase(),
                   status: severity === "BLOCKER" ? ("BLOCKED" as const) : ("WARNING" as const),
                   title: `${capability.name}: ${requirement.label}`,
                   message: requirement.explanation,
                   resource: {
                     type: "CAPABILITY" as const,
                     id: capability.capabilityId,
-                    label: capability.name,
+                    label: capabilityNames[capability.capabilityType],
                   },
-                  ...(requirement.remediation
-                    ? {
-                        remediation: {
-                          action: requirement.remediation.action,
-                          label: requirement.remediation.label,
-                          resource: {
-                            type: "CAPABILITY" as const,
-                            id: capability.capabilityId,
-                            label: capability.name,
-                          },
-                          destination: {
-                            view: "overview" as const,
-                            resource: {
-                              type: "CAPABILITY" as const,
-                              id: capability.capabilityId,
-                              label: capability.name,
-                            },
-                          },
-                        },
-                      }
-                    : {}),
+                  ...(requirement.remediation ? { remediation: requirement.remediation } : {}),
                 },
               ]
             : [],
@@ -309,6 +373,28 @@ function persistedRequirementStatus(status: string): KnowledgeV2ReadinessRequire
     return status;
   }
   return "UNSATISFIED";
+}
+
+function persistedRequirementReasonCode(
+  reasonCode: string | null,
+): KnowledgeV2RequirementReasonCode {
+  if (
+    reasonCode === "SATISFIED" ||
+    reasonCode === "CAPABILITY_DISABLED" ||
+    reasonCode === "REQUIREMENT_INACTIVE" ||
+    reasonCode === "INVALID_DEFINITION" ||
+    reasonCode === "INVALID_PREDICATE" ||
+    reasonCode === "ACTIVE_CONFLICT" ||
+    reasonCode === "EVIDENCE_STALE" ||
+    reasonCode === "EVIDENCE_MISSING" ||
+    reasonCode === "THRESHOLD_NOT_MET" ||
+    reasonCode === "SCOPE_NOT_COVERED" ||
+    reasonCode === "LOCALE_NOT_COVERED" ||
+    reasonCode === "LOCALE_CONTEXT_MISSING"
+  ) {
+    return reasonCode;
+  }
+  return "INVALID_DEFINITION";
 }
 
 @Injectable()
@@ -516,18 +602,19 @@ export class KnowledgeV2CapabilityService {
             },
           ]
         : [];
+    const views = capabilityReadinessViews(snapshot, records);
     return {
       snapshot,
       operationalProjection: evidenceBundle.operationalProjection,
       definitions,
       records,
-      views: capabilityReadinessViews(snapshot, records),
+      views,
       blockers: [
         ...enabledCapabilityBlockers,
         ...operationalBlockers,
-        ...capabilityGates(snapshot, "BLOCKER"),
+        ...capabilityGates(views, "BLOCKER"),
       ],
-      warnings: capabilityGates(snapshot, "WARNING"),
+      warnings: capabilityGates(views, "WARNING"),
     };
   }
 
@@ -680,14 +767,15 @@ export class KnowledgeV2CapabilityService {
         const requirements = evaluations.map((evaluation): KnowledgeV2ReadinessRequirementView => {
           const details = record(evaluation.details);
           const remediationRecord = record(details.remediation);
-          const evidenceRefs = Array.isArray(details.evidenceRefs)
+          const capabilityEvidenceRefs = Array.isArray(details.evidenceRefs)
             ? details.evidenceRefs.flatMap((value) => {
                 const ref = record(value);
                 return typeof ref.type === "string" && typeof ref.id === "string"
-                  ? [evidenceResource(ref as unknown as KnowledgeCapabilityEvidenceRefV1)]
+                  ? [ref as unknown as KnowledgeCapabilityEvidenceRefV1]
                   : [];
               })
             : [];
+          const evidenceRefs = capabilityEvidenceRefs.map(evidenceResource);
           return {
             id: evaluation.requirementDefinition.requirementKey,
             kind: evaluation.requirementDefinition.kind,
@@ -696,6 +784,7 @@ export class KnowledgeV2CapabilityService {
                 ? details.label
                 : requirementLabel(evaluation.requirementDefinition.requirementKey),
             status: persistedRequirementStatus(evaluation.status),
+            reasonCode: persistedRequirementReasonCode(evaluation.reasonCode),
             severity: evaluation.requirementDefinition.severity,
             riskLevel: evaluation.requirementDefinition.riskLevel,
             explanation:
@@ -706,23 +795,18 @@ export class KnowledgeV2CapabilityService {
             remediation:
               typeof remediationRecord.action === "string" &&
               typeof remediationRecord.label === "string"
-                ? {
-                    action: remediationRecord.action,
-                    label: remediationRecord.label,
-                    resource: {
-                      type: "CAPABILITY",
+                ? requirementRemediation(
+                    {
+                      action: remediationRecord.action,
+                      label: remediationRecord.label,
+                    },
+                    evaluation.requirementDefinition.kind,
+                    {
                       id: snapshot.capabilityId,
-                      label: capabilityNames[snapshot.capabilityType],
+                      name: capabilityNames[snapshot.capabilityType],
                     },
-                    destination: {
-                      view: "overview",
-                      resource: {
-                        type: "CAPABILITY",
-                        id: snapshot.capabilityId,
-                        label: capabilityNames[snapshot.capabilityType],
-                      },
-                    },
-                  }
+                    capabilityEvidenceRefs,
+                  )
                 : null,
             evaluatedAt: (evaluation.evaluatedAt ?? evaluation.createdAt).toISOString(),
           };
@@ -753,36 +837,8 @@ export class KnowledgeV2CapabilityService {
         };
       },
     );
-    const blockers = views.flatMap((view) =>
-      view.requirements.flatMap((requirement) =>
-        requirement.severity === "BLOCKER" && requirement.status !== "SATISFIED"
-          ? [
-              {
-                code: `KNOWLEDGE_CAPABILITY_${view.capabilityType}_${requirement.id}_${requirement.status}`.toUpperCase(),
-                status: "BLOCKED" as const,
-                title: `${view.name}: ${requirement.label}`,
-                message: requirement.explanation,
-                resource: { type: "CAPABILITY" as const, id: view.capabilityId, label: view.name },
-              },
-            ]
-          : [],
-      ),
-    );
-    const warnings = views.flatMap((view) =>
-      view.requirements.flatMap((requirement) =>
-        requirement.severity === "WARNING" && requirement.status !== "SATISFIED"
-          ? [
-              {
-                code: `KNOWLEDGE_CAPABILITY_${view.capabilityType}_${requirement.id}_${requirement.status}`.toUpperCase(),
-                status: "WARNING" as const,
-                title: `${view.name}: ${requirement.label}`,
-                message: requirement.explanation,
-                resource: { type: "CAPABILITY" as const, id: view.capabilityId, label: view.name },
-              },
-            ]
-          : [],
-      ),
-    );
+    const blockers = capabilityGates(views, "BLOCKER");
+    const warnings = capabilityGates(views, "WARNING");
     return {
       capabilitySetHash: publication.capabilitySetHash,
       requirementEvaluationSetHash: publication.requirementEvaluationSetHash,

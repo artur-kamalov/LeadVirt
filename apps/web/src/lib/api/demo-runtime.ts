@@ -241,6 +241,7 @@ function demoKnowledgeOverview(): KnowledgeV2OverviewView {
         kind: "EVALUATION_CASE" as const,
         label: "Customer answer test",
         status: "SATISFIED" as const,
+        reasonCode: "SATISFIED" as const,
         severity: "BLOCKER" as const,
         riskLevel: "LOW" as const,
         explanation: "The sample answer passed its knowledge check.",

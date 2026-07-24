@@ -456,6 +456,19 @@ export type KnowledgeV2RequirementStatus =
   | "STALE"
   | "CONFLICTED"
   | "NOT_APPLICABLE";
+export type KnowledgeV2RequirementReasonCode =
+  | "SATISFIED"
+  | "CAPABILITY_DISABLED"
+  | "REQUIREMENT_INACTIVE"
+  | "INVALID_DEFINITION"
+  | "INVALID_PREDICATE"
+  | "ACTIVE_CONFLICT"
+  | "EVIDENCE_STALE"
+  | "EVIDENCE_MISSING"
+  | "THRESHOLD_NOT_MET"
+  | "SCOPE_NOT_COVERED"
+  | "LOCALE_NOT_COVERED"
+  | "LOCALE_CONTEXT_MISSING";
 export type KnowledgeV2PublicationStatus =
   | "VALIDATING"
   | "READY"
@@ -3427,6 +3440,7 @@ export interface KnowledgeV2ReadinessRemediationView {
   action: string;
   label: string;
   resource?: KnowledgeV2ResourceRef | null;
+  href?: "/app/integrations" | null;
   destination?: {
     view: "overview" | "business" | "sources" | "guidance" | "review" | "test" | "history";
     task?: string | null;
@@ -3442,6 +3456,7 @@ export interface KnowledgeV2ReadinessRequirementView {
   kind: KnowledgeV2RequirementKind;
   label: string;
   status: KnowledgeV2RequirementStatus;
+  reasonCode: KnowledgeV2RequirementReasonCode;
   severity: KnowledgeV2RequirementSeverity;
   riskLevel: KnowledgeV2RiskLevel;
   explanation: string;
