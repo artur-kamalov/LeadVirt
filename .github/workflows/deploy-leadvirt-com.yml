@@ -32,8 +32,37 @@ env:
   EXPECTED_TELEGRAM_WEBHOOK_BASE_URL: https://147-90-14-240.sslip.io:8443/telegram-webhook
 
 jobs:
+  masterbudet_readonly_preflight:
+    name: Master Budet production read-only preflight
+    if: ${{ github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/heads/ops/masterbudet-prod-readonly-') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout operation source
+        uses: actions/checkout@v7
+
+      - name: Prepare SSH
+        env:
+          LEADVIRT_DEPLOY_SSH_KEY: ${{ secrets.LEADVIRT_DEPLOY_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$LEADVIRT_DEPLOY_SSH_KEY"
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$LEADVIRT_DEPLOY_SSH_KEY" > ~/.ssh/leadvirt_deploy_key
+          chmod 600 ~/.ssh/leadvirt_deploy_key
+          ssh-keygen -y -f ~/.ssh/leadvirt_deploy_key >/dev/null
+          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+
+      - name: Capture sanitized read-only production state
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/leadvirt_deploy_key "$DEPLOY_USER@$DEPLOY_HOST" \
+            "sudo -n env DEPLOY_PATH='/opt/masterbudet' LEADVIRT_ROOT='/opt/leadvirt' bash -s" \
+            < artifacts/scripts/masterbudet-production-readonly-preflight.sh
+
   verify:
     name: Verify
+    if: ${{ !startsWith(github.ref, 'refs/heads/ops/masterbudet-prod-readonly-') }}
     runs-on: ubuntu-24.04
     services:
       postgres:
