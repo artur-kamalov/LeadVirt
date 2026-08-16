@@ -1,9 +1,11 @@
 # LeadVirt Checklist
 
-Last updated: 2026-07-24
+Last updated: 2026-08-16
 
 ## Next
 
+- [ ] Activate the prepared Master Budet one-hop forwarding patch with an edge-only validated config reload after the backend env has exact `TRUST_PROXY_HOPS=1`; recheck both products and repair the active-project-aware certificate renewal path separately. Do not run a full LeadVirt application deploy for this edge-only change.
+- [x] Replaced inbound `X-Forwarded-For` in all four current Master Budet proxy locations with the direct peer address. A semantic verifier and nine mutation probes preserve the current routes/upstreams, reject appended/spoofable chains or unreviewed outer limits, and run in CI plus before the canonical HTTPS config copy. Backend single-replica limits remain the release abuse boundary; new outer limits are deferred until reconciled with current routes and customer fan-out.
 - [x] Added the explicit, idempotent `SAFE_ANSWER_STARTER_V1` policy-v2 action. It enables General FAQ, Pricing, Appointment Discovery, and Commerce Recommendation in `ANSWER_ONLY`, disables Lead Qualification, Appointment Booking, Order/Account Support, and Regulated Topics, installs platform requirement definitions, advances the draft, and revokes automatic replies when settings change. Capability reads and ordinary PATCH requests remain side-effect-free; no defaults are created silently.
 - [x] Reduced fresh onboarding to a business name plus short description and projected both into Knowledge. The browser and API both require nonblank values before fresh company completion or launch; already-completed legacy workspaces may replay without a stored description. First launch then requires an owner/admin to confirm the exact fixed preset. Applying it changes capability settings; it does not provide a computed preview, preserve prior capability choices, publish Knowledge, activate a channel, or offer preset reset/rollback.
 - [x] Reclassified starter evidence gaps as warnings and collapsed them under optional improvements. Hard capability blockers remain only when no capability is enabled, no enabled capability is executable, or operational authorization is unavailable; publication integrity, explicit consent, external writes, customer/account access, and regulated behavior retain their independent fail-closed gates.

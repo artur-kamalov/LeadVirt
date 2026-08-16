@@ -1,5 +1,19 @@
 # Decision Log
 
+## 2026-08-16: Give Master Budet One Trustworthy Proxy Hop
+
+Decision: The shared nginx edge replaces client-supplied `X-Forwarded-For` with `$remote_addr` in each of the four current Master Budet proxy locations. The backend trusts exactly this one proxy hop. This patch adds no shared-edge request or connection limiter.
+
+Context: Appending an inbound forwarding chain lets a direct client influence the address used by backend auditing and process-local abuse controls. A previously prepared outer policy also targeted routes absent from the current API and could throttle one normal customer page fan-out, so it is not release-safe.
+
+Consequences:
+
+- `/health`, `/api/`, `/uploads/`, and `/` retain their current upstreams, TLS behavior, headers, and route matching; LeadVirt virtual hosts remain unchanged.
+- A semantic verifier runs in CI and before the canonical HTTPS config copy. Mutation probes reject an appended, missing, duplicated, or misrouted Master Budet forwarding boundary and reject adding an unreviewed outer limiter.
+- Activation is an edge-only validated config update and reload, not a full LeadVirt application deployment. Both products must pass health after reload.
+- Backend single-replica limits own current staff/public/session budgets. An outer policy remains deferred until it matches current OpenAPI routes, normal customer request fan-out, and multi-client/NAT behavior.
+- Certificate renewal repair remains separate and must target the active Compose project before automation is enabled.
+
 ## 2026-07-24: Use An Explicit Safe First-Launch Preset
 
 Decision: First launch uses the explicit, idempotent `SAFE_ANSWER_STARTER_V1` policy-v2 action after the owner or admin provides the minimum business name and short description. The preset enables General FAQ, Pricing, Appointment Discovery, and Commerce Recommendation in `ANSWER_ONLY`, disables the four advanced capabilities, and installs server-owned requirement definitions. Reads and ordinary capability edits never apply defaults silently.

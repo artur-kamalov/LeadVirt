@@ -234,6 +234,11 @@ jobs:
       - name: Verify domain migration
         run: corepack pnpm run qa:domain-migration
 
+      - name: Verify Master Budet one-hop forwarding
+        run: |
+          python3 deploy/test-masterbudet-forwarding.py
+          python3 deploy/verify-masterbudet-forwarding.py deploy/nginx.https.conf
+
       - name: Verify AI quality gate
         run: corepack pnpm run qa:ai:quality
 
@@ -404,6 +409,7 @@ jobs:
 
   deploy:
     name: Deploy
+    if: github.ref != 'refs/heads/ops/masterbudet-xff-only-20260816'
     runs-on: ubuntu-24.04
     needs: verify
     environment: leadvirt-com
